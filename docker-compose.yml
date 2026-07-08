@@ -1,0 +1,92 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-garage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-garage}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-garage}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - uploads:/app/uploads
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-garage}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-garage}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: production
+      PORT: "8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NEXT_PUBLIC_API_URL: http://api:8080
+      NODE_ENV: production
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    depends_on:
+      - api
+      - web
+
+  # --- 아래는 1단계(MVP) 범위 밖이라 지금은 뺐다. 필요해지는 시점에 주석 해제 ---
+
+  # mosquitto:                          # 2~3단계: OBD/GPS 수집, Home Assistant 연동 시작할 때
+  #   image: eclipse-mosquitto:2
+  #   restart: unless-stopped
+  #   volumes:
+  #     - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+  #     - mosquitto-data:/mosquitto/data
+
+  # cloudflared:                        # 외부 접근을 실제로 붙이는 시점에 (별도로 연결 예정이라 함)
+  #   image: cloudflare/cloudflared:latest
+  #   restart: unless-stopped
+  #   command: tunnel run
+  #   environment:
+  #     TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+  #   depends_on:
+  #     - caddy
+
+  # redis:                              # BullMQ로 백그라운드 작업을 분리해야 할 만큼 부하가 늘면
+  #   image: redis:7-alpine
+  #   restart: unless-stopped
+  #   volumes:
+  #     - redis-data:/data
+
+  # traccar:                            # 전용 GPS/OBD 하드웨어 로거를 실제로 쓰기 시작하면
+  #   image: traccar/traccar:latest
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5000-5150:5000-5150"
+  #   volumes:
+  #     - traccar-data:/opt/traccar/data
+
+volumes:
+  pgdata:
+  uploads:
+  # mosquitto-data:
+  # redis-data:
+  # traccar-data:
