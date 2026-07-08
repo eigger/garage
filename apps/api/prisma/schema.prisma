@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  GENERAL
+}
+
+enum TripPurpose {
+  BUSINESS
+  PERSONAL
+}
+
+enum ReminderStatus {
+  PENDING
+  DONE
+  DISMISSED
+}
+
+enum FuelType {
+  GASOLINE
+  DIESEL
+  LPG
+  ELECTRIC
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole @default(GENERAL)
+  createdAt    DateTime @default(now())
+
+  vehicleAccess UserVehicleAccess[]
+  fuelLogs      FuelLog[]
+}
+
+model Vehicle {
+  id        String    @id @default(cuid())
+  name      String
+  plate     String?
+  make      String?
+  model     String?
+  year      Int?
+  vin       String?
+  fuelType  FuelType?
+  apiToken  String?   @unique
+  createdAt DateTime  @default(now())
+
+  access             UserVehicleAccess[]
+  trips              Trip[]
+  fuelLogs           FuelLog[]
+  maintenanceRecords MaintenanceRecord[]
+  consumableParts    ConsumablePart[]
+  reminders          Reminder[]
+  telemetry          TelemetryRaw[]
+  attachments        Attachment[]
+}
+
+// 일반 사용자의 담당 차량 지정. 관리자는 전체 접근이라 별도 행이 필요 없다.
+model UserVehicleAccess {
+  userId          String
+  vehicleId       String
+  canViewLocation Boolean @default(false)
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, vehicleId])
+}
+
+// OBD/GPS 원시 데이터. 데이터량이 늘면 TimescaleDB 하이퍼테이블로 전환 검토.
+model TelemetryRaw {
+  id        BigInt   @id @default(autoincrement())
+  time      DateTime @default(now())
+  vehicleId String
+  tripId    String?
+  source    String
+  lat       Float?
+  lon       Float?
+  speed     Float?
+  rpm       Float?
+  fuelLevel Float?
+  dtcCodes  String?
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  trip    Trip?   @relation(fields: [tripId], references: [id])
+
+  @@index([vehicleId, time])
+}
+
+model Trip {
+  id            String       @id @default(cuid())
+  vehicleId     String
+  startTime     DateTime
+  endTime       DateTime?
+  distanceKm    Float?
+  avgSpeed      Float?
+  idleTimeSec   Int?
+  purpose       TripPurpose?
+  routePolyline String?
+
+  vehicle   Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  telemetry TelemetryRaw[]
+}
+
+model FuelLog {
+  id        String   @id @default(cuid())
+  vehicleId String
+  userId    String?
+  date      DateTime
+  odometer  Int
+  liters    Float
+  cost      Int
+  fullTank  Boolean  @default(true)
+  location  String?
+
+  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  user        User?        @relation(fields: [userId], references: [id])
+  attachments Attachment[]
+}
+
+model MaintenanceRecord {
+  id        String   @id @default(cuid())
+  vehicleId String
+  date      DateTime
+  odometer  Int
+  type      String
+  cost      Int?
+  shop      String?
+  notes     String?
+
+  vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
+}
+
+// 거리·기간 이중 기준으로 주기를 추적하는 관리 항목 (부품 교체뿐 아니라 흡기 클리닝 같은
+// 작업성 항목도 포함 — "언제 했고 얼마 주기로 반복해야 하는가"를 표현).
+model ConsumablePart {
+  id                 String   @id @default(cuid())
+  vehicleId          String
+  partType           String
+  installedDate      DateTime
+  installedOdometer  Int
+  expectedLifeKm     Int?
+  expectedLifeMonths Int?
+  presetTemplateId   String?
+
+  vehicle        Vehicle                    @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  presetTemplate MaintenancePresetTemplate? @relation(fields: [presetTemplateId], references: [id], onDelete: SetNull)
+  reminder       Reminder?
+}
+
+// 연료타입별 정비 마스터 템플릿 (관리자 전역 관리). 차량 등록 시 해당 연료타입 템플릿이
+// 그 차량의 ConsumablePart로 복사되고, 이후에는 차량별로 독립적으로 수정된다.
+model MaintenancePresetTemplate {
+  id             String   @id @default(cuid())
+  fuelType       FuelType
+  name           String
+  intervalKm     Int?
+  intervalMonths Int?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  consumableParts ConsumablePart[]
+
+  @@unique([fuelType, name])
+}
+
+// 거리·기간 중 먼저 도래하는 조건으로 계산되는 정비/소모품 리마인더.
+// consumablePartId가 있으면 해당 소모품의 다음 교체 시점을 나타내고,
+// 매일 밤 잡이 upsert로 갱신한다. 법정검사 등 소모품과 무관한 리마인더는
+// consumablePartId 없이 수동으로 만들 수도 있다.
+model Reminder {
+  id               String         @id @default(cuid())
+  vehicleId        String
+  consumablePartId String?        @unique
+  type             String
+  dueDate          DateTime?
+  dueOdometer      Int?
+  status           ReminderStatus @default(PENDING)
+
+  vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  consumablePart ConsumablePart? @relation(fields: [consumablePartId], references: [id], onDelete: Cascade)
+}
+
+// 영수증/보험증권/견적서 등 사진·PDF 첨부
+model Attachment {
+  id         String   @id @default(cuid())
+  filePath   String
+  mimeType   String
+  uploadedAt DateTime @default(now())
+
+  fuelLogId String?
+  fuelLog   FuelLog? @relation(fields: [fuelLogId], references: [id], onDelete: Cascade)
+
+  maintenanceRecordId String?
+  maintenanceRecord   MaintenanceRecord? @relation(fields: [maintenanceRecordId], references: [id], onDelete: Cascade)
+
+  vehicleId           String?
+  vehicle             Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}

@@ -29,11 +29,16 @@ garage/
    ```
    npm run prisma:migrate
    ```
-5. 개발 서버 실행:
+5. 최초 관리자 계정 생성 (공개 회원가입이 없어서 최초 1회 필요):
+   ```
+   npm run seed -w apps/api
+   ```
+6. 개발 서버 실행:
    ```
    npm run dev:api   # http://localhost:8080
    npm run dev:web   # http://localhost:3000
    ```
+7. `http://localhost:3000/login`에서 `.env`에 넣은 `ADMIN_EMAIL`/`ADMIN_PASSWORD`로 로그인.
 
 ## 전체 스택 배포 (1단계 범위: postgres + api + web + caddy)
 
