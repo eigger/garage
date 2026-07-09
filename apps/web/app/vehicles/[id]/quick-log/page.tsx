@@ -168,7 +168,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!odometer || !liters || !cost || (location && !unitPrice)) {
+    if (!odometer || !liters || !cost) {
       setError(t("requiredField"));
       return;
     }
@@ -252,13 +252,11 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         )}
       </div>
 
-      {location && (
-        <input
-          placeholder={t("gasStation")}
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-        />
-      )}
+      <input
+        placeholder={t("gasStation")}
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+      />
 
       <input
         type="number"
