@@ -11,6 +11,8 @@ An all-in-one self-hosted car management server for families and home labs — m
 
 Detailed architecture design: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · API integrations: [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · Progress notes: [`docs/PROGRESS.md`](./docs/PROGRESS.md)
 
+> Current release prep: **v0.2.0-beta** (`release/v0.2.0-beta`)
+
 ## Project Structure
 
 ```
@@ -37,8 +39,13 @@ garage/
 - OBD app webhook ingest (Torque Pro Upload URL) and JSON telemetry ingest; auto trip segmentation
 - Trip reports (weekly/monthly) with business/personal purpose tagging
 - Dashboard due-reminder badges; admin backup/restore (`.tar.gz`)
+- Reminder quick actions to jump into Schedule/Quick Log
+- Dashboard vehicle summary cards (odometer, weekly distance, latest fuel cost, due/upcoming counts)
+- History fuel efficiency between full-tank logs (`km/L`, `L/100km`)
+- Monthly cost summary card on vehicle overview (fuel / maintenance+admin / total)
 - Settings UI for integration keys (e.g. Opinet, Kakao/Naver maps); PWA; language / distance / currency display prefs
 - Trip route map (OpenStreetMap default; Kakao/Naver when API keys configured)
+- Admin preset tool to apply preset interval changes to existing vehicles
 - Vehicle details including tire size and battery capacity
 
 **Optional / upcoming**
