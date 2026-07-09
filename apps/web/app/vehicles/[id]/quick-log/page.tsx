@@ -58,18 +58,47 @@ export default function QuickLogPage() {
 
 function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const { showToast } = useToast();
+  const { currency, locale, distanceUnit } = useSettings();
+  const isKo = locale === "ko";
+  const currencyUnit = currency === "KRW" ? "원" : "$";
   const [odometer, setOdometer] = useState("");
   const [liters, setLiters] = useState("");
   const [cost, setCost] = useState("");
   const [showMore, setShowMore] = useState(false);
   const [date, setDate] = useState(today());
-  const [fullTank, setFullTank] = useState(true);
+  const [fullTank, setFullTank] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [baseOdometer, setBaseOdometer] = useState<number>(0);
+
+  const presets = currency === "KRW"
+    ? [
+        { label: isKo ? "+1만" : "+10k", value: 10000 },
+        { label: isKo ? "+3만" : "+30k", value: 30000 },
+        { label: isKo ? "+5만" : "+50k", value: 50000 },
+        { label: isKo ? "+10만" : "+100k", value: 100000 },
+      ]
+    : [
+        { label: "+$10", value: 10 },
+        { label: "+$30", value: 30 },
+        { label: "+$50", value: 50 },
+        { label: "+$100", value: 100 },
+      ];
+
+  function handleAddPreset(value: number) {
+    const currentCost = Number(cost) || 0;
+    const newCost = currentCost + value;
+    handleCostChange(String(newCost));
+  }
+
+  function handleClearCost() {
+    setCost("");
+    setLiters("");
+  }
 
   // Opinet convenience states
   const [vehicle, setVehicle] = useState<any>(null);
@@ -92,7 +121,10 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
     apiFetch(`/api/vehicles/${vehicleId}/odometer`)
       .then((res) => (res.ok ? res.json() : { odometer: 0 }))
       .then((data) => {
-        if (data.odometer > 0) setOdometer(String(data.odometer));
+        if (data.odometer > 0) {
+          setOdometer(String(data.odometer));
+          setBaseOdometer(data.odometer);
+        }
       });
 
     // 오피넷이 미연동 상태면 목(mock) 데이터를 실제 가격으로 착각할 수 있어
@@ -256,21 +288,33 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   return (
     <form onSubmit={handleSubmit} className="form" noValidate>
-      <input
-        type="number"
-        placeholder={t("odometer")}
-        value={odometer}
-        onChange={(e) => setOdometer(e.target.value)}
-        autoFocus
-      />
+      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+        <input
+          type="number"
+          inputMode="numeric"
+          placeholder={t("odometer")}
+          value={odometer}
+          onChange={(e) => setOdometer(e.target.value)}
+          autoFocus
+          style={{ width: "100%", paddingRight: 40 }}
+        />
+        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+          {distanceUnit}
+        </span>
+      </div>
+      {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
+        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500" }}>
+          ⚠️ {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
+        </p>
+      )}
 
       {opinetConfigured && (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
           <button
             type="button"
             onClick={handleFindStations}
             disabled={locLoading || !vehicle || vehicle.fuelType === "ELECTRIC"}
-            style={{ padding: "0 12px", minHeight: 36, fontSize: 13, background: "#18523f", color: "#fff", flexShrink: 0 }}
+            style={{ padding: "0 12px", minHeight: 44, fontSize: 14, background: "#18523f", color: "#fff", width: "100%" }}
           >
             {locLoading ? t("loading") : t("detectLocation")}
           </button>
@@ -279,7 +323,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             <select
               value={selectedStationId}
               onChange={(e) => handleStationSelect(e.target.value)}
-              style={{ flex: 1, minHeight: 36, fontSize: 13, padding: "0 8px" }}
+              style={{ width: "100%", minHeight: 44, fontSize: 14, padding: "0 8px" }}
             >
               <option value="" disabled>{t("selectStation")}</option>
               {stations.map((s) => (
@@ -319,27 +363,86 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         />
       )}
 
-      <input
-        type="number"
-        placeholder={t("unitPrice")}
-        value={unitPrice}
-        onChange={(e) => handleUnitPriceChange(e.target.value)}
-      />
+      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+        <input
+          type="number"
+          inputMode="numeric"
+          placeholder={t("unitPrice")}
+          value={unitPrice}
+          onChange={(e) => handleUnitPriceChange(e.target.value)}
+          style={{ width: "100%", paddingRight: 40 }}
+        />
+        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+          {currencyUnit}
+        </span>
+      </div>
 
-      <input
-        type="number"
-        step="0.01"
-        placeholder={t("liters")}
-        value={liters}
-        onChange={(e) => handleLitersChange(e.target.value)}
-      />
+      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+        <input
+          type="number"
+          inputMode="decimal"
+          step="0.01"
+          placeholder={t("liters")}
+          value={liters}
+          onChange={(e) => handleLitersChange(e.target.value)}
+          style={{ width: "100%", paddingRight: 40 }}
+        />
+        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+          L
+        </span>
+      </div>
 
-      <input
-        type="number"
-        placeholder={t("cost")}
-        value={cost}
-        onChange={(e) => handleCostChange(e.target.value)}
-      />
+      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+        <input
+          type="number"
+          inputMode="numeric"
+          placeholder={t("cost")}
+          value={cost}
+          onChange={(e) => handleCostChange(e.target.value)}
+          style={{ width: "100%", paddingRight: 40 }}
+        />
+        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+          {currencyUnit}
+        </span>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, marginTop: 4, marginBottom: 12, flexWrap: "wrap" }}>
+        {presets.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => handleAddPreset(p.value)}
+            style={{
+              padding: "4px 8px",
+              fontSize: 12,
+              minHeight: 32,
+              flex: "1 1 auto",
+              background: "#e8f0ec",
+              color: "#18523f",
+              border: "1px solid #cddcd4",
+              borderRadius: 4,
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={handleClearCost}
+          style={{
+            padding: "4px 8px",
+            fontSize: 12,
+            minHeight: 32,
+            flex: "1 1 auto",
+            background: "#fdf2f2",
+            color: "#a12a24",
+            border: "1px solid #fde2e2",
+            borderRadius: 4,
+          }}
+        >
+          {isKo ? "지우기" : "Clear"}
+        </button>
+      </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "8px 0" }}>
         <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("attachmentLabel")}</label>
@@ -389,6 +492,8 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 }
 
 function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
+  const { currency, distanceUnit } = useSettings();
+  const currencyUnit = currency === "KRW" ? "원" : "$";
   const [odometer, setOdometer] = useState("");
   const [showMore, setShowMore] = useState(false);
   const [date, setDate] = useState(today());
@@ -401,6 +506,7 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [baseOdometer, setBaseOdometer] = useState<number>(0);
   const { showToast } = useToast();
 
   // Linked schedule selection states
@@ -414,7 +520,10 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
     apiFetch(`/api/vehicles/${vehicleId}/odometer`)
       .then((res) => (res.ok ? res.json() : { odometer: 0 }))
       .then((data) => {
-        if (data.odometer > 0) setOdometer(String(data.odometer));
+        if (data.odometer > 0) {
+          setOdometer(String(data.odometer));
+          setBaseOdometer(data.odometer);
+        }
       });
 
     // Load consumable parts list (schedule tasks)
@@ -489,13 +598,25 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
 
   return (
     <form onSubmit={handleSubmit} className="form" noValidate>
-      <input
-        type="number"
-        placeholder={t("odometer")}
-        value={odometer}
-        onChange={(e) => setOdometer(e.target.value)}
-        autoFocus
-      />
+      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+        <input
+          type="number"
+          inputMode="numeric"
+          placeholder={t("odometer")}
+          value={odometer}
+          onChange={(e) => setOdometer(e.target.value)}
+          autoFocus
+          style={{ width: "100%", paddingRight: 40 }}
+        />
+        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+          {distanceUnit}
+        </span>
+      </div>
+      {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
+        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500" }}>
+          ⚠️ {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
+        </p>
+      )}
 
       <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
         {(
@@ -581,12 +702,19 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
       {showMore && (
         <>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <input
-            type="number"
-            placeholder={t("cost")}
-            value={cost}
-            onChange={(e) => setCost(e.target.value)}
-          />
+          <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+            <input
+              type="number"
+              inputMode="numeric"
+              placeholder={t("cost")}
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              style={{ width: "100%", paddingRight: 40 }}
+            />
+            <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+              {currencyUnit}
+            </span>
+          </div>
           <input placeholder={t("shop")} value={shop} onChange={(e) => setShop(e.target.value)} />
           <input placeholder={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </>

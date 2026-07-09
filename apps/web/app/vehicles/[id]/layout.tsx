@@ -75,8 +75,8 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
         <Link href="/">{t("backToDashboard")}</Link>
       </p>
       {vehicle && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          <h1 style={{ margin: 0 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+          <h1 style={{ margin: 0, fontSize: "clamp(18px, 4.5vw, 24px)", wordBreak: "break-all" }}>
             {vehicle.name} {vehicle.plate ? `(${vehicle.plate})` : ""}
             {vehicle.fuelType ? ` · ${t(fuelTypeLabelKey(vehicle.fuelType))}` : ""}
           </h1>
@@ -85,7 +85,7 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
               value={vehicleId}
               onChange={(e) => handleSwitchVehicle(e.target.value)}
               aria-label={t("switchVehicle")}
-              style={{ minHeight: 36, fontSize: 13, padding: "0 8px", flexShrink: 0 }}
+              style={{ height: 36, minHeight: 36, fontSize: 13, padding: "0 28px 0 8px", flexShrink: 0 }}
             >
               {allVehicles.map((v) => (
                 <option key={v.id} value={v.id}>
@@ -103,7 +103,9 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
           borderBottom: "1px solid #e5e5e5",
           marginBottom: 16,
           overflowX: "auto",
+          WebkitOverflowScrolling: "touch",
         }}
+        className="no-scrollbar"
       >
         {tabs.map((tab) => {
           const active = tab.href === basePath ? pathname === basePath : pathname?.startsWith(tab.href);
@@ -112,12 +114,13 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
               key={tab.href}
               href={tab.href}
               style={{
-                padding: "8px 12px",
+                padding: "12px 16px",
                 fontSize: 14,
                 whiteSpace: "nowrap",
                 borderBottom: active ? "2px solid #18523f" : "2px solid transparent",
                 color: active ? "#18523f" : "#666",
                 fontWeight: active ? 600 : 400,
+                flexShrink: 0,
               }}
             >
               {tab.label}

@@ -12,6 +12,15 @@ import type { ConsumablePart, FuelType, Reminder, TripSummary, Vehicle } from ".
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
 import { formatItemLabel } from "../../../lib/i18n/itemLabel";
 import { FUEL_TYPES } from "@garage/shared";
+import { useMapProviders } from "../../../lib/maps/useMapProviders";
+import { pickDefaultProvider } from "../../../lib/maps/types";
+import dynamic from "next/dynamic";
+import { NavLaunchButtons } from "../../../components/NavLaunchButtons";
+
+const LastLocationMap = dynamic(
+  () => import("../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
+  { ssr: false }
+);
 
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date);
@@ -19,16 +28,36 @@ function addMonths(date: Date, months: number): Date {
   return d;
 }
 
+function formatRelativeTime(dateStr: string, t: any): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return t("justNow");
+  if (diffMins < 60) return `${diffMins}분 전`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}시간 전`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}일 전`;
+}
+
 export default function VehicleOverviewPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const vehicleId = params.id;
   const { isAdmin } = useAuth();
-  const { t, formatDistance, formatCurrency } = useSettings();
+  const { t, formatDistance, formatCurrency, locale } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const mapConfig = useMapProviders();
+  const mapProvider = pickDefaultProvider(mapConfig);
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const isRecent = vehicle && vehicle.locationUpdatedAt
+    ? (new Date().getTime() - new Date(vehicle.locationUpdatedAt).getTime()) < 300000
+    : false;
+  const isDriving = isRecent && vehicle && vehicle.speed !== null && vehicle.speed !== undefined && vehicle.speed > 0;
+  const isStopped = isRecent && !isDriving;
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [dueCount, setDueCount] = useState(0);
@@ -230,38 +259,73 @@ export default function VehicleOverviewPage() {
       )}
 
       {reminders.length > 0 && (
-        <section className="reminder-banner">
-          <strong>{t("reminderBannerTitle", { count: reminders.length })}</strong>
+        <section style={{ marginBottom: 16 }}>
+          <strong style={{ fontSize: 15, color: "#1f2937", display: "block", marginBottom: 8 }}>
+            🚨 {t("reminderBannerTitle", { count: reminders.length })}
+          </strong>
           <ul className="list" style={{ marginTop: 8 }}>
-            {reminders.map((r) => (
-              <li
-                key={r.id}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}
-              >
-                <span>
-                  {formatItemLabel(t, r.type)}
-                  {r.dueOdometer !== null && (
-                    <>
-                      {" — "}
-                      {t("reminderDueOdometer", { distance: formatDistance(r.dueOdometer) })}
-                    </>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  style={{ minHeight: 32, flexShrink: 0 }}
-                  onClick={() => dismissReminder(r.id)}
+            {reminders.map((r) => {
+              const borderLeftColor = r.isDue ? "#ef4444" : "#f59e0b";
+              const backgroundColor = r.isDue ? "#fef2f2" : "#fffbeb";
+              const borderColor = r.isDue ? "#fee2e2" : "#fef3c7";
+              const textColor = r.isDue ? "#991b1b" : "#92400e";
+              return (
+                <li
+                  key={r.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 12px",
+                    backgroundColor,
+                    border: `1px solid ${borderColor}`,
+                    borderLeft: `4px solid ${borderLeftColor}`,
+                    borderRadius: 8,
+                    fontSize: 14,
+                    color: textColor,
+                  }}
                 >
-                  {t("dismissReminder")}
-                </button>
-                <Link href={`/vehicles/${vehicleId}/schedule`} style={{ fontSize: 13 }}>
-                  {t("reminderGoSchedule")}
-                </Link>
-                <Link href={`/vehicles/${vehicleId}/quick-log`} style={{ fontSize: 13 }}>
-                  {t("reminderGoQuickLog")}
-                </Link>
-              </li>
-            ))}
+                  <span style={{ fontWeight: "500", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>{r.isDue ? "🚨" : "⚠️"}</span>
+                    <span>
+                      {formatItemLabel(t, r.type)}
+                      {r.dueOdometer !== null && (
+                        <>
+                          {" — "}
+                          {t("reminderDueOdometer", { distance: formatDistance(r.dueOdometer) })}
+                        </>
+                      )}
+                    </span>
+                  </span>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      style={{
+                        minHeight: 28,
+                        height: 28,
+                        padding: "0 8px",
+                        fontSize: 12,
+                        borderRadius: 6,
+                        background: r.isDue ? "#ef4444" : "#f59e0b",
+                        color: "#fff",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => dismissReminder(r.id)}
+                    >
+                      {t("dismissReminder")}
+                    </button>
+                    <Link href={`/vehicles/${vehicleId}/schedule`} style={{ fontSize: 12, textDecoration: "underline", color: textColor }}>
+                      {t("reminderGoSchedule")}
+                    </Link>
+                    <Link href={`/vehicles/${vehicleId}/quick-log`} style={{ fontSize: 12, textDecoration: "underline", color: textColor }}>
+                      {t("reminderGoQuickLog")}
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}
@@ -446,7 +510,7 @@ export default function VehicleOverviewPage() {
             </form>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
                 <div><strong>{t("vehicleMake")} / {t("vehicleModel")}:</strong> {vehicle.make || "-"} / {vehicle.model || "-"}</div>
                 <div><strong>{t("vehiclePlate")}:</strong> {vehicle.plate || "-"}</div>
                 <div><strong>{t("vehicleYear")}:</strong> {vehicle.year || "-"}</div>
@@ -454,10 +518,10 @@ export default function VehicleOverviewPage() {
                 <div><strong>{t("dashboardOdometer")}:</strong> {vehicle.odometer !== null && vehicle.odometer !== undefined ? formatDistance(vehicle.odometer) : "-"}</div>
                 <div><strong>{t("fuelLevel")}:</strong> {vehicle.fuelLevel !== null && vehicle.fuelLevel !== undefined ? `${vehicle.fuelLevel.toFixed(1)}%` : "-"}</div>
               </div>
-              <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4, wordBreak: "break-all" }}>
                 <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
                 <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
                 <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
               </div>
@@ -478,6 +542,73 @@ export default function VehicleOverviewPage() {
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {vehicle && vehicle.latitude !== null && vehicle.latitude !== undefined && vehicle.longitude !== null && vehicle.longitude !== undefined && (
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <span>📍 {t("lastKnownLocation")}</span>
+            {vehicle.locationUpdatedAt && (
+              <span style={{ fontSize: 12, fontWeight: "normal", color: "#666" }}>
+                {t("locationUpdatedAtLabel", {
+                  time: new Date(vehicle.locationUpdatedAt).toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
+                    month: "short",
+                    day: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+                })}
+              </span>
+            )}
+          </h2>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+            <span
+              style={{
+                display: "inline-block",
+                width: 8,
+                height: 8,
+                borderRadius: "50%",
+                backgroundColor: isDriving ? "#10b981" : isStopped ? "#3b82f6" : "#6b7280",
+                animation: isDriving ? "statusPulse 1.5s infinite ease-in-out" : "none",
+              }}
+            />
+            <span style={{ fontSize: 13, fontWeight: "600", color: isDriving ? "#047857" : isStopped ? "#1d4ed8" : "#374151" }}>
+              {isDriving
+                ? t("statusDriving")
+                : isStopped
+                ? t("statusStopped")
+                : `${t("statusParked")} (${formatRelativeTime(vehicle.locationUpdatedAt || "", t)})`}
+            </span>
+            <style>{`
+              @keyframes statusPulse {
+                0% { transform: scale(0.9); opacity: 0.6; }
+                50% { transform: scale(1.2); opacity: 1; }
+                100% { transform: scale(0.9); opacity: 0.6; }
+              }
+            `}</style>
+          </div>
+
+          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
+            <LastLocationMap
+              lat={vehicle.latitude}
+              lon={vehicle.longitude}
+              provider={mapProvider}
+              kakaoAppKey={mapConfig.kakaoAppKey}
+              naverClientId={mapConfig.naverClientId}
+              tmapAppKey={mapConfig.tmapAppKey}
+            />
+          </div>
+          <NavLaunchButtons
+            destination={{ lat: vehicle.latitude, lon: vehicle.longitude, name: t("lastKnownLocation") }}
+            heading={t("navLaunchHeading")}
+            labels={{
+              tmap: t("navLaunchTmap"),
+              kakao: t("navLaunchKakao"),
+              naver: t("navLaunchNaver"),
+            }}
+          />
         </section>
       )}
     </>
