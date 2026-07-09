@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, API_URL } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { useToast } from "../../../../lib/toast-context";
+import { useConfirm } from "../../../../lib/confirm-context";
 import type { FuelLog, MaintenanceRecord, Trip, TripSummary } from "../../../../lib/types";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 
@@ -13,6 +15,8 @@ export default function HistoryPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
   const { t, formatDistance, formatCurrency } = useSettings();
+  const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
@@ -47,7 +51,15 @@ export default function HistoryPage() {
         ) : (
           <ul className="list">
             {fuelLogs.map((f) => (
-              <FuelLogRow key={f.id} log={f} onChanged={loadAll} t={t} formatCurrency={formatCurrency} />
+              <FuelLogRow
+                key={f.id}
+                log={f}
+                onChanged={loadAll}
+                t={t}
+                formatCurrency={formatCurrency}
+                showToast={showToast}
+                confirm={confirm}
+              />
             ))}
           </ul>
         )}
@@ -66,6 +78,8 @@ export default function HistoryPage() {
                 onChanged={loadAll}
                 t={t}
                 formatCurrency={formatCurrency}
+                showToast={showToast}
+                confirm={confirm}
               />
             ))}
           </ul>
@@ -80,11 +94,15 @@ function FuelLogRow({
   onChanged,
   t,
   formatCurrency,
+  showToast,
+  confirm,
 }: {
   log: FuelLog;
   onChanged: () => void;
   t: Translator;
   formatCurrency: (amount: number) => string;
+  showToast: (message: string, type?: "success" | "error") => void;
+  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(log.date.slice(0, 10));
@@ -112,7 +130,10 @@ function FuelLogRow({
       });
       if (res.ok) {
         setEditing(false);
+        showToast(t("toastSaved"), "success");
         onChanged();
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -120,9 +141,14 @@ function FuelLogRow({
   }
 
   async function handleDelete() {
-    if (!confirm(t("confirmDelete"))) return;
+    if (!(await confirm(t("confirmDelete")))) return;
     const res = await apiFetch(`/api/fuel-logs/${log.id}`, { method: "DELETE" });
-    if (res.ok) onChanged();
+    if (res.ok) {
+      showToast(t("toastDeleted"), "success");
+      onChanged();
+    } else {
+      showToast(t("toastError"), "error");
+    }
   }
 
   if (editing) {
@@ -250,11 +276,15 @@ function MaintenanceRow({
   onChanged,
   t,
   formatCurrency,
+  showToast,
+  confirm,
 }: {
   record: MaintenanceRecord;
   onChanged: () => void;
   t: Translator;
   formatCurrency: (amount: number) => string;
+  showToast: (message: string, type?: "success" | "error") => void;
+  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(record.date.slice(0, 10));
@@ -282,7 +312,10 @@ function MaintenanceRow({
       });
       if (res.ok) {
         setEditing(false);
+        showToast(t("toastSaved"), "success");
         onChanged();
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -290,9 +323,14 @@ function MaintenanceRow({
   }
 
   async function handleDelete() {
-    if (!confirm(t("confirmDelete"))) return;
+    if (!(await confirm(t("confirmDelete")))) return;
     const res = await apiFetch(`/api/maintenance-records/${record.id}`, { method: "DELETE" });
-    if (res.ok) onChanged();
+    if (res.ok) {
+      showToast(t("toastDeleted"), "success");
+      onChanged();
+    } else {
+      showToast(t("toastError"), "error");
+    }
   }
 
   if (editing) {

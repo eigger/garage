@@ -5,11 +5,15 @@ import Link from "next/link";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { useToast } from "../../lib/toast-context";
+import { useConfirm } from "../../lib/confirm-context";
 import { SettingsBar } from "../settings-bar";
 
 export default function BackupPage() {
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
   const { t } = useSettings();
+  const { showToast } = useToast();
+  const confirm = useConfirm();
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
 
@@ -51,12 +55,13 @@ export default function BackupPage() {
         a.click();
         a.remove();
         window.URL.revokeObjectURL(url);
+        showToast(t("toastSaved"), "success");
       } else {
-        alert("Failed to export backup.");
+        showToast(t("toastError"), "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Error exporting backup.");
+      showToast(t("toastError"), "error");
     } finally {
       setLoading(false);
     }
@@ -65,7 +70,7 @@ export default function BackupPage() {
   async function handleRestore(e: React.FormEvent) {
     e.preventDefault();
     if (!file) return;
-    if (!confirm(t("backupWarning"))) return;
+    if (!(await confirm(t("backupWarning"), { confirmLabel: t("backupRestoreButton") }))) return;
 
     setLoading(true);
     try {
@@ -78,17 +83,20 @@ export default function BackupPage() {
       });
 
       if (res.ok) {
-        alert(t("backupSuccess"));
-        // Clear tokens and redirect to login as database is fully restored
+        showToast(t("backupSuccess"), "success");
+        // Clear tokens and redirect to login as database is fully restored.
+        // A short delay lets the success toast be visible before the full page reload wipes it.
         localStorage.clear();
-        window.location.href = "/login";
+        setTimeout(() => {
+          window.location.href = "/login";
+        }, 1200);
       } else {
         const err = await res.json();
-        alert(err.error || "Restore failed");
+        showToast(err.error || t("toastError"), "error");
       }
     } catch (err) {
       console.error(err);
-      alert("Error restoring backup.");
+      showToast(t("toastError"), "error");
     } finally {
       setLoading(false);
     }

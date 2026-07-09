@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "../../../../lib/api";
+import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { useToast } from "../../../../lib/toast-context";
 import type { ConsumablePart } from "../../../../lib/types";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 
@@ -52,6 +53,7 @@ export default function QuickLogPage() {
 }
 
 function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
+  const { showToast } = useToast();
   const [odometer, setOdometer] = useState("");
   const [liters, setLiters] = useState("");
   const [cost, setCost] = useState("");
@@ -62,6 +64,8 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const [fileKey, setFileKey] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Opinet convenience states
   const [vehicle, setVehicle] = useState<any>(null);
@@ -87,7 +91,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   async function handleFindStations() {
     if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser");
+      showToast(t("toastError"), "error");
       return;
     }
     setLocLoading(true);
@@ -163,6 +167,11 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    if (!odometer || !liters || !cost || (location && !unitPrice)) {
+      setError(t("requiredField"));
+      return;
+    }
     setSubmitting(true);
     setSaved(false);
     try {
@@ -183,10 +192,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         if (file) {
           const formData = new FormData();
           formData.append("file", file);
-          await apiFetch(`/api/attachments?fuelLogId=${record.id}`, {
-            method: "POST",
-            body: formData,
-          });
+          setUploadProgress(0);
+          await uploadFileWithProgress(`/api/attachments?fuelLogId=${record.id}`, formData, setUploadProgress);
+          setUploadProgress(null);
         }
         setLiters("");
         setCost("");
@@ -199,6 +207,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         setFile(null);
         setFileKey(Date.now());
         setSaved(true);
+        showToast(t("toastSaved"), "success");
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -206,13 +217,12 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="form">
+    <form onSubmit={handleSubmit} className="form" noValidate>
       <input
         type="number"
         placeholder={t("odometer")}
         value={odometer}
         onChange={(e) => setOdometer(e.target.value)}
-        required
         autoFocus
       />
 
@@ -247,7 +257,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           placeholder={t("gasStation")}
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          required
         />
       )}
 
@@ -256,7 +265,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         placeholder={t("unitPrice")}
         value={unitPrice}
         onChange={(e) => handleUnitPriceChange(e.target.value)}
-        required={!!location}
       />
 
       <input
@@ -265,7 +273,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         placeholder={t("liters")}
         value={liters}
         onChange={(e) => handleLitersChange(e.target.value)}
-        required
       />
 
       <input
@@ -273,7 +280,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         placeholder={t("cost")}
         value={cost}
         onChange={(e) => handleCostChange(e.target.value)}
-        required
       />
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "8px 0" }}>
@@ -285,6 +291,14 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           style={{ minHeight: "auto", padding: "4px 8px" }}
         />
+        {uploadProgress !== null && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div className="upload-progress-track">
+              <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+            </div>
+            <span style={{ fontSize: 12, color: "#666" }}>{t("uploading")} {uploadProgress}%</span>
+          </div>
+        )}
       </div>
 
       <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "#18523f" }}>
@@ -293,7 +307,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
       {showMore && (
         <>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
             <input
               type="checkbox"
@@ -309,6 +323,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       <button type="submit" disabled={submitting}>
         {submitting ? t("saving") : t("save")}
       </button>
+      {error && <p className="field-error">{error}</p>}
       {saved && <p>{t("saved")}</p>}
     </form>
   );
@@ -325,6 +340,9 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
   const [fileKey, setFileKey] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const { showToast } = useToast();
 
   // Linked schedule selection states
   const [parts, setParts] = useState<any[]>([]);
@@ -347,10 +365,16 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
-    setSaved(false);
+    setError("");
 
     const finalType = selectedPartType === "CUSTOM" || !selectedPartType ? customType : selectedPartType;
+    if (!odometer || !finalType.trim()) {
+      setError(t("requiredField"));
+      return;
+    }
+
+    setSubmitting(true);
+    setSaved(false);
 
     try {
       const res = await apiFetch("/api/maintenance-records", {
@@ -370,10 +394,13 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
         if (file) {
           const formData = new FormData();
           formData.append("file", file);
-          await apiFetch(`/api/attachments?maintenanceRecordId=${record.id}`, {
-            method: "POST",
-            body: formData,
-          });
+          setUploadProgress(0);
+          await uploadFileWithProgress(
+            `/api/attachments?maintenanceRecordId=${record.id}`,
+            formData,
+            setUploadProgress,
+          );
+          setUploadProgress(null);
         }
         setSelectedPartType("");
         setCustomType("");
@@ -384,11 +411,14 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
         setFile(null);
         setFileKey(Date.now());
         setSaved(true);
+        showToast(t("toastSaved"), "success");
 
         // Reload consumable parts to update their schedule indicators
         apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
           .then((res) => (res.ok ? res.json() : []))
           .then(setParts);
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -396,13 +426,12 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
   }
 
   return (
-    <form onSubmit={handleSubmit} className="form">
+    <form onSubmit={handleSubmit} className="form" noValidate>
       <input
         type="number"
         placeholder={t("odometer")}
         value={odometer}
         onChange={(e) => setOdometer(e.target.value)}
-        required
         autoFocus
       />
 
@@ -414,8 +443,6 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
             setCustomType("");
           }
         }}
-        required
-        style={{ minHeight: 36, fontSize: 13, padding: "0 8px" }}
       >
         <option value="" disabled>{t("selectMaintenanceTask")}</option>
         {parts.map((p) => (
@@ -431,7 +458,6 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
           placeholder={t("maintenanceType")}
           value={customType}
           onChange={(e) => setCustomType(e.target.value)}
-          required
         />
       )}
 
@@ -444,6 +470,14 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
           onChange={(e) => setFile(e.target.files?.[0] || null)}
           style={{ minHeight: "auto", padding: "4px 8px" }}
         />
+        {uploadProgress !== null && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div className="upload-progress-track">
+              <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+            </div>
+            <span style={{ fontSize: 12, color: "#666" }}>{t("uploading")} {uploadProgress}%</span>
+          </div>
+        )}
       </div>
 
       <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "#18523f" }}>
@@ -452,7 +486,7 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
 
       {showMore && (
         <>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <input
             type="number"
             placeholder={t("cost")}
@@ -467,6 +501,7 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
       <button type="submit" disabled={submitting}>
         {submitting ? t("saving") : t("save")}
       </button>
+      {error && <p className="field-error">{error}</p>}
       {saved && <p>{t("saved")}</p>}
     </form>
   );

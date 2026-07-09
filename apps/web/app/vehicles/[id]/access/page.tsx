@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { useToast } from "../../../../lib/toast-context";
 import type { User, VehicleAccess } from "../../../../lib/types";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 
@@ -18,6 +19,7 @@ export default function VehicleAccessPage() {
 }
 
 function VehicleAccessSection({ vehicleId, t }: { vehicleId: string; t: Translator }) {
+  const { showToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [access, setAccess] = useState<VehicleAccess[]>([]);
   const [loading, setLoading] = useState(true);
@@ -37,22 +39,30 @@ function VehicleAccessSection({ vehicleId, t }: { vehicleId: string; t: Translat
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function setHasAccess(userId: string, hasAccess: boolean) {
-    if (hasAccess) {
-      await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
-        method: "PUT",
-        body: JSON.stringify({ canViewLocation: false }),
-      });
+    const res = hasAccess
+      ? await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
+          method: "PUT",
+          body: JSON.stringify({ canViewLocation: false }),
+        })
+      : await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, { method: "DELETE" });
+    if (res.ok) {
+      showToast(t("toastSaved"), "success");
     } else {
-      await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, { method: "DELETE" });
+      showToast(t("toastError"), "error");
     }
     await load();
   }
 
   async function setCanViewLocation(userId: string, canViewLocation: boolean) {
-    await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
+    const res = await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
       method: "PUT",
       body: JSON.stringify({ canViewLocation }),
     });
+    if (res.ok) {
+      showToast(t("toastSaved"), "success");
+    } else {
+      showToast(t("toastError"), "error");
+    }
     await load();
   }
 

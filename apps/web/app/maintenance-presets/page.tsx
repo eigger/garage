@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { useToast } from "../../lib/toast-context";
+import { useConfirm } from "../../lib/confirm-context";
 import { SettingsBar } from "../settings-bar";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
 import type { FuelType, MaintenancePresetTemplate } from "../../lib/types";
@@ -19,6 +21,8 @@ export default function MaintenancePresetsPage() {
   const router = useRouter();
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
   const { t } = useSettings();
+  const { showToast } = useToast();
+  const confirm = useConfirm();
   const [fuelType, setFuelType] = useState<FuelType>("GASOLINE");
   const [presets, setPresets] = useState<MaintenancePresetTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -79,12 +83,12 @@ export default function MaintenancePresetsPage() {
 
       <ul className="list">
         {presets.map((p) => (
-          <PresetRow key={p.id} preset={p} onChanged={load} t={t} />
+          <PresetRow key={p.id} preset={p} onChanged={load} t={t} showToast={showToast} confirm={confirm} />
         ))}
       </ul>
 
       <h2>{t("addPreset")}</h2>
-      <AddPresetForm fuelType={fuelType} onCreated={load} t={t} />
+      <AddPresetForm fuelType={fuelType} onCreated={load} t={t} showToast={showToast} />
     </main>
   );
 }
@@ -93,10 +97,14 @@ function PresetRow({
   preset,
   onChanged,
   t,
+  showToast,
+  confirm,
 }: {
   preset: MaintenancePresetTemplate;
   onChanged: () => void;
   t: Translator;
+  showToast: (message: string, type?: "success" | "error") => void;
+  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(preset.name);
@@ -120,7 +128,10 @@ function PresetRow({
       });
       if (res.ok) {
         setEditing(false);
+        showToast(t("toastSaved"), "success");
         onChanged();
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -128,9 +139,14 @@ function PresetRow({
   }
 
   async function handleDelete() {
-    if (!confirm(t("confirmDelete"))) return;
+    if (!(await confirm(t("confirmDelete")))) return;
     const res = await apiFetch(`/api/maintenance-presets/${preset.id}`, { method: "DELETE" });
-    if (res.ok) onChanged();
+    if (res.ok) {
+      showToast(t("toastDeleted"), "success");
+      onChanged();
+    } else {
+      showToast(t("toastError"), "error");
+    }
   }
 
   if (editing) {
@@ -189,18 +205,26 @@ function AddPresetForm({
   fuelType,
   onCreated,
   t,
+  showToast,
 }: {
   fuelType: FuelType;
   onCreated: () => void;
   t: Translator;
+  showToast: (message: string, type?: "success" | "error") => void;
 }) {
   const [name, setName] = useState("");
   const [intervalKm, setIntervalKm] = useState("");
   const [intervalMonths, setIntervalMonths] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    if (!name.trim()) {
+      setError(t("requiredField"));
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await apiFetch("/api/maintenance-presets", {
@@ -216,7 +240,10 @@ function AddPresetForm({
         setName("");
         setIntervalKm("");
         setIntervalMonths("");
+        showToast(t("toastCreated"), "success");
         onCreated();
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -224,12 +251,11 @@ function AddPresetForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="form">
+    <form onSubmit={handleSubmit} className="form" noValidate>
       <input
         placeholder={t("itemName")}
         value={name}
         onChange={(e) => setName(e.target.value)}
-        required
       />
       <input
         type="number"
@@ -246,6 +272,7 @@ function AddPresetForm({
       <button type="submit" disabled={submitting}>
         {submitting ? t("saving") : t("save")}
       </button>
+      {error && <p className="field-error">{error}</p>}
     </form>
   );
 }

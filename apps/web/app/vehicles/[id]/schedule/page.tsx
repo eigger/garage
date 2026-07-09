@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { useToast } from "../../../../lib/toast-context";
+import { useConfirm } from "../../../../lib/confirm-context";
 import type { ConsumablePart } from "../../../../lib/types";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 
@@ -69,10 +71,13 @@ export default function SchedulePage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
   const { t, formatDistance } = useSettings();
+  const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [parts, setParts] = useState<ConsumablePart[]>([]);
   const [odometer, setOdometer] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<"all" | "due">("all");
 
   async function load() {
     const [partsRes, odoRes] = await Promise.all([
@@ -99,11 +104,46 @@ export default function SchedulePage() {
     return rank[sa] - rank[sb];
   });
 
+  const visible =
+    filter === "due"
+      ? sorted.filter((part) => computeStatus(part, odometer).status !== "ok")
+      : sorted;
+
   return (
     <section>
-      <h1>{t("scheduleHeading")}</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <h1 style={{ margin: 0 }}>{t("scheduleHeading")}</h1>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={() => setFilter("all")}
+            style={{
+              fontSize: 12,
+              padding: "4px 10px",
+              minHeight: "auto",
+              background: filter === "all" ? "#18523f" : "#eee",
+              color: filter === "all" ? "#fff" : "#333",
+            }}
+          >
+            {t("scheduleFilterAll")}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter("due")}
+            style={{
+              fontSize: 12,
+              padding: "4px 10px",
+              minHeight: "auto",
+              background: filter === "due" ? "#18523f" : "#eee",
+              color: filter === "due" ? "#fff" : "#333",
+            }}
+          >
+            {t("scheduleFilterDueOnly")}
+          </button>
+        </div>
+      </div>
       <ul className="list">
-        {sorted.map((part) => (
+        {visible.map((part) => (
           <ScheduleRow
             key={part.id}
             part={part}
@@ -111,12 +151,14 @@ export default function SchedulePage() {
             onChanged={load}
             t={t}
             formatDistance={formatDistance}
+            showToast={showToast}
+            confirm={confirm}
           />
         ))}
       </ul>
 
       <h2>{t("addCustomItem")}</h2>
-      <AddScheduleItemForm vehicleId={vehicleId} odometer={odometer} onCreated={load} t={t} />
+      <AddScheduleItemForm vehicleId={vehicleId} odometer={odometer} onCreated={load} t={t} showToast={showToast} />
     </section>
   );
 }
@@ -127,12 +169,16 @@ function ScheduleRow({
   onChanged,
   t,
   formatDistance,
+  showToast,
+  confirm,
 }: {
   part: ConsumablePart;
   odometer: number;
   onChanged: () => void;
   t: Translator;
   formatDistance: (km: number) => string;
+  showToast: (message: string, type?: "success" | "error") => void;
+  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
   const [partType, setPartType] = useState(part.partType);
@@ -211,7 +257,10 @@ function ScheduleRow({
       });
       if (res.ok) {
         setEditing(false);
+        showToast(t("toastSaved"), "success");
         onChanged();
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -228,16 +277,26 @@ function ScheduleRow({
           installedOdometer: odometer,
         }),
       });
-      if (res.ok) onChanged();
+      if (res.ok) {
+        showToast(t("toastSaved"), "success");
+        onChanged();
+      } else {
+        showToast(t("toastError"), "error");
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleDelete() {
-    if (!confirm(t("confirmDelete"))) return;
+    if (!(await confirm(t("confirmDelete")))) return;
     const res = await apiFetch(`/api/consumable-parts/${part.id}`, { method: "DELETE" });
-    if (res.ok) onChanged();
+    if (res.ok) {
+      showToast(t("toastDeleted"), "success");
+      onChanged();
+    } else {
+      showToast(t("toastError"), "error");
+    }
   }
 
   if (editing) {
@@ -377,19 +436,27 @@ function AddScheduleItemForm({
   odometer,
   onCreated,
   t,
+  showToast,
 }: {
   vehicleId: string;
   odometer: number;
   onCreated: () => void;
   t: Translator;
+  showToast: (message: string, type?: "success" | "error") => void;
 }) {
   const [partType, setPartType] = useState("");
   const [expectedLifeKm, setExpectedLifeKm] = useState("");
   const [expectedLifeMonths, setExpectedLifeMonths] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError("");
+    if (!partType.trim()) {
+      setError(t("requiredField"));
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await apiFetch("/api/consumable-parts", {
@@ -407,7 +474,10 @@ function AddScheduleItemForm({
         setPartType("");
         setExpectedLifeKm("");
         setExpectedLifeMonths("");
+        showToast(t("toastCreated"), "success");
         onCreated();
+      } else {
+        showToast(t("toastError"), "error");
       }
     } finally {
       setSubmitting(false);
@@ -415,12 +485,11 @@ function AddScheduleItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="form">
+    <form onSubmit={handleSubmit} className="form" noValidate>
       <input
         placeholder={t("itemName")}
         value={partType}
         onChange={(e) => setPartType(e.target.value)}
-        required
       />
       <input
         type="number"
@@ -437,6 +506,7 @@ function AddScheduleItemForm({
       <button type="submit" disabled={submitting}>
         {submitting ? t("saving") : t("save")}
       </button>
+      {error && <p className="field-error">{error}</p>}
     </form>
   );
 }

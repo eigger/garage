@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { useToast } from "../../lib/toast-context";
 import { SettingsBar } from "../settings-bar";
 import type { FuelType, Vehicle } from "../../lib/types";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
@@ -12,6 +13,7 @@ import { fuelTypeLabelKey } from "../../lib/fuelType";
 export default function VehiclesPage() {
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
   const { t } = useSettings();
+  const { showToast } = useToast();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -41,6 +43,10 @@ export default function VehiclesPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    if (!name.trim() || !fuelType) {
+      setError(t("requiredField"));
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await apiFetch("/api/vehicles", {
@@ -56,6 +62,7 @@ export default function VehiclesPage() {
       });
       if (!res.ok) {
         setError(t("saveError"));
+        showToast(t("toastError"), "error");
         return;
       }
       setName("");
@@ -64,6 +71,7 @@ export default function VehiclesPage() {
       setModel("");
       setYear("");
       setFuelType("");
+      showToast(t("toastCreated"), "success");
       await loadVehicles();
     } finally {
       setSubmitting(false);
@@ -102,12 +110,11 @@ export default function VehiclesPage() {
       {isAdmin && (
         <>
           <h2>{t("addVehicle")}</h2>
-          <form onSubmit={handleSubmit} className="form">
+          <form onSubmit={handleSubmit} className="form" noValidate>
             <input
               placeholder={t("vehicleName")}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              required
             />
             <input
               placeholder={t("vehiclePlate")}

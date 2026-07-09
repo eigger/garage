@@ -1,6 +1,6 @@
 # Garage 프로젝트 진행 현황
 
-마지막 업데이트: 2026-07-08 (영수증/등록증 파일 업로드, 차량 정보/VIN 관리, 백업/복원 시스템 및 Vitest 테스트 구축 완료)
+마지막 업데이트: 2026-07-09 (Windows 로컬 개발 환경에서 실사용 검증 완료, 사용자 편의성 UX 개선 8종 구현 및 브라우저 검증 완료 — 아직 커밋 전)
 
 ## 1. 프로젝트 개요
 
@@ -9,7 +9,7 @@
 - DB: PostgreSQL (TimescaleDB는 데이터량 늘면 나중에 확장자만 추가)
 - 배포: Docker Compose, 외부 노출은 Cloudflare Tunnel 예정(서버 자체는 내부 HTTP만 사용)
 - 상세 아키텍처 설계는 [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md) 참고
-- git: 아직 커밋 안 함 — 전체 구현이 어느 정도 마무리되면 사용자가 직접 이니셜 커밋 예정
+- git: 이니셜 커밋 완료 (`073b0ce feat: initial commit with full MVP/2단계, Opinet 연동 및 테스팅 완료`)
 
 ## 2. 지금까지 완료한 것
 
@@ -69,8 +69,33 @@
 - [x] `docker compose up -d postgres`, `npm run prisma:migrate`, `npm run seed -w apps/api`로 로컬 구동 — 완료
 - [x] 로그인 → 차량 등록 → 소모품/주유/정비 입력이 실제로 되는지 확인 — 완료, 정상 동작
 - [x] 위 7개 항목 구현 후 브라우저로 각각 동작 확인 (수정/삭제, 확인함, 계정 추가, 접근권한 토글, 트립 태깅, 배치 잡 수동 실행) — 완료, 서버 에러 없음
-- [ ] 리마인더 배지(대시보드) 및 주행 리포트는 각각 소모품 등록 후 크론잡이 리마인더를 계산해야 뜨고, 트립은 텔레메트리 데이터가 있어야 집계되므로 이번 세션에서는 "데이터 없음" 상태만 확인함 — 실사용 중 자연스럽게 쌓이는지 추가 확인 필요
-- [ ] 확인 끝나면 `git add -A && git commit`으로 이니셜 커밋
+- [x] 리마인더 배지(대시보드) 및 주행 리포트 실사용 검증 — 완료 (2026-07-09, Windows 환경). 소모품 스케줄의 설치일을 과거로 수정 → "지남" 상태 전환 → 대시보드 "정비 알림 1건" 배지 및 "확인함" 처리까지 확인. 텔레메트리 포인트를 백데이트로 주입 후 트립 집계 잡을 수동 실행 → 주간 리포트(9km, 13분, 1회 주행)와 트립 업무용/개인용 태깅까지 정상 동작 확인
+- [x] `git add -A && git commit`으로 이니셜 커밋 — 완료 (`073b0ce`)
+
+### Windows 로컬 개발 환경 셋업 (2026-07-09, 새 머신 최초 셋업)
+- 이 저장소는 원래 macOS에서 개발되어 Windows에서는 처음 셋업. `npm install` 시 `@prisma/client`/`esbuild`/`prisma`의 postinstall 스크립트가 allow-scripts 정책에 막혀 있어 `npm approve-scripts <pkg>` 후 `npm rebuild` 필요.
+- Docker Desktop이 winget으로 이미 설치되어 있었으나 실행 중이 아니었음 — 최초 실행 시 기동 대기 필요.
+- `.env`가 저장소에 없어 신규 생성 필요 (`.env.example` 기반, `JWT_SECRET`은 랜덤 생성). 호스트에서 직접 도는 `prisma migrate`/`seed`는 `DATABASE_URL`을 `localhost:5432`로 잡아야 함(docker-compose 내부 `postgres` 호스트명과 다름).
+- `apps/api`의 `dev` 스크립트(`tsx watch src/index.ts`)는 `.env`를 자동으로 읽지 않음 — Node 20.6+ 내장 `--env-file` 플래그를 사용하도록 `apps/api/package.json`을 `tsx watch --env-file=../../.env src/index.ts`로 변경함. Next.js(`apps/web`)는 `lib/api.ts`의 `API_URL` 기본값이 `http://localhost:8080`이라 별도 `.env` 없이도 로컬 구동 가능.
+- **스키마-마이그레이션 드리프트 버그 발견**: `schema.prisma`에는 있지만 마이그레이션 파일이 없던 컬럼 3개(`Vehicle.apiToken`, `Attachment.vehicleId`, `FuelLog.location`)를 발견. 이전 세션에서 `prisma db push`로 로컬 검증만 하고 `prisma migrate dev`로 마이그레이션 파일을 만들지 않은 채 커밋된 것으로 추정. `prisma migrate diff`로 차이를 추출해 새 마이그레이션(`20260708232355_add_vehicle_api_token_attachment_vehicle_fuellog_location`)을 수동 생성해 반영 — 이 마이그레이션 없이는 깨끗한 DB에서 API 서버 기동 시 `Vehicle.apiToken` 컬럼 부재 에러가 발생했음(서버 자체는 죽지 않지만 OBD 웹훅 인증에 쓰이는 토큰 백필 로직이 매번 실패).
+
+### 사용자 편의성 UX 개선 (2026-07-09)
+실사용 검증 중 발견한 개선 포인트(차량 삭제 메뉴 부재, 연료타입 select 높이 버그)를 계기로 UX 전반을 점검해 8가지를 구현하고 각각 브라우저로 동작 확인했다.
+
+1. **차량 삭제 메뉴** — `apps/web/app/vehicles/[id]/page.tsx`의 "등록된 차량" 카드 헤더에 관리자 전용 삭제 버튼 추가. 캐스케이드 삭제(주유·정비·소모품·트립·첨부파일 전부 삭제됨)를 명시하는 전용 경고 문구(`deleteVehicleConfirm`)로 확인받음.
+2. **select 높이 버그 수정** — `globals.css`의 `input, button { min-height: 44px; font-size: 16px; }` 규칙에 `select`가 빠져 있던 것을 발견. 연료타입뿐 아니라 앱 전체 select(정비 항목, 소모품 종류, 트립 태깅 등)에 동일한 문제가 있어 규칙에 `select`를 추가해 일괄 수정.
+3. **커스텀 확인 모달** — `apps/web/lib/confirm-context.tsx` 신규(`ConfirmProvider`/`useConfirm`, Promise 기반). 차량·소모품·주유·정비·프리셋 삭제, 백업 복원 등 모든 `window.confirm()` 호출을 대체. 모달 문구/버튼 라벨을 액션별로 지정 가능(예: 백업 복원은 "복원하기" 버튼).
+4. **토스트 피드백** — `apps/web/lib/toast-context.tsx` 신규(`ToastProvider`/`useToast`). 저장·등록·삭제 성공/실패 시 화면 하단에 2.8초간 토스트 표시. 거의 모든 CRUD 액션(차량/주유/정비/소모품/프리셋/사용자/접근권한/백업)에 적용. `backup/page.tsx`의 `alert()`도 토스트로 교체.
+5. **차량 스위처** — `apps/web/app/vehicles/[id]/layout.tsx` 상단에 전체 차량 드롭다운 추가. 선택 시 현재 탭(스케줄/내역 등) 경로를 유지한 채 다른 차량으로 이동.
+6. **폼 검증 메시지 커스터마이즈** — 차량 등록, 빠른 입력(주유/정비), 사용자 추가 폼에 `noValidate` + 수동 검증을 적용해 브라우저 네이티브 팝업 대신 스타일이 통일된 "필수 항목입니다." 메시지(`requiredField`)를 표시.
+7. **첨부파일 업로드 진행률** — `apps/web/lib/api.ts`에 `uploadFileWithProgress`(XHR 기반, `fetch`는 업로드 진행률 이벤트 미지원) 신규. 등록증(차량 상세)·영수증(빠른 입력 주유/정비) 업로드 시 진행률 바 표시.
+8. **정비 스케줄 필터 토글** — `schedule/page.tsx`에 "전체"/"지남·임박만" 토글 버튼 추가. 프리셋만 50개라 스케줄 탭이 길어지는 문제 완화.
+
+부수적으로 `profile/page.tsx`에서 저장 성공 메시지를 `setMessage`로 띄운 직후 곧바로 `window.location.reload()`가 실행되어 메시지가 사실상 보이지 않던 기존 버그를 발견해, 1.2초 지연 후 새로고침하도록 수정(토스트도 함께 적용). `backup/page.tsx`의 복원 성공 후 로그인 페이지 리다이렉트도 동일한 이유로 지연 처리.
+
+**검증**: `next build` 타입체크 통과. 브라우저로 차량 등록 검증 실패/성공 토스트, 확인 모달(취소/삭제 버튼, 배경 클릭 시 취소), 스위처(탭 유지 확인), 스케줄 필터(0건으로 필터링 확인)까지 직접 동작 확인. 테스트로 만든 차량은 정리함.
+
+**참고**: dev 서버가 켜진 상태에서 `next build`(프로덕션 빌드)를 실행하면 `.next` 캐시가 충돌해 dev 서버가 `MODULE_NOT_FOUND` 런타임 에러를 내는 것을 확인함 — 이 경우 `apps/web/.next`를 삭제하고 dev 서버를 재시작하면 해결됨.
 
 ### 로드맵상 다음 단계
 - **3단계**: 지도 API(네이버/카카오) 연동으로 트립 경로 시각화, 운전 습관 점수 계산, 전용 GPS/OBD 로거 + Traccar 연동, Home Assistant MQTT 센서 노출 (이때 `mosquitto` 서비스 주석 해제)
@@ -81,24 +106,20 @@
 - [ ] 차량이 여러 대일 때 앱에서 어떤 값으로 `vehicleId`를 구분해 보낼지 확정
 - [ ] Cloudflare Tunnel 연결 및 도메인 설정
 - [ ] `.env`의 `JWT_SECRET`, `POSTGRES_PASSWORD`, 관리자 계정 값을 실제 운영값으로 교체
+- [ ] `OPINET_API_KEY` 실제 발급/등록 후 실 API 응답으로 `apps/api/src/routes/opinet.ts` 파싱 로직 검증 (지금까지는 키 없이 목 데이터 폴백 경로만 확인함)
 
 ## 4. 알려둘 것
 
 - `docker-compose.yml`의 `mosquitto`/`cloudflared`/`redis`/`traccar`는 의도적으로 주석 처리된 상태 — 각 기능이 필요해지는 시점에 하나씩 주석 해제 (`README.md`에 어떤 시점에 어떤 걸 켜야 하는지 정리되어 있음)
 - 화폐 단위 전환은 표시 형식만 바꾸고 실제 환율 변환은 하지 않음 (저장된 금액은 항상 입력한 원 그대로)
 
-## 5. 향후 추가 연동 계획 (GPS 및 오피넷 API)
+## 5. GPS 및 오피넷(Opinet) API 연동 — 구현 완료
 
-### 1) 스마트폰 및 웹 브라우저 GPS 연동 방안
-- **스마트폰 앱 연동**:
-  - 현재 백엔드의 `/api/ingest/obd/:vehicleId` 라우트([ingest.ts](file:///Users/eigger/Documents/GitHub/garage/apps/api/src/routes/ingest.ts))는 이미 위도(`lat`)와 경도(`lon`) 등 원시 GPS 데이터를 받아들일 수 있도록 구축되어 있음.
-  - 모바일에서 실행되는 Torque Pro나 전용 GPS 로거 등 수집용 앱을 연동해 백엔드로 운행 정보를 자동 전송하도록 구성 가능.
-- **웹 브라우저 직접 수집**:
-  - 모바일 브라우저 환경에서 사용자가 주행 기록 시작을 누르면 HTML5 Geolocation API(`navigator.geolocation.watchPosition`)를 사용하여 스마트폰 GPS 정보를 직접 수집하고 백엔드로 주기적인 위치 업데이트를 전송해 수동으로 주행 리포트를 기록하는 방식도 도입 가능.
+### 1) 스마트폰 및 웹 브라우저 GPS 연동
+- 백엔드 `/api/ingest/obd/:vehicleId` 라우트([ingest.ts](../apps/api/src/routes/ingest.ts))가 위도(`lat`)·경도(`lon`) 등 원시 GPS 데이터를 받아 `TelemetryRaw`에 적재하고, 트립 집계 잡([trips.ts](../apps/api/src/jobs/trips.ts))이 5분 주기로 세그먼트를 트립으로 닫는 구조를 실제 데이터로 검증 완료(2026-07-09, 백데이트 텔레메트리 주입 후 트립/주간 리포트 정상 생성 확인).
+- 빠른 입력 화면([quick-log/page.tsx](../apps/web/app/vehicles/[id]/quick-log/page.tsx))에서 `navigator.geolocation.getCurrentPosition`으로 브라우저 GPS를 직접 사용해 현재 위치를 얻는 방식까지 구현되어 있음.
 
-### 2) 오피넷(Opinet) API 기반 가격 정보 자동 조회 및 주유 입력 고도화
-- **현재 위치 기준 주변 주유소 및 가격 검색**:
-  - 모바일 기기 GPS 기반의 위경도 좌표를 백엔드로 보낸 뒤, 백엔드에서 오피넷 주변 주유소 조회 API(예: `aroundAll.do`)를 호출하여 사용자의 현재 위치 반경 1~5km 내의 주유소 목록(이름, 정유사 브랜드, 주소, 유종별 단가)을 조회.
-- **주유 빠른 입력 폼(`QuickFuelForm`) 개선**:
-  - 주유 기록 탭 화면에서 사용자가 근처 주유소를 선택하면, 해당 주유소의 유종별 리터당 단가가 자동으로 입력 폼에 바인딩되도록 개선.
-  - 사용자가 주유 금액 또는 주유량을 입력하면 단가를 기반으로 나머지 필드가 자동으로 계산(예: `주유량 = 주유 금액 / 리터당 단가`)되어 입력 편의성 및 데이터 정확성 향상.
+### 2) 오피넷(Opinet) API 기반 주변 주유소 가격 조회
+- 백엔드 `/api/opinet/stations` 라우트([opinet.ts](../apps/api/src/routes/opinet.ts))가 KATEC 좌표 변환(`proj4`) 후 오피넷 `aroundAll.do`를 호출해 반경 5km 내 주유소 목록(이름/브랜드/거리/유종별 단가)을 반환. `OPINET_API_KEY` 미설정 시 또는 API 호출 실패 시 실제와 유사한 목(mock) 데이터로 자동 폴백.
+- 빠른 입력 폼에서 브라우저 GPS 위치 기준으로 근처 주유소를 조회해 선택하면 유종별 단가가 자동 바인딩되는 흐름까지 구현됨.
+- **실 배포 전 확인 필요**: `OPINET_API_KEY` 발급 및 `.env` 등록 여부, 실제 오피넷 API 응답 필드가 코드의 파싱 로직(`s.UNI_ID`, `s.OS_NM`, `s.POLL_DIV_CO` 등)과 맞는지 실제 키로 검증 필요 — 이번 세션에서는 키 없이 목 데이터 경로만 확인함.

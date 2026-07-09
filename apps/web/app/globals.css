@@ -88,6 +88,7 @@ p {
 }
 
 input,
+select,
 button {
   font-size: 16px; /* iOS에서 16px 미만이면 입력 시 자동 확대되는 걸 방지 */
   min-height: 44px; /* 터치 타깃 최소 크기 */
@@ -112,4 +113,108 @@ button:disabled {
 .error-text {
   color: #c0392b;
   font-size: 14px;
+}
+
+.field-error {
+  color: #c0392b;
+  font-size: 13px;
+  margin: -4px 0 0;
+}
+
+/* Toasts */
+.toast-container {
+  position: fixed;
+  left: 50%;
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 32px);
+  max-width: 480px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.toast {
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 14px;
+  padding: 10px 16px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
+  animation: toast-in 0.2s ease;
+  max-width: 100%;
+  text-align: center;
+}
+
+.toast-success {
+  background: #18523f;
+}
+
+.toast-error {
+  background: #a12a24;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Confirm modal */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1001;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  max-width: 420px;
+  width: 100%;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.modal-card p {
+  color: #333;
+  font-size: 15px;
+  margin: 0;
+}
+
+.btn-secondary {
+  background: #eee;
+  color: #333;
+}
+
+.btn-danger {
+  background: #a12a24;
+}
+
+/* Upload progress */
+.upload-progress-track {
+  width: 100%;
+  height: 6px;
+  background: #e5e7eb;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.upload-progress-fill {
+  height: 100%;
+  background: #18523f;
+  transition: width 0.15s ease;
 }

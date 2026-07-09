@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
-import { apiFetch, API_URL } from "../../../lib/api";
+import { useParams, useRouter } from "next/navigation";
+import { apiFetch, uploadFileWithProgress, API_URL } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
+import { useToast } from "../../../lib/toast-context";
+import { useConfirm } from "../../../lib/confirm-context";
 import type { ConsumablePart, FuelType, Reminder, TripSummary, Vehicle } from "../../../lib/types";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
 
@@ -17,9 +19,12 @@ function addMonths(date: Date, months: number): Date {
 
 export default function VehicleOverviewPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const vehicleId = params.id;
   const { isAdmin } = useAuth();
   const { t, formatDistance } = useSettings();
+  const { showToast } = useToast();
+  const confirm = useConfirm();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -38,6 +43,9 @@ export default function VehicleOverviewPage() {
   const [regFile, setRegFile] = useState<File | null>(null);
   const [savingState, setSavingState] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [deletingVehicle, setDeletingVehicle] = useState(false);
+  const [deleteVehicleError, setDeleteVehicleError] = useState("");
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function load() {
     const [vehicleRes, remindersRes, summaryRes, partsRes, odoRes] = await Promise.all([
@@ -91,6 +99,27 @@ export default function VehicleOverviewPage() {
     load();
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function handleDeleteVehicle() {
+    if (!(await confirm(t("deleteVehicleConfirm")))) return;
+    setDeletingVehicle(true);
+    setDeleteVehicleError("");
+    try {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(t("toastDeleted"), "success");
+        router.push("/vehicles");
+      } else {
+        setDeleteVehicleError(t("deleteError"));
+        showToast(t("toastError"), "error");
+      }
+    } catch {
+      setDeleteVehicleError(t("connectionError"));
+      showToast(t("toastError"), "error");
+    } finally {
+      setDeletingVehicle(false);
+    }
+  }
+
   async function dismissReminder(id: string) {
     const res = await apiFetch(`/api/reminders/${id}/dismiss`, { method: "POST" });
     if (res.ok) setReminders((prev) => prev.filter((r) => r.id !== id));
@@ -124,19 +153,21 @@ export default function VehicleOverviewPage() {
         if (regFile) {
           const formData = new FormData();
           formData.append("file", regFile);
-          await apiFetch(`/api/attachments?vehicleId=${vehicleId}`, {
-            method: "POST",
-            body: formData,
-          });
+          setUploadProgress(0);
+          await uploadFileWithProgress(`/api/attachments?vehicleId=${vehicleId}`, formData, setUploadProgress);
+          setUploadProgress(null);
         }
         setEditing(false);
         setRegFile(null);
+        showToast(t("toastSaved"), "success");
         load();
       } else {
         setSaveError(t("saveError"));
+        showToast(t("toastError"), "error");
       }
     } catch {
       setSaveError(t("connectionError"));
+      showToast(t("toastError"), "error");
     } finally {
       setSavingState(false);
     }
@@ -229,18 +260,31 @@ export default function VehicleOverviewPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16 }}>{t("vehiclesHeading")}</h2>
             {isAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  setEditing((prev) => !prev);
-                  setSaveError("");
-                }}
-                style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: editing ? "#eee" : "#18523f", color: editing ? "#333" : "#fff" }}
-              >
-                {editing ? t("cancel") : t("edit")}
-              </button>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditing((prev) => !prev);
+                    setSaveError("");
+                  }}
+                  style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: editing ? "#eee" : "#18523f", color: editing ? "#333" : "#fff" }}
+                >
+                  {editing ? t("cancel") : t("edit")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteVehicle}
+                  disabled={deletingVehicle}
+                  style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: "#a12a24", color: "#fff" }}
+                >
+                  {t("delete")}
+                </button>
+              </div>
             )}
           </div>
+          {deleteVehicleError && (
+            <p style={{ color: "#a12a24", fontSize: 13, margin: "0 0 8px" }}>{deleteVehicleError}</p>
+          )}
 
           {editing ? (
             <form onSubmit={handleSave} className="form" style={{ marginTop: 12 }}>
@@ -299,6 +343,14 @@ export default function VehicleOverviewPage() {
                   onChange={(e) => setRegFile(e.target.files?.[0] || null)}
                   style={{ minHeight: "auto", padding: "4px 8px" }}
                 />
+                {uploadProgress !== null && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                    <div className="upload-progress-track">
+                      <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+                    </div>
+                    <span style={{ fontSize: 12, color: "#666" }}>{t("uploading")} {uploadProgress}%</span>
+                  </div>
+                )}
               </div>
 
               {saveError && <p style={{ color: "red", fontSize: 13, margin: "8px 0 0" }}>{saveError}</p>}

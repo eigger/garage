@@ -6,11 +6,13 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { useToast } from "../../lib/toast-context";
 import { SettingsBar } from "../settings-bar";
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
   const { t } = useSettings();
+  const { showToast } = useToast();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -54,8 +56,9 @@ export default function ProfilePage() {
         setMessage(t("profileUpdated"));
         setCurrentPassword("");
         setNewPassword("");
-        // Reload page or auth to sync state
-        window.location.reload();
+        showToast(t("toastSaved"), "success");
+        // Reload to sync auth state, delayed so the success message/toast is visible first.
+        setTimeout(() => window.location.reload(), 1200);
       } else {
         const errData = await res.json();
         if (errData.error === "incorrect currentPassword") {
@@ -63,9 +66,11 @@ export default function ProfilePage() {
         } else {
           setError(t("passwordMismatch"));
         }
+        showToast(t("toastError"), "error");
       }
     } catch {
       setError(t("connectionError"));
+      showToast(t("toastError"), "error");
     } finally {
       setSubmitting(false);
     }

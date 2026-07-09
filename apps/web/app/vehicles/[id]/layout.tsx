@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { usePathname, useParams } from "next/navigation";
+import { usePathname, useParams, useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
@@ -14,9 +14,11 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
   const { t } = useSettings();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
 
   useEffect(() => {
     requireAuth();
@@ -29,6 +31,21 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
       .then(setVehicle);
   }, [user, vehicleId]);
 
+  useEffect(() => {
+    if (!user) return;
+    apiFetch("/api/vehicles")
+      .then((res) => (res.ok ? res.json() : []))
+      .then(setAllVehicles);
+  }, [user]);
+
+  const basePath = `/vehicles/${vehicleId}`;
+
+  function handleSwitchVehicle(nextId: string) {
+    if (!nextId || nextId === vehicleId) return;
+    const suffix = pathname?.startsWith(basePath) ? pathname.slice(basePath.length) : "";
+    router.push(`/vehicles/${nextId}${suffix}`);
+  }
+
   if (authLoading) {
     return (
       <main className="container">
@@ -38,7 +55,6 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   }
   if (!user) return null;
 
-  const basePath = `/vehicles/${vehicleId}`;
   const tabs = [
     { href: basePath, label: t("navOverview") },
     { href: `${basePath}/quick-log`, label: t("navQuickLog") },
@@ -54,10 +70,26 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
         <Link href="/">{t("backToDashboard")}</Link>
       </p>
       {vehicle && (
-        <h1>
-          {vehicle.name} {vehicle.plate ? `(${vehicle.plate})` : ""}
-          {vehicle.fuelType ? ` · ${t(fuelTypeLabelKey(vehicle.fuelType))}` : ""}
-        </h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <h1 style={{ margin: 0 }}>
+            {vehicle.name} {vehicle.plate ? `(${vehicle.plate})` : ""}
+            {vehicle.fuelType ? ` · ${t(fuelTypeLabelKey(vehicle.fuelType))}` : ""}
+          </h1>
+          {allVehicles.length > 1 && (
+            <select
+              value={vehicleId}
+              onChange={(e) => handleSwitchVehicle(e.target.value)}
+              aria-label={t("switchVehicle")}
+              style={{ minHeight: 36, fontSize: 13, padding: "0 8px", flexShrink: 0 }}
+            >
+              {allVehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.name} {v.plate ? `(${v.plate})` : ""}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       )}
       <nav
         style={{

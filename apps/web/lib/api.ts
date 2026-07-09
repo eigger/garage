@@ -28,3 +28,35 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
 
   return fetch(`${API_URL}${path}`, { ...init, headers, cache: "no-store" });
 }
+
+export interface UploadResult {
+  ok: boolean;
+  status: number;
+  json: () => any;
+}
+
+// fetch는 업로드 진행률 이벤트를 제공하지 않아, 진행률 표시가 필요한 파일 업로드는 XHR을 사용한다.
+export function uploadFileWithProgress(
+  path: string,
+  formData: FormData,
+  onProgress?: (percent: number) => void,
+): Promise<UploadResult> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API_URL}${path}`);
+    const token = getToken();
+    if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable) onProgress?.(Math.round((e.loaded / e.total) * 100));
+    };
+    xhr.onload = () => {
+      resolve({
+        ok: xhr.status >= 200 && xhr.status < 300,
+        status: xhr.status,
+        json: () => JSON.parse(xhr.responseText || "null"),
+      });
+    };
+    xhr.onerror = () => reject(new Error("upload failed"));
+    xhr.send(formData);
+  });
+}
