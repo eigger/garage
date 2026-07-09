@@ -30,23 +30,38 @@ export function SettingsBar() {
       .catch((err) => console.error("Failed to check update:", err));
   }, [user]);
 
+  const selectStyle: React.CSSProperties = {
+    height: 36,
+    minHeight: 36,
+    fontSize: 13,
+    padding: "0 28px 0 8px",
+    flexShrink: 0,
+    width: "auto",
+    display: "inline-block",
+    lineHeight: "36px",
+  };
+
   return (
     <div
       style={{
         display: "flex",
         gap: 8,
-        flexWrap: "wrap",
+        overflowX: "auto",
+        whiteSpace: "nowrap",
         marginBottom: 16,
         fontSize: 13,
         alignItems: "center",
+        paddingBottom: 4,
+        WebkitOverflowScrolling: "touch",
       }}
+      className="no-scrollbar"
       aria-label={t("settingsLabel")}
     >
       <select
         value={locale}
         onChange={(e) => setLocale(e.target.value as Locale)}
         aria-label={t("languageLabel")}
-        style={{ minHeight: 36, fontSize: 13, padding: "0 8px" }}
+        style={selectStyle}
       >
         <option value="ko">한국어</option>
         <option value="en">English</option>
@@ -56,7 +71,7 @@ export function SettingsBar() {
         value={distanceUnit}
         onChange={(e) => setDistanceUnit(e.target.value as DistanceUnit)}
         aria-label={t("distanceUnitLabel")}
-        style={{ minHeight: 36, fontSize: 13, padding: "0 8px" }}
+        style={selectStyle}
       >
         <option value="km">km</option>
         <option value="mi">mi</option>
@@ -66,7 +81,7 @@ export function SettingsBar() {
         value={currency}
         onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
         aria-label={t("currencyLabel")}
-        style={{ minHeight: 36, fontSize: 13, padding: "0 8px" }}
+        style={selectStyle}
       >
         <option value="KRW">₩ KRW</option>
         <option value="USD">$ USD</option>
@@ -76,6 +91,7 @@ export function SettingsBar() {
         <Link
           href="/profile"
           className={`nav-btn-premium ${pathname === "/profile" ? "active" : ""}`}
+          style={{ flexShrink: 0, height: 36, minHeight: 36, display: "inline-flex", alignItems: "center" }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           {t("navProfile")}
@@ -86,6 +102,7 @@ export function SettingsBar() {
         <Link
           href="/backup"
           className={`nav-btn-premium ${pathname === "/backup" ? "active" : ""}`}
+          style={{ flexShrink: 0, height: 36, minHeight: 36, display: "inline-flex", alignItems: "center" }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
           {t("navBackupRestore")}
@@ -94,14 +111,13 @@ export function SettingsBar() {
 
       <span
         style={{
-          marginLeft: "auto",
           color: "#888",
           fontSize: 12,
-          alignSelf: "center",
-          paddingRight: 4,
           display: "inline-flex",
           alignItems: "center",
           gap: 6,
+          flexShrink: 0,
+          marginLeft: 8,
         }}
       >
         v{process.env.APP_VERSION}

@@ -92,9 +92,31 @@ export async function vehicleRoutes(app: FastifyInstance) {
       },
     });
 
+    // Fetch latest location coordinates from telemetry
+    const latestLocation = await prisma.telemetryRaw.findFirst({
+      where: {
+        vehicleId: id,
+        lat: { not: null },
+        lon: { not: null },
+      },
+      orderBy: {
+        time: "desc",
+      },
+      select: {
+        lat: true,
+        lon: true,
+        speed: true,
+        time: true,
+      },
+    });
+
     const responseData = {
       ...vehicle,
       fuelLevel: latestTelemetry?.fuelLevel ?? null,
+      latitude: latestLocation?.lat ?? null,
+      longitude: latestLocation?.lon ?? null,
+      locationUpdatedAt: latestLocation?.time ?? null,
+      speed: latestLocation?.speed ?? null,
     };
 
     return omitApiTokenUnlessAdmin(responseData, role);

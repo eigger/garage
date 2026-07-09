@@ -281,3 +281,11 @@ button:disabled {
   box-shadow: 0 2px 6px rgba(24, 82, 63, 0.15);
 }
 
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

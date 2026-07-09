@@ -99,38 +99,73 @@ export default function Home() {
       <p>{t("appTagline")}</p>
 
       {dueReminders.length > 0 && (
-        <section className="reminder-banner">
-          <strong>{t("reminderBannerTitle", { count: dueReminders.length })}</strong>
+        <section style={{ marginBottom: 16 }}>
+          <strong style={{ fontSize: 15, color: "#1f2937", display: "block", marginBottom: 8 }}>
+            🚨 {t("reminderBannerTitle", { count: dueReminders.length })}
+          </strong>
           <ul className="list" style={{ marginTop: 8 }}>
-            {dueReminders.map((r) => (
-              <li
-                key={r.id}
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}
-              >
-                <span>
-                  {t("reminderItemDue", { vehicle: r.vehicleName, type: formatItemLabel(t, r.type) })}
-                  {r.dueOdometer !== null && (
-                    <>
-                      {" — "}
-                      {t("reminderDueOdometer", { distance: formatDistance(r.dueOdometer) })}
-                    </>
-                  )}
-                </span>
-                <button
-                  type="button"
-                  style={{ minHeight: 32, flexShrink: 0 }}
-                  onClick={() => dismissReminder(r.id)}
+            {dueReminders.map((r) => {
+              const borderLeftColor = r.isDue ? "#ef4444" : "#f59e0b";
+              const backgroundColor = r.isDue ? "#fef2f2" : "#fffbeb";
+              const borderColor = r.isDue ? "#fee2e2" : "#fef3c7";
+              const textColor = r.isDue ? "#991b1b" : "#92400e";
+              return (
+                <li
+                  key={r.id}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "10px 12px",
+                    backgroundColor,
+                    border: `1px solid ${borderColor}`,
+                    borderLeft: `4px solid ${borderLeftColor}`,
+                    borderRadius: 8,
+                    fontSize: 14,
+                    color: textColor,
+                  }}
                 >
-                  {t("dismissReminder")}
-                </button>
-                <Link href={`/vehicles/${r.vehicleId}/schedule`} style={{ fontSize: 13 }}>
-                  {t("reminderGoSchedule")}
-                </Link>
-                <Link href={`/vehicles/${r.vehicleId}/quick-log`} style={{ fontSize: 13 }}>
-                  {t("reminderGoQuickLog")}
-                </Link>
-              </li>
-            ))}
+                  <span style={{ fontWeight: "500", display: "flex", alignItems: "center", gap: 6 }}>
+                    <span>{r.isDue ? "🚨" : "⚠️"}</span>
+                    <span>
+                      {t("reminderItemDue", { vehicle: r.vehicleName, type: formatItemLabel(t, r.type) })}
+                      {r.dueOdometer !== null && (
+                        <>
+                          {" — "}
+                          {t("reminderDueOdometer", { distance: formatDistance(r.dueOdometer) })}
+                        </>
+                      )}
+                    </span>
+                  </span>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      style={{
+                        minHeight: 28,
+                        height: 28,
+                        padding: "0 8px",
+                        fontSize: 12,
+                        borderRadius: 6,
+                        background: r.isDue ? "#ef4444" : "#f59e0b",
+                        color: "#fff",
+                        border: "none",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => dismissReminder(r.id)}
+                    >
+                      {t("dismissReminder")}
+                    </button>
+                    <Link href={`/vehicles/${r.vehicleId}/schedule`} style={{ fontSize: 12, textDecoration: "underline", color: textColor }}>
+                      {t("reminderGoSchedule")}
+                    </Link>
+                    <Link href={`/vehicles/${r.vehicleId}/quick-log`} style={{ fontSize: 12, textDecoration: "underline", color: textColor }}>
+                      {t("reminderGoQuickLog")}
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         </section>
       )}

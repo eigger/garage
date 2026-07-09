@@ -37,6 +37,9 @@ export default function HistoryPage() {
 
   const CHUNK_SIZE = 5;
 
+  type SubTab = "trips" | "fuel" | "maintenance";
+  const [subTab, setSubTab] = useState<SubTab>("trips");
+
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [fuelOffset, setFuelOffset] = useState(0);
   const [hasMoreFuel, setHasMoreFuel] = useState(true);
@@ -48,7 +51,7 @@ export default function HistoryPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | RecordCategory>("all");
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   // state 대신 ref를 쓴다 — 검색 이펙트가 예약된 시점이 아니라 "실행되는 시점"의 값을
   // 봐야 초기 로딩 도중 검색어가 바뀌는 경우에도 그 검색이 씹히지 않는다.
   const initialLoadDone = useRef(false);
@@ -99,17 +102,34 @@ export default function HistoryPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Reset logs and states when vehicle changes
   useEffect(() => {
-    Promise.all([loadFuelLogs(true), loadMaintenanceRecords(true)]).then(() => {
-      setLoading(false);
-      initialLoadDone.current = true;
-    });
-  }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
+    setFuelLogs([]);
+    setFuelOffset(0);
+    setHasMoreFuel(true);
+    setMaintenanceRecords([]);
+    setMaintenanceOffset(0);
+    setHasMoreMaintenance(true);
+    setSearch("");
+    setDebouncedSearch("");
+    setCategoryFilter("all");
+  }, [vehicleId]);
 
+  // Load fuel logs when active tab is fuel
   useEffect(() => {
-    if (!initialLoadDone.current) return;
-    loadMaintenanceRecords(true);
-  }, [debouncedSearch, categoryFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (subTab === "fuel") {
+      setLoading(true);
+      loadFuelLogs(true).then(() => setLoading(false));
+    }
+  }, [vehicleId, subTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Load maintenance records when active tab is maintenance
+  useEffect(() => {
+    if (subTab === "maintenance") {
+      setLoading(true);
+      loadMaintenanceRecords(true).then(() => setLoading(false));
+    }
+  }, [vehicleId, subTab, debouncedSearch, categoryFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <p>{t("loading")}</p>;
 
@@ -129,143 +149,178 @@ export default function HistoryPage() {
     prevFullTank = log;
   }
 
+  const tabs: { key: SubTab; label: string }[] = [
+    { key: "trips", label: t("historyTabTrips") },
+    { key: "fuel", label: t("historyTabFuel") },
+    { key: "maintenance", label: t("historyTabMaintenance") },
+  ];
+
   return (
     <>
       <h1>{t("historyHeading")}</h1>
 
-      <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} />
-
-      <section>
-        <h2>{t("fuelLogsHeading")}</h2>
-        {fuelLogs.length === 0 ? (
-          <p>{t("noFuelLogs")}</p>
-        ) : (
-          <>
-            <ul className="list">
-              {fuelLogs.map((f) => (
-                <FuelLogRow
-                  key={f.id}
-                  vehicleId={vehicleId}
-                  log={f}
-                  efficiency={fuelEfficiencyById[f.id] ?? null}
-                  onChanged={() => loadFuelLogs(true)}
-                  t={t}
-                  formatCurrency={formatCurrency}
-                  showToast={showToast}
-                  confirm={confirm}
-                />
-              ))}
-            </ul>
-            {hasMoreFuel && (
-              <button
-                type="button"
-                onClick={() => loadFuelLogs(false)}
-                style={{
-                  width: "100%",
-                  marginTop: 12,
-                  minHeight: 38,
-                  fontSize: 13,
-                  fontWeight: "500",
-                  backgroundColor: "#ffffff",
-                  color: "#18523f",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                }}
-                className="nav-btn-premium"
-              >
-                {t("loadMore")}
-              </button>
-            )}
-          </>
-        )}
-      </section>
-
-      <section>
-        <h2>{t("maintenanceAndAdminHeading")}</h2>
-        <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {(
-            [
-              ["all", "historyCategoryAll"],
-              ["MAINTENANCE", "historyCategoryMaintenance"],
-              ["ADMINISTRATIVE", "historyCategoryAdministrative"],
-            ] as const
-          ).map(([value, labelKey]) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setCategoryFilter(value)}
-              style={{
-                fontSize: 12,
-                padding: "4px 10px",
-                minHeight: "auto",
-                background: categoryFilter === value ? "#18523f" : "#eee",
-                color: categoryFilter === value ? "#fff" : "#333",
-              }}
-            >
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
-        <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
-          <input
-            type="text"
-            placeholder={t("searchMaintenancePlaceholder")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {tabs.map((tb) => (
+          <button
+            key={tb.key}
+            type="button"
+            onClick={() => setSubTab(tb.key)}
             style={{
+              background: subTab === tb.key ? "#18523f" : "#eee",
+              color: subTab === tb.key ? "#fff" : "#333",
               flex: 1,
               minHeight: 38,
-              fontSize: 13,
+              fontSize: 14,
+              fontWeight: "600",
               borderRadius: 8,
-              border: "1px solid #e2e8f0",
-              padding: "0 12px",
-              outline: "none",
+              border: "none",
+              cursor: "pointer",
             }}
-          />
-        </div>
-        {maintenanceRecords.length === 0 ? (
-          <p>{t("noMaintenanceRecords")}</p>
-        ) : (
-          <>
-            <ul className="list">
-              {maintenanceRecords.map((m) => (
-                <MaintenanceRow
-                  key={m.id}
-                  vehicleId={vehicleId}
-                  record={m}
-                  onChanged={() => loadMaintenanceRecords(true)}
-                  t={t}
-                  formatCurrency={formatCurrency}
-                  showToast={showToast}
-                  confirm={confirm}
-                />
-              ))}
-            </ul>
-            {hasMoreMaintenance && (
+          >
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
+      {subTab === "trips" && (
+        <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} />
+      )}
+
+      {subTab === "fuel" && (
+        <section>
+          <h2>{t("fuelLogsHeading")}</h2>
+          {fuelLogs.length === 0 ? (
+            <p>{t("noFuelLogs")}</p>
+          ) : (
+            <>
+              <ul className="list">
+                {fuelLogs.map((f) => (
+                  <FuelLogRow
+                    key={f.id}
+                    vehicleId={vehicleId}
+                    log={f}
+                    efficiency={fuelEfficiencyById[f.id] ?? null}
+                    onChanged={() => loadFuelLogs(true)}
+                    t={t}
+                    formatCurrency={formatCurrency}
+                    showToast={showToast}
+                    confirm={confirm}
+                  />
+                ))}
+              </ul>
+              {hasMoreFuel && (
+                <button
+                  type="button"
+                  onClick={() => loadFuelLogs(false)}
+                  style={{
+                    width: "100%",
+                    marginTop: 12,
+                    minHeight: 38,
+                    fontSize: 13,
+                    fontWeight: "500",
+                    backgroundColor: "#ffffff",
+                    color: "#18523f",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                  }}
+                  className="nav-btn-premium"
+                >
+                  {t("loadMore")}
+                </button>
+              )}
+            </>
+          )}
+        </section>
+      )}
+
+      {subTab === "maintenance" && (
+        <section>
+          <h2>{t("maintenanceAndAdminHeading")}</h2>
+          <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {(
+              [
+                ["all", "historyCategoryAll"],
+                ["MAINTENANCE", "historyCategoryMaintenance"],
+                ["ADMINISTRATIVE", "historyCategoryAdministrative"],
+              ] as const
+            ).map(([value, labelKey]) => (
               <button
+                key={value}
                 type="button"
-                onClick={() => loadMaintenanceRecords(false)}
+                onClick={() => setCategoryFilter(value)}
                 style={{
-                  width: "100%",
-                  marginTop: 12,
-                  minHeight: 38,
-                  fontSize: 13,
-                  fontWeight: "500",
-                  backgroundColor: "#ffffff",
-                  color: "#18523f",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 8,
-                  cursor: "pointer",
+                  fontSize: 12,
+                  padding: "4px 10px",
+                  minHeight: "auto",
+                  background: categoryFilter === value ? "#18523f" : "#eee",
+                  color: categoryFilter === value ? "#fff" : "#333",
                 }}
-                className="nav-btn-premium"
               >
-                {t("loadMore")}
+                {t(labelKey)}
               </button>
-            )}
-          </>
-        )}
-      </section>
+            ))}
+          </div>
+          <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              placeholder={t("searchMaintenancePlaceholder")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                flex: 1,
+                minHeight: 38,
+                fontSize: 13,
+                borderRadius: 8,
+                border: "1px solid #e2e8f0",
+                padding: "0 12px",
+                outline: "none",
+              }}
+            />
+          </div>
+          {maintenanceRecords.length === 0 ? (
+            <p>{t("noMaintenanceRecords")}</p>
+          ) : (
+            <>
+              <ul className="list">
+                {maintenanceRecords.map((m) => (
+                  <MaintenanceRow
+                    key={m.id}
+                    vehicleId={vehicleId}
+                    record={m}
+                    onChanged={() => loadMaintenanceRecords(true)}
+                    t={t}
+                    formatCurrency={formatCurrency}
+                    showToast={showToast}
+                    confirm={confirm}
+                  />
+                ))}
+              </ul>
+              {hasMoreMaintenance && (
+                <button
+                  type="button"
+                  onClick={() => loadMaintenanceRecords(false)}
+                  style={{
+                    width: "100%",
+                    marginTop: 12,
+                    minHeight: 38,
+                    fontSize: 13,
+                    fontWeight: "500",
+                    backgroundColor: "#ffffff",
+                    color: "#18523f",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    cursor: "pointer",
+                  }}
+                  className="nav-btn-premium"
+                >
+                  {t("loadMore")}
+                </button>
+              )}
+            </>
+          )}
+        </section>
+      )}
     </>
   );
 }
@@ -407,11 +462,46 @@ function FuelLogRow({
         </span>
       </div>
       {efficiency && (
-        <div style={{ fontSize: 12, color: "#18523f" }}>
-          {t("fuelEfficiency")}:{" "}
-          {t("fuelEfficiencyKmPerLiter", { value: efficiency.kmPerLiter.toFixed(1) })} ·{" "}
-          {t("fuelEfficiencyLPer100", { value: efficiency.litersPer100Km.toFixed(1) })} ·{" "}
-          {t("fuelEfficiencyDistance", { distance: `${efficiency.distanceKm.toFixed(0)}km` })}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6, marginBottom: 4 }}>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "3px 6px",
+            fontSize: 11,
+            fontWeight: "600",
+            color: "#166534",
+            backgroundColor: "#dcfce7",
+            border: "1px solid #bbf7d0",
+            borderRadius: 6,
+          }}>
+            🌱 {t("fuelEfficiencyKmPerLiter", { value: efficiency.kmPerLiter.toFixed(1) })}
+          </span>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "3px 6px",
+            fontSize: 11,
+            fontWeight: "500",
+            color: "#374151",
+            backgroundColor: "#f3f4f6",
+            border: "1px solid #e5e7eb",
+            borderRadius: 6,
+          }}>
+            📊 {efficiency.litersPer100Km.toFixed(1)} L/100km
+          </span>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            padding: "3px 6px",
+            fontSize: 11,
+            fontWeight: "500",
+            color: "#1e3a8a",
+            backgroundColor: "#dbeafe",
+            border: "1px solid #bfdbfe",
+            borderRadius: 6,
+          }}>
+            🛣️ {efficiency.distanceKm.toFixed(0)}km {t("historyTabTrips")}
+          </span>
         </div>
       )}
       {log.address && <div style={{ fontSize: 12, color: "#666" }}>{log.address}</div>}
