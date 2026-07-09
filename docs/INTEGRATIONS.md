@@ -281,23 +281,15 @@ automation:
 service: rest_command.garage_send_telemetry
 ```
 
-**Using `secrets.yaml`** (recommended for the API token):
+**Direct URL example** (no `secrets.yaml`):
 
 ```yaml
-# secrets.yaml
-garage_host: "192.168.1.50"
-garage_vehicle_id: "clxxxxxxxxxxxxxxxx"
-garage_api_token: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
-```
-
-```yaml
-# configuration.yaml
 rest_command:
   garage_send_telemetry:
-    url: "http://!secret garage_host/api/ingest/telemetry/!secret garage_vehicle_id"
+    url: "http://192.168.0.244/api/ingest/telemetry/clxxxxxxxxxxxxxxxx"
     method: POST
     headers:
-      Authorization: "Bearer !secret garage_api_token"
+      Authorization: "Bearer YOUR_VEHICLE_API_TOKEN"
       Content-Type: "application/json"
     payload: >-
       {
@@ -602,69 +594,48 @@ Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`.
 
 ---
 
-### Home Assistant — copy & paste `rest_command`
+### Home Assistant — Garage API 기준 `rest_command`
 
-These commands use a **Garage login JWT**, not the vehicle `apiToken` used for telemetry. Obtain the JWT once via login and store it in `secrets.yaml`.
-
-> Garage has **no standalone odometer endpoint** like LubeLogger.  
-> `garage_add_odometer` uses a lightweight administrative maintenance record to bump `Vehicle.odometer` when the value is higher.  
-> For live GPS/telemetry sync, use `garage_send_telemetry` (section 3) with the per-vehicle `apiToken` instead.
-
-**Placeholders**
-
-| Placeholder | Where to find it |
-|---|---|
-| `garage_host` | Garage server hostname or IP (no trailing slash), e.g. `192.168.0.244` |
-| `garage_vehicle_id` | Garage web UI → vehicle detail URL (`/vehicles/{id}`) — string ID, not a number |
-| `garage_jwt` | `POST /api/auth/login` response `token`, or Developer tools curl |
-
-**`secrets.yaml`**
-
-```yaml
-garage_host: "192.168.0.244"
-garage_vehicle_id: "clxxxxxxxxxxxxxxxx"
-garage_jwt: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...."
-```
-
-**LubeLogger-style commands** — pass values from automations via `service: rest_command...` `data:` (sensor/entity IDs stay in the automation, not in `configuration.yaml`):
+아래 예시는 Garage API 스펙(`/api/fuel-logs`, `/api/maintenance-records`) 그대로 사용합니다.  
+`secrets.yaml` 없이 URL을 직접 넣은 예시이며, 센서값은 자동화 `data`에서 전달하는 형태입니다.
 
 ```yaml
 rest_command:
   garage_add_odometer:
-    url: "http://!secret garage_host/api/maintenance-records"
+    url: "http://192.168.0.244/api/maintenance-records"
     method: post
     content_type: "application/json"
     headers:
-      Authorization: "Bearer !secret garage_jwt"
+      Authorization: "Bearer {{ jwt }}"
     payload: >
       {
-        "vehicleId": "{{ vehicle_id | default('') }}",
+        "vehicleId": "{{ vehicle_id }}",
         "date": "{{ date | default(now().strftime('%Y-%m-%d'), true) }}",
-        "odometer": {{ odometer | default(0) | int }},
+        "odometer": {{ odometer | int(0) }},
         "type": "주행거리 동기화",
         "category": "ADMINISTRATIVE",
         "notes": "{{ notes | default('홈어시스턴트 자동 동기화') }}"
       }
 
   garage_add_fuel:
-    url: "http://!secret garage_host/api/fuel-logs"
+    url: "http://192.168.0.244/api/fuel-logs"
     method: post
     content_type: "application/json"
     headers:
-      Authorization: "Bearer !secret garage_jwt"
+      Authorization: "Bearer {{ jwt }}"
     payload: >
       {
-        "vehicleId": "{{ vehicle_id | default('') }}",
+        "vehicleId": "{{ vehicle_id }}",
         "date": "{{ date | default(now().strftime('%Y-%m-%d'), true) }}",
-        "odometer": {{ odometer | default(0) | int }},
-        "liters": {{ fuel_consumed | default(0.0) | float }},
-        "cost": {{ cost | default(0) | int }},
-        "fullTank": {% if is_full | default(true) %}true{% else %}false{% endif %},
-        "location": "{{ location | default(notes | default('홈어시스턴트 자동 동기화'), true) }}"
+        "odometer": {{ odometer | int(0) }},
+        "liters": {{ liters | float(0) }},
+        "cost": {{ cost | int(0) }},
+        "fullTank": {% if full_tank | default(true) %}true{% else %}false{% endif %},
+        "location": "{{ location | default('홈어시스턴트 자동 동기화') }}"
       }
 ```
 
-**Call from an automation** (sensor values supplied here):
+자동화에서 센서값 전달 예시:
 
 ```yaml
 automation:
@@ -676,11 +647,12 @@ automation:
     action:
       - service: rest_command.garage_add_odometer
         data:
-          vehicle_id: !secret garage_vehicle_id
+          jwt: "YOUR_GARAGE_LOGIN_JWT"
+          vehicle_id: "clxxxxxxxxxxxxxxxx"
           odometer: "{{ states('sensor.your_odometer') }}"
           notes: "홈어시스턴트 자동 동기화"
 
-  - id: garage_log_fuel_from_sensor
+  - id: garage_log_fuel_from_helpers
     alias: "Garage: log fuel"
     trigger:
       - platform: state
@@ -688,97 +660,32 @@ automation:
     action:
       - service: rest_command.garage_add_fuel
         data:
-          vehicle_id: !secret garage_vehicle_id
+          jwt: "YOUR_GARAGE_LOGIN_JWT"
+          vehicle_id: "clxxxxxxxxxxxxxxxx"
           odometer: "{{ states('sensor.your_odometer') }}"
-          fuel_consumed: "{{ states('input_number.fuel_liters') }}"
+          liters: "{{ states('input_number.fuel_liters') }}"
           cost: "{{ states('input_number.fuel_cost') }}"
-          is_full: true
+          full_tank: true
           location: "{{ states('input_text.fuel_station') }}"
 ```
 
-**Manual test** — Developer tools → Actions:
+수동 테스트 예시:
 
 ```yaml
 service: rest_command.garage_add_fuel
 data:
-  vehicle_id: !secret garage_vehicle_id
+  jwt: "YOUR_GARAGE_LOGIN_JWT"
+  vehicle_id: "clxxxxxxxxxxxxxxxx"
   odometer: 45230
-  fuel_consumed: 45.2
+  liters: 45.2
   cost: 75000
-  is_full: true
+  full_tank: true
   location: "OO주유소"
 ```
 
-**Create fuel log** (entity IDs in `configuration.yaml` — older style):
-
-```yaml
-# --- Garage: create fuel log ---
-rest_command:
-  garage_create_fuel_log:
-    url: "http://!secret garage_host/api/fuel-logs"
-    method: POST
-    headers:
-      Authorization: "Bearer !secret garage_jwt"
-      Content-Type: "application/json"
-    payload: >-
-      {
-        "vehicleId": "!secret garage_vehicle_id",
-        "date": "{{ now().strftime('%Y-%m-%d') }}",
-        "odometer": {{ states('sensor.YOUR_ODOMETER_SENSOR') | int(0) }},
-        "liters": {{ states('input_number.fuel_liters') | float(0) }},
-        "cost": {{ states('input_number.fuel_cost') | int(0) }},
-        "fullTank": true,
-        "location": "{{ states('input_text.fuel_station') }}"
-      }
-```
-
-**Create maintenance record**:
-
-```yaml
-# --- Garage: create maintenance record ---
-rest_command:
-  garage_create_maintenance:
-    url: "http://!secret garage_host/api/maintenance-records"
-    method: POST
-    headers:
-      Authorization: "Bearer !secret garage_jwt"
-      Content-Type: "application/json"
-    payload: >-
-      {
-        "vehicleId": "!secret garage_vehicle_id",
-        "date": "{{ now().strftime('%Y-%m-%d') }}",
-        "odometer": {{ states('sensor.YOUR_ODOMETER_SENSOR') | int(0) }},
-        "type": "{{ states('input_text.maintenance_type') }}",
-        "cost": {{ states('input_number.maintenance_cost') | int(0) }},
-        "shop": "{{ states('input_text.maintenance_shop') }}"
-      }
-```
-
-**Backfill a past fuel log** — set `date` and `odometer` explicitly:
-
-```yaml
-rest_command:
-  garage_backfill_fuel_log:
-    url: "http://!secret garage_host/api/fuel-logs"
-    method: POST
-    headers:
-      Authorization: "Bearer !secret garage_jwt"
-      Content-Type: "application/json"
-    payload: >-
-      {
-        "vehicleId": "!secret garage_vehicle_id",
-        "date": "2023-11-20",
-        "odometer": 38500,
-        "liters": 42.0,
-        "cost": 68000,
-        "fullTank": true,
-        "location": "과거 주유소"
-      }
-```
-
-> **JWT vs `apiToken`**: Telemetry (sections 2–3) uses the per-vehicle `apiToken` and does not create fuel/maintenance rows. Records API needs a user JWT.  
-> **HTTPS**: Use `https://` when Garage is served over TLS.  
-> **Field mapping (LubeLogger → Garage)**: `fuelConsumed` → `liters`, `isFillToFull` → `fullTank`, `vehicleId` is a string (`clx...`), not an integer.
+> JWT는 `POST http://192.168.0.244/api/auth/login` 응답 `token` 사용  
+> `vehicleId`는 숫자가 아니라 Garage 차량 ID 문자열(`clx...`)  
+> 오도미터 단독 API는 없으므로 행정 레코드(maintenance-records) 방식으로 동기화
 
 ---
 
