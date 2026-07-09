@@ -46,6 +46,7 @@ export default function VehicleOverviewPage() {
   const [vin, setVin] = useState("");
   const [tireSize, setTireSize] = useState("");
   const [batteryCapacity, setBatteryCapacity] = useState("");
+  const [odometer, setOdometer] = useState("");
   const [regFile, setRegFile] = useState<File | null>(null);
   const [savingState, setSavingState] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -73,6 +74,7 @@ export default function VehicleOverviewPage() {
       setVin(vData.vin || "");
       setTireSize(vData.tireSize || "");
       setBatteryCapacity(vData.batteryCapacity || "");
+      setOdometer(vData.odometer ? String(vData.odometer) : "0");
     }
     if (remindersRes.ok) {
       const all: Reminder[] = await remindersRes.json();
@@ -173,6 +175,7 @@ export default function VehicleOverviewPage() {
           vin: vin || null,
           tireSize: tireSize || null,
           batteryCapacity: batteryCapacity || null,
+          odometer: odometer ? Number(odometer) : 0,
         }),
       });
 
@@ -404,6 +407,17 @@ export default function VehicleOverviewPage() {
                 </div>
               </div>
 
+              <div style={{ marginTop: 12 }}>
+                <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("dashboardOdometer")}</label>
+                <input
+                  type="number"
+                  placeholder={t("dashboardOdometer")}
+                  value={odometer}
+                  onChange={(e) => setOdometer(e.target.value)}
+                  style={{ width: "100%" }}
+                />
+              </div>
+
               <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 12 }}>
                 <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>
                   {t("registrationCertificate")}
@@ -437,6 +451,7 @@ export default function VehicleOverviewPage() {
                 <div><strong>{t("vehiclePlate")}:</strong> {vehicle.plate || "-"}</div>
                 <div><strong>{t("vehicleYear")}:</strong> {vehicle.year || "-"}</div>
                 <div><strong>{t("vehicleFuelType")}:</strong> {vehicle.fuelType ? t(fuelTypeLabelKey(vehicle.fuelType)) : "-"}</div>
+                <div><strong>{t("dashboardOdometer")}:</strong> {vehicle.odometer !== null && vehicle.odometer !== undefined ? formatDistance(vehicle.odometer) : "-"}</div>
               </div>
               <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
                 <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>

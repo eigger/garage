@@ -18,6 +18,7 @@ export const vehicleSchema = z.object({
   fuelType: fuelTypeSchema.optional(),
   tireSize: z.string().nullable().optional(),
   batteryCapacity: z.string().nullable().optional(),
+  odometer: z.number().int().nonnegative().optional(),
 });
 export type VehicleInput = z.infer<typeof vehicleSchema>;
 

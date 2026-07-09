@@ -111,6 +111,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!existing.fuelType && vehicle.fuelType) {
       await applyPresetsToVehicle(vehicle.id, vehicle.fuelType);
     }
+    await syncReminders(vehicle.id);
     return vehicle;
   });
 
