@@ -1,54 +1,131 @@
-# garage
+# Garage
 
-차량관리 통합 셀프호스트 서버 (정비/소모품, 주유, 주행관리(OBD/GPS)).
-상세 설계는 [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) 참고.
+[![CI](https://github.com/eigger/garage/actions/workflows/docker-publish.yml/badge.svg?branch=master)](https://github.com/eigger/garage/actions/workflows/docker-publish.yml)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D20.0-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![License](https://img.shields.io/github/license/eigger/garage)](https://github.com/eigger/garage/blob/master/LICENSE)
+[![Self-hosted](https://img.shields.io/badge/hosting-self--hosted-2563EB)](proxmox/ct/garage.sh)
+[![Docker](https://img.shields.io/badge/docker-ghcr.io%2Feigger%2Fgarage-2496ED?logo=docker&logoColor=white)](https://github.com/eigger/garage/pkgs/container/garage-api)
 
-## 구조
+An all-in-one self-hosted car management server (maintenance, consumables, fueling, and trip logging via OBD/GPS).
+
+Detailed architecture design is available at [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
+
+## Project Structure
 
 ```
 garage/
   apps/
-    api/      # Node.js + TypeScript(Fastify) 백엔드, Prisma ORM
-    web/      # Next.js 프론트엔드
+    api/      # Node.js Fastify backend + Prisma ORM
+    web/      # Next.js frontend (App Router)
   packages/
-    shared/   # api/web 공유 Zod 스키마
-  docker-compose.yml
-  Caddyfile
-  mosquitto/mosquitto.conf
+    shared/   # Shared Zod schemas between API and Web
+  docker-compose.yml       # Local development/build stack
+  docker-compose.prod.yml  # Production deployment stack (pulls prebuilt images)
+  Caddyfile                # Reverse proxy configuration
+  mosquitto/               # MQTT broker configuration for OBD/GPS integration
 ```
 
-## 로컬 개발 준비
+## Features & Roadmap
 
-1. `.env.example`을 `.env`로 복사하고 값 채우기 (`POSTGRES_PASSWORD`, `JWT_SECRET`은 필수).
-2. `npm install` (루트에서 워크스페이스 전체 설치).
-3. Postgres만 먼저 띄우고 싶다면:
+- **Phase 1 (MVP - Available Now)**:
+  - Maintenance & consumable items tracking.
+  - Fuel logging and statistics.
+  - Complete multi-container production stack (PostgreSQL + API + Web + Caddy).
+- **Phase 2 (Upcoming)**:
+  - MQTT broker integration (Mosquitto) for OBD data ingestion.
+  - Cloudflare Tunnels integration for secure remote access.
+- **Phase 3 (Upcoming)**:
+  - Background task worker (Redis + BullMQ).
+  - Dedicated GPS/OBD hardware logging server (Traccar).
+
+---
+
+## Local Development Setup
+
+### Prerequisites
+- Node.js >= 20
+- Docker (for database)
+
+### Installation
+1. Clone the repository and install workspace dependencies:
+   ```sh
+   npm install
    ```
+2. Copy the environment variables template and configure the required variables:
+   ```sh
+   cp .env.example .env
+   ```
+   > [!IMPORTANT]
+   > Make sure to specify strong secrets for `POSTGRES_PASSWORD` and `JWT_SECRET`.
+
+3. Spin up the development PostgreSQL database:
+   ```sh
    docker compose up -d postgres
    ```
-4. Prisma 마이그레이션:
-   ```
+
+4. Run Prisma database migrations:
+   ```sh
    npm run prisma:migrate
    ```
-5. 최초 관리자 계정 생성 (공개 회원가입이 없어서 최초 1회 필요):
-   ```
+
+5. Seed the initial admin account (necessary as public sign-up is disabled):
+   ```sh
    npm run seed -w apps/api
    ```
-6. 개발 서버 실행:
+   *Verify default admin credentials inside `.env` (`ADMIN_EMAIL`/`ADMIN_PASSWORD`).*
+
+6. Start both backend and frontend development servers:
+   ```sh
+   npm run dev:api   # API: http://localhost:8080
+   npm run dev:web   # Web: http://localhost:3000
    ```
-   npm run dev:api   # http://localhost:8080
-   npm run dev:web   # http://localhost:3000
-   ```
-7. `http://localhost:3000/login`에서 `.env`에 넣은 `ADMIN_EMAIL`/`ADMIN_PASSWORD`로 로그인.
 
-## 전체 스택 배포 (1단계 범위: postgres + api + web + caddy)
+7. Access the Web UI at `http://localhost:3000/login` and log in using your admin credentials.
 
+---
+
+## Production Deployment (Docker Compose)
+
+To pull prebuilt Docker images and run the full stack immediately, use the production compose configuration:
+
+```sh
+docker compose -f docker-compose.prod.yml up -d
 ```
-docker compose up -d --build
+
+### Environment Variables
+Configure the `/opt/garage/.env` file before starting:
+- `POSTGRES_PASSWORD`: Database password
+- `JWT_SECRET`: Web token signing secret
+- `OPINET_API_KEY`: Opinet API key for gas station data (optional)
+- `GH_REPOSITORY_OWNER`: GitHub username to pull images from (defaults to `eigger`)
+
+---
+
+## Proxmox VE LXC One-Click Installation
+
+You can bootstrap a fully isolated self-hosted environment on Proxmox VE. The helper script automatically provisions a Debian 12 LXC container, configures Docker, pulls the latest production Docker images, generates cryptographic credentials, and starts the service.
+
+Run the following command in your **Proxmox VE shell**:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/eigger/garage/master/proxmox/ct/garage.sh)"
 ```
 
-`docker-compose.yml`에는 1단계(MVP)에 필요 없는 서비스(mosquitto, cloudflared, redis, traccar)는 주석 처리해뒀다. 해당 기능이 필요해지는 시점에 아래 순서로 주석을 해제한다.
+Once the setup completes, navigate to `http://<LXC_IP>` in your browser to access the system.
 
-- **mosquitto**: OBD 앱/GPS 로거 데이터 수집, Home Assistant 연동을 시작할 때
-- **cloudflared**: 외부(집 밖)에서 서버에 접근해야 할 때 — `.env`의 `CLOUDFLARE_TUNNEL_TOKEN` 필요
-- **redis**: 백그라운드 작업량이 늘어 BullMQ로 분리해야 할 때
-- **traccar**: 전용 GPS/OBD 하드웨어 로거를 실제로 붙일 때
+---
+
+## CI/CD Pipeline
+
+The project includes a GitHub Actions pipeline under [`.github/workflows/docker-publish.yml`](./.github/workflows/docker-publish.yml).
+- Automatically builds and pushes containerized images to the GitHub Container Registry (GHCR) on push to the `master` branch.
+- Generates `garage-api:latest` and `garage-web:latest`.
+
+```yaml
+# To publish your own, adjust permissions and trigger actions in your repository:
+# Repository Settings -> Actions -> General -> Workflow Permissions -> "Read and write permissions"
+```
+
+## License
+
+MIT License. See [LICENSE](./LICENSE) for details.

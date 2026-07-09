@@ -37,11 +37,13 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      # NEXT_PUBLIC_API_URL은 next build 시점에 클라이언트 번들에 박히므로 여기서(빌드 인자로)
+      # 지정해야 한다 — environment:(런타임) 값은 이미 빌드된 번들에 아무 영향을 못 준다.
+      # 기본값(""）은 Caddy가 /api/*를 api로 프록시하는 같은 오리진 상대경로를 의미한다.
     restart: unless-stopped
     depends_on:
       - api
     environment:
-      NEXT_PUBLIC_API_URL: http://api:8080
       NODE_ENV: production
 
   caddy:

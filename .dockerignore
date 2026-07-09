@@ -1,0 +1,12 @@
+node_modules
+**/node_modules
+apps/web/.next
+apps/api/dist
+apps/web/next-env.d.ts
+**/*.tsbuildinfo
+.git
+.env
+.env.*
+uploads
+*.log
+.DS_Store
