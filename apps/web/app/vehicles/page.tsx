@@ -9,6 +9,7 @@ import { useToast } from "../../lib/toast-context";
 import { SettingsBar } from "../settings-bar";
 import type { FuelType, Vehicle } from "../../lib/types";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
+import { FUEL_TYPES } from "@garage/shared";
 
 export default function VehiclesPage() {
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
@@ -145,10 +146,11 @@ export default function VehiclesPage() {
               <option value="" disabled>
                 {t("vehicleFuelType")}
               </option>
-              <option value="GASOLINE">{t("fuelTypeGasoline")}</option>
-              <option value="DIESEL">{t("fuelTypeDiesel")}</option>
-              <option value="LPG">{t("fuelTypeLpg")}</option>
-              <option value="ELECTRIC">{t("fuelTypeElectric")}</option>
+              {FUEL_TYPES.map((ft) => (
+                <option key={ft} value={ft}>
+                  {t(fuelTypeLabelKey(ft))}
+                </option>
+              ))}
             </select>
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}

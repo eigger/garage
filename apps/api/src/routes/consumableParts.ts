@@ -3,6 +3,7 @@ import { consumablePartSchema, consumablePartUpdateSchema } from "@garage/shared
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 import { syncReminders } from "../jobs/reminders.js";
+import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 
 export async function consumablePartRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
@@ -16,9 +17,11 @@ export async function consumablePartRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
+    await ensureAdminSchedule(vehicleId);
+
     return prisma.consumablePart.findMany({
       where: { vehicleId },
-      orderBy: { installedDate: "desc" },
+      orderBy: [{ category: "asc" }, { installedDate: "desc" }],
     });
   });
 
@@ -53,18 +56,23 @@ export async function consumablePartRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    const part = await prisma.$transaction(async (tx) => {
-      const updated = await tx.consumablePart.update({ where: { id }, data: parsed.data });
+    const { recordCompletion, completionCost, completionShop, completionNotes, ...updateData } =
+      parsed.data;
 
-      // 스케줄 항목 완료 처리 시(설치일 또는 설치주행거리가 업데이트된 경우) 정비 내역(MaintenanceRecord)에 자동 추가
-      if (parsed.data.installedDate !== undefined || parsed.data.installedOdometer !== undefined) {
+    const part = await prisma.$transaction(async (tx) => {
+      const updated = await tx.consumablePart.update({ where: { id }, data: updateData });
+
+      if (recordCompletion) {
         await tx.maintenanceRecord.create({
           data: {
             vehicleId: updated.vehicleId,
             date: updated.installedDate,
             odometer: updated.installedOdometer,
             type: updated.partType,
-            notes: "정비 스케줄 완료로 자동 생성",
+            category: updated.category,
+            cost: completionCost,
+            shop: completionShop,
+            notes: completionNotes,
           },
         });
       }

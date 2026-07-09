@@ -8,6 +8,7 @@ import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
 import { SettingsBar } from "../settings-bar";
+import { PushNotificationSettings } from "../../components/PushNotificationSettings";
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
@@ -139,6 +140,8 @@ export default function ProfilePage() {
           {submitting ? t("saving") : t("save")}
         </button>
       </form>
+
+      <PushNotificationSettings />
     </main>
   );
 }

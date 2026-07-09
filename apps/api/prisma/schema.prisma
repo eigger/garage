@@ -28,6 +28,12 @@ enum FuelType {
   DIESEL
   LPG
   ELECTRIC
+  HYBRID
+}
+
+enum RecordCategory {
+  MAINTENANCE
+  ADMINISTRATIVE
 }
 
 model User {
@@ -40,6 +46,7 @@ model User {
 
   vehicleAccess UserVehicleAccess[]
   fuelLogs      FuelLog[]
+  pushSubscriptions PushSubscription[]
 }
 
 model Vehicle {
@@ -93,6 +100,7 @@ model TelemetryRaw {
   fuelLevel Float?
   dtcCodes  String?
   odometer  Int?
+  inVehicle Boolean?
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   trip    Trip?   @relation(fields: [tripId], references: [id])
@@ -125,6 +133,10 @@ model FuelLog {
   cost      Int
   fullTank  Boolean  @default(true)
   location  String?
+  latitude  Float?
+  longitude Float?
+  address   String?
+  opinetStationId String?
 
   vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   user        User?        @relation(fields: [userId], references: [id])
@@ -132,11 +144,12 @@ model FuelLog {
 }
 
 model MaintenanceRecord {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   vehicleId String
   date      DateTime
   odometer  Int
   type      String
+  category  RecordCategory @default(MAINTENANCE)
   cost      Int?
   shop      String?
   notes     String?
@@ -148,9 +161,10 @@ model MaintenanceRecord {
 // 거리·기간 이중 기준으로 주기를 추적하는 관리 항목 (부품 교체뿐 아니라 흡기 클리닝 같은
 // 작업성 항목도 포함 — "언제 했고 얼마 주기로 반복해야 하는가"를 표현).
 model ConsumablePart {
-  id                 String   @id @default(cuid())
+  id                 String         @id @default(cuid())
   vehicleId          String
   partType           String
+  category           RecordCategory @default(MAINTENANCE)
   installedDate      DateTime
   installedOdometer  Int
   expectedLifeKm     Int?
@@ -190,6 +204,7 @@ model Reminder {
   dueDate          DateTime?
   dueOdometer      Int?
   status           ReminderStatus @default(PENDING)
+  pushNotifiedAt   DateTime?
 
   vehicle        Vehicle         @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   consumablePart ConsumablePart? @relation(fields: [consumablePartId], references: [id], onDelete: Cascade)
@@ -220,4 +235,19 @@ model Attachment {
 
   vehicleId String?
   vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+}
+
+// PWA Web Push 구독 (사용자·기기별)
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  locale    String   @default("ko")
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

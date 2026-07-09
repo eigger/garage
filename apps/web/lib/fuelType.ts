@@ -11,5 +11,7 @@ export function fuelTypeLabelKey(fuelType: FuelType): TranslationKey {
       return "fuelTypeLpg";
     case "ELECTRIC":
       return "fuelTypeElectric";
+    case "HYBRID":
+      return "fuelTypeHybrid";
   }
 }

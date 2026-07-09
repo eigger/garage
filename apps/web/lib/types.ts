@@ -7,7 +7,9 @@ export type User = {
   role: Role;
 };
 
-export type FuelType = "GASOLINE" | "DIESEL" | "LPG" | "ELECTRIC";
+export type FuelType = "GASOLINE" | "DIESEL" | "LPG" | "ELECTRIC" | "HYBRID";
+
+export type RecordCategory = "MAINTENANCE" | "ADMINISTRATIVE";
 
 export type Vehicle = {
   id: string;
@@ -52,6 +54,10 @@ export type FuelLog = {
   cost: number;
   fullTank: boolean;
   location: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  address: string | null;
+  opinetStationId: string | null;
   attachments: Attachment[];
 };
 
@@ -61,6 +67,7 @@ export type MaintenanceRecord = {
   date: string;
   odometer: number;
   type: string;
+  category: RecordCategory;
   cost: number | null;
   shop: string | null;
   notes: string | null;
@@ -71,6 +78,7 @@ export type ConsumablePart = {
   id: string;
   vehicleId: string;
   partType: string;
+  category: RecordCategory;
   installedDate: string;
   installedOdometer: number;
   expectedLifeKm: number | null;

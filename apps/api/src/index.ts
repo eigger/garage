@@ -21,6 +21,8 @@ import { maintenancePresetRoutes } from "./routes/maintenancePresets.js";
 import { backupRoutes } from "./routes/backup.js";
 import { opinetRoutes } from "./routes/opinet.js";
 import { settingsRoutes } from "./routes/settings.js";
+import { mapProviderRoutes } from "./routes/mapProviders.js";
+import { pushRoutes } from "./routes/push.js";
 import { startReminderJob } from "./jobs/reminders.js";
 import { startTripJob } from "./jobs/trips.js";
 import { startTelemetryRetentionJob } from "./jobs/telemetryRetention.js";
@@ -103,6 +105,8 @@ await app.register(maintenancePresetRoutes, { prefix: "/api/maintenance-presets"
 await app.register(backupRoutes, { prefix: "/api/backup" });
 await app.register(opinetRoutes, { prefix: "/api/opinet" });
 await app.register(settingsRoutes, { prefix: "/api/settings" });
+await app.register(mapProviderRoutes, { prefix: "/api/map" });
+await app.register(pushRoutes, { prefix: "/api/push" });
 
 startReminderJob();
 startTripJob();

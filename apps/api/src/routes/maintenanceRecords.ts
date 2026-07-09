@@ -8,11 +8,12 @@ export async function maintenanceRecordRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/", async (request, reply) => {
-    const { vehicleId, limit, offset, search } = request.query as {
+    const { vehicleId, limit, offset, search, category } = request.query as {
       vehicleId?: string;
       limit?: string;
       offset?: string;
       search?: string;
+      category?: string;
     };
     if (!vehicleId) return reply.code(400).send({ error: "vehicleId is required" });
 
@@ -24,7 +25,14 @@ export async function maintenanceRecordRoutes(app: FastifyInstance) {
     const parsedLimit = limit ? parseInt(limit, 10) : undefined;
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
 
-    const whereClause: any = { vehicleId };
+    const whereClause: {
+      vehicleId: string;
+      category?: "MAINTENANCE" | "ADMINISTRATIVE";
+      OR?: Array<Record<string, unknown>>;
+    } = { vehicleId };
+    if (category === "MAINTENANCE" || category === "ADMINISTRATIVE") {
+      whereClause.category = category;
+    }
     if (search) {
       whereClause.OR = [
         { type: { contains: search, mode: "insensitive" } },

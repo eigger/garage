@@ -1,7 +1,6 @@
 import { timingSafeEqual } from "crypto";
 import type { FastifyInstance } from "fastify";
-import { z } from "zod";
-import { obdIngestQuerySchema } from "@garage/shared";
+import { obdIngestQuerySchema, jsonTelemetrySchema } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { publish } from "../lib/mqtt.js";
 import { telemetryEmitter } from "../lib/telemetryEmitter.js";
@@ -14,16 +13,6 @@ function safeTokenEqual(a: string, b: string): boolean {
   if (bufA.length !== bufB.length) return false;
   return timingSafeEqual(bufA, bufB);
 }
-
-const jsonTelemetrySchema = z.object({
-  speed: z.number().nullable().optional(),
-  rpm: z.number().nullable().optional(),
-  lat: z.number().nullable().optional(),
-  lon: z.number().nullable().optional(),
-  fuelLevel: z.number().nullable().optional(),
-  dtcCodes: z.string().nullable().optional(),
-  odometer: z.number().nullable().optional(),
-});
 
 async function checkToken(vehicleId: string, token: string | undefined): Promise<boolean> {
   if (!token) return false;
@@ -45,7 +34,7 @@ export async function ingestRoutes(app: FastifyInstance) {
     if (!parsed.success) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
-    const { speed, rpm, lat, lon, fuelLevel, odometer } = parsed.data;
+    const { speed, rpm, lat, lon, fuelLevel, odometer, inVehicle } = parsed.data;
 
     // OBD 주행거리 즉시 업데이트 (롤백 방지용 크기 검증 포함)
     if (odometer !== undefined && odometer !== null) {
@@ -71,6 +60,7 @@ export async function ingestRoutes(app: FastifyInstance) {
         lon,
         fuelLevel,
         odometer: odometer ?? null,
+        inVehicle: inVehicle ?? null,
       },
     });
 
@@ -81,6 +71,7 @@ export async function ingestRoutes(app: FastifyInstance) {
       lon,
       fuelLevel,
       odometer: odometer ?? null,
+      inVehicle: inVehicle ?? null,
       time: new Date().toISOString(),
     };
 
@@ -93,7 +84,7 @@ export async function ingestRoutes(app: FastifyInstance) {
   // 2. HA (Home Assistant) 또는 범용 장치 연동용 JSON POST API
   app.post("/telemetry/:vehicleId", async (request, reply) => {
     const { vehicleId } = request.params as { vehicleId: string };
-    
+
     // Authorization 헤더나 쿼리 스트링의 토큰 확인
     let token = (request.query as { token?: string }).token;
     if (!token && request.headers.authorization) {
@@ -112,7 +103,7 @@ export async function ingestRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: parsed.error.flatten() });
     }
 
-    const { speed, rpm, lat, lon, fuelLevel, dtcCodes, odometer } = parsed.data;
+    const { speed, rpm, lat, lon, fuelLevel, dtcCodes, odometer, inVehicle } = parsed.data;
 
     // OBD 주행거리 즉시 업데이트 (롤백 방지용 크기 검증 포함)
     if (odometer !== undefined && odometer !== null) {
@@ -139,6 +130,7 @@ export async function ingestRoutes(app: FastifyInstance) {
         fuelLevel: fuelLevel ?? null,
         dtcCodes: dtcCodes ?? null,
         odometer: odometer ?? null,
+        inVehicle: inVehicle ?? null,
       },
     });
 
@@ -150,6 +142,7 @@ export async function ingestRoutes(app: FastifyInstance) {
       fuelLevel: fuelLevel ?? null,
       dtcCodes: dtcCodes ?? null,
       odometer: odometer ?? null,
+      inVehicle: inVehicle ?? null,
       time: new Date().toISOString(),
     };
 
@@ -171,8 +164,8 @@ export async function ingestRoutes(app: FastifyInstance) {
       return;
     }
 
-    const listener = (data: any) => {
-      if (connection.socket.readyState === 1) { // OPEN state
+    const listener = (data: unknown) => {
+      if (connection.socket.readyState === 1) {
         connection.socket.send(JSON.stringify(data));
       }
     };

@@ -7,9 +7,26 @@ import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
 import type { FuelLog, MaintenanceRecord, Trip, TripSummary } from "../../../../lib/types";
+import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
+import type { MapProvider } from "@garage/shared";
+import { TripRouteMap } from "../../../../components/maps/TripRouteMap";
+import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
+import { CategoryBadge } from "../../../../components/CategoryBadge";
+import type { RecordCategory } from "../../../../lib/types";
+import { useMapProviders } from "../../../../lib/maps/useMapProviders";
+import {
+  isMapProvider,
+  MAP_PROVIDER_STORAGE_KEY,
+  pickDefaultProvider,
+} from "../../../../lib/maps/types";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
+type FuelEfficiency = {
+  distanceKm: number;
+  kmPerLiter: number;
+  litersPer100Km: number;
+};
 
 export default function HistoryPage() {
   const params = useParams<{ id: string }>();
@@ -29,6 +46,7 @@ export default function HistoryPage() {
   const [hasMoreMaintenance, setHasMoreMaintenance] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | RecordCategory>("all");
 
   const [loading, setLoading] = useState(true);
   // state 대신 ref를 쓴다 — 검색 이펙트가 예약된 시점이 아니라 "실행되는 시점"의 값을
@@ -54,10 +72,11 @@ export default function HistoryPage() {
 
   async function loadMaintenanceRecords(reset = false) {
     const currentOffset = reset ? 0 : maintenanceOffset;
+    const categoryParam = categoryFilter === "all" ? "" : `&category=${categoryFilter}`;
     const res = await apiFetch(
       `/api/maintenance-records?vehicleId=${vehicleId}&limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(
-        debouncedSearch
-      )}`
+        debouncedSearch,
+      )}${categoryParam}`,
     );
     if (res.ok) {
       const data: MaintenanceRecord[] = await res.json();
@@ -90,9 +109,25 @@ export default function HistoryPage() {
   useEffect(() => {
     if (!initialLoadDone.current) return;
     loadMaintenanceRecords(true);
-  }, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, categoryFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return <p>{t("loading")}</p>;
+
+  const fuelEfficiencyById: Record<string, FuelEfficiency> = {};
+  const ascFuelLogs = [...fuelLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  let prevFullTank: FuelLog | null = null;
+  for (const log of ascFuelLogs) {
+    if (!log.fullTank) continue;
+    if (prevFullTank && log.odometer > prevFullTank.odometer && log.liters > 0) {
+      const distanceKm = log.odometer - prevFullTank.odometer;
+      fuelEfficiencyById[log.id] = {
+        distanceKm,
+        kmPerLiter: distanceKm / log.liters,
+        litersPer100Km: (log.liters / distanceKm) * 100,
+      };
+    }
+    prevFullTank = log;
+  }
 
   return (
     <>
@@ -111,6 +146,7 @@ export default function HistoryPage() {
                 <FuelLogRow
                   key={f.id}
                   log={f}
+                  efficiency={fuelEfficiencyById[f.id] ?? null}
                   onChanged={() => loadFuelLogs(true)}
                   t={t}
                   formatCurrency={formatCurrency}
@@ -145,7 +181,31 @@ export default function HistoryPage() {
       </section>
 
       <section>
-        <h2>{t("maintenanceHeading")}</h2>
+        <h2>{t("maintenanceAndAdminHeading")}</h2>
+        <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {(
+            [
+              ["all", "historyCategoryAll"],
+              ["MAINTENANCE", "historyCategoryMaintenance"],
+              ["ADMINISTRATIVE", "historyCategoryAdministrative"],
+            ] as const
+          ).map(([value, labelKey]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setCategoryFilter(value)}
+              style={{
+                fontSize: 12,
+                padding: "4px 10px",
+                minHeight: "auto",
+                background: categoryFilter === value ? "#18523f" : "#eee",
+                color: categoryFilter === value ? "#fff" : "#333",
+              }}
+            >
+              {t(labelKey)}
+            </button>
+          ))}
+        </div>
         <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
           <input
             type="text"
@@ -210,6 +270,7 @@ export default function HistoryPage() {
 
 function FuelLogRow({
   log,
+  efficiency,
   onChanged,
   t,
   formatCurrency,
@@ -217,6 +278,7 @@ function FuelLogRow({
   confirm,
 }: {
   log: FuelLog;
+  efficiency: FuelEfficiency | null;
   onChanged: () => void;
   t: Translator;
   formatCurrency: (amount: number) => string;
@@ -340,6 +402,26 @@ function FuelLogRow({
           </button>
         </span>
       </div>
+      {efficiency && (
+        <div style={{ fontSize: 12, color: "#18523f" }}>
+          {t("fuelEfficiency")}:{" "}
+          {t("fuelEfficiencyKmPerLiter", { value: efficiency.kmPerLiter.toFixed(1) })} ·{" "}
+          {t("fuelEfficiencyLPer100", { value: efficiency.litersPer100Km.toFixed(1) })} ·{" "}
+          {t("fuelEfficiencyDistance", { distance: `${efficiency.distanceKm.toFixed(0)}km` })}
+        </div>
+      )}
+      {log.address && <div style={{ fontSize: 12, color: "#666" }}>{log.address}</div>}
+      {log.latitude !== null && log.longitude !== null && log.location && (
+        <NavLaunchButtons
+          destination={{ lat: log.latitude, lon: log.longitude, name: log.location }}
+          heading={t("navLaunchHeading")}
+          labels={{
+            tmap: t("navLaunchTmap"),
+            kakao: t("navLaunchKakao"),
+            naver: t("navLaunchNaver"),
+          }}
+        />
+      )}
       <AttachmentList attachments={log.attachments} />
     </li>
   );
@@ -409,6 +491,7 @@ function MaintenanceRow({
   const [date, setDate] = useState(record.date.slice(0, 10));
   const [odometer, setOdometer] = useState(String(record.odometer));
   const [type, setType] = useState(record.type);
+  const [category, setCategory] = useState(record.category);
   const [cost, setCost] = useState(record.cost !== null ? String(record.cost) : "");
   const [shop, setShop] = useState(record.shop ?? "");
   const [notes, setNotes] = useState(record.notes ?? "");
@@ -424,6 +507,7 @@ function MaintenanceRow({
           date,
           odometer: Number(odometer),
           type,
+          category,
           cost: cost ? Number(cost) : undefined,
           shop: shop || undefined,
           notes: notes || undefined,
@@ -498,9 +582,12 @@ function MaintenanceRow({
   return (
     <li className="list-item" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <span>
-          {record.date.slice(0, 10)} · {t(record.type as any)}
-          {record.cost !== null ? ` · ${formatCurrency(record.cost)}` : ""}
+        <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <CategoryBadge category={record.category} t={t} />
+          <span>
+            {record.date.slice(0, 10)} · {formatItemLabel(t, record.type)}
+            {record.cost !== null ? ` · ${formatCurrency(record.cost)}` : ""}
+          </span>
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button type="button" onClick={() => setEditing(true)}>
@@ -538,6 +625,26 @@ function TripSection({
   const [tripOffset, setTripOffset] = useState(0);
   const [hasMoreTrips, setHasMoreTrips] = useState(true);
   const [summary, setSummary] = useState<TripSummary | null>(null);
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const mapConfig = useMapProviders();
+  const [mapProvider, setMapProvider] = useState<MapProvider>("osm");
+
+  useEffect(() => {
+    setMapProvider(pickDefaultProvider(mapConfig));
+  }, [mapConfig.providers.join(",")]);
+
+  function handleMapProviderChange(value: string) {
+    if (!isMapProvider(value) || !mapConfig.providers.includes(value)) return;
+    setMapProvider(value);
+    localStorage.setItem(MAP_PROVIDER_STORAGE_KEY, value);
+  }
+
+  function mapProviderLabel(provider: MapProvider): string {
+    if (provider === "kakao") return t("mapProviderKakao");
+    if (provider === "naver") return t("mapProviderNaver");
+    if (provider === "tmap") return t("mapProviderTmap");
+    return t("mapProviderOsm");
+  }
 
   async function loadTrips(reset = false) {
     const currentOffset = reset ? 0 : tripOffset;
@@ -612,29 +719,88 @@ function TripSection({
       ) : (
         <>
           <ul className="list">
-            {trips.map((trip) => (
-              <li
-                key={trip.id}
-                className="list-item"
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}
-              >
-                <span>
-                  {trip.startTime.slice(0, 16).replace("T", " ")} ·{" "}
-                  {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
-                </span>
-                <select
-                  value={trip.purpose ?? ""}
-                  onChange={(e) =>
-                    setPurpose(trip.id, (e.target.value || null) as "BUSINESS" | "PERSONAL" | null)
-                  }
-                  style={{ minHeight: 36, fontSize: 13, padding: "0 8px", flexShrink: 0 }}
-                >
-                  <option value="">{t("tripPurposeUnset")}</option>
-                  <option value="BUSINESS">{t("tripPurposeBusiness")}</option>
-                  <option value="PERSONAL">{t("tripPurposePersonal")}</option>
-                </select>
-              </li>
-            ))}
+            {trips.map((trip) => {
+              const isSelected = selectedTripId === trip.id;
+              return (
+                <li key={trip.id} className="list-item" style={{ display: "block" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 8,
+                    }}
+                  >
+                    <span>
+                      {trip.startTime.slice(0, 16).replace("T", " ")} ·{" "}
+                      {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
+                    </span>
+                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTripId(isSelected ? null : trip.id)}
+                        style={{
+                          minHeight: 36,
+                          fontSize: 13,
+                          padding: "0 10px",
+                          background: isSelected ? "#18523f" : "#fff",
+                          color: isSelected ? "#fff" : "#18523f",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: 8,
+                        }}
+                      >
+                        {isSelected ? t("hideTripMap") : t("showTripMap")}
+                      </button>
+                      <select
+                        value={trip.purpose ?? ""}
+                        onChange={(e) =>
+                          setPurpose(trip.id, (e.target.value || null) as "BUSINESS" | "PERSONAL" | null)
+                        }
+                        style={{ minHeight: 36, fontSize: 13, padding: "0 8px" }}
+                      >
+                        <option value="">{t("tripPurposeUnset")}</option>
+                        <option value="BUSINESS">{t("tripPurposeBusiness")}</option>
+                        <option value="PERSONAL">{t("tripPurposePersonal")}</option>
+                      </select>
+                    </div>
+                  </div>
+                  {isSelected && (
+                    <div style={{ marginTop: 12 }}>
+                      {mapConfig.providers.length > 1 && (
+                        <div style={{ marginBottom: 8 }}>
+                          <label style={{ fontSize: 12, color: "#666", marginRight: 8 }}>
+                            {t("mapProviderLabel")}
+                          </label>
+                          <select
+                            value={mapProvider}
+                            onChange={(e) => handleMapProviderChange(e.target.value)}
+                            style={{ minHeight: 32, fontSize: 13, padding: "0 8px" }}
+                          >
+                            {mapConfig.providers.map((p) => (
+                              <option key={p} value={p}>
+                                {mapProviderLabel(p)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
+                      {trip.routePolyline ? (
+                        <TripRouteMap
+                          routePolyline={trip.routePolyline}
+                          provider={mapProvider}
+                          kakaoAppKey={mapConfig.kakaoAppKey}
+                          naverClientId={mapConfig.naverClientId}
+                          tmapAppKey={mapConfig.tmapAppKey}
+                          noRouteLabel={t("noRouteData")}
+                        />
+                      ) : (
+                        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{t("noRouteData")}</p>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
           </ul>
           {hasMoreTrips && (
             <button

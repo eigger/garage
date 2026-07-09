@@ -22,6 +22,9 @@ type SettingEntry = {
 // 새 연동을 추가할 때는 백엔드 settingKeySchema와 여기 라벨/설명 매핑만 늘리면 된다.
 const SETTING_META: Record<string, { labelKey: TranslationKey; helpKey: TranslationKey }> = {
   OPINET_API_KEY: { labelKey: "opinetApiKeyLabel", helpKey: "opinetApiKeyHelp" },
+  KAKAO_MAP_APP_KEY: { labelKey: "kakaoMapAppKeyLabel", helpKey: "kakaoMapAppKeyHelp" },
+  NAVER_MAP_CLIENT_ID: { labelKey: "naverMapClientIdLabel", helpKey: "naverMapClientIdHelp" },
+  TMAP_APP_KEY: { labelKey: "tmapMapAppKeyLabel", helpKey: "tmapMapAppKeyHelp" },
 };
 
 export default function IntegrationsPage() {
