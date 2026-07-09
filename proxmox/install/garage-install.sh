@@ -1,24 +1,20 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 # Copyright (c) 2021-2026 community-scripts ORG
 # License: MIT | https://github.com/community-scripts/ProxmoxVE/raw/main/LICENSE
 # Source: https://github.com/eigger/garage
 
-source /dev/stdin <<<"$FUNCTIONS_FILE_PATH"
-color
-verb_ip6
-catch_errors
-setting_up_container
-network_check
-update_os
+export DEBIAN_FRONTEND=noninteractive
 
-msg_info "Installing Dependencies"
-$STD apt-get install -y curl sudo mc jq git openssl
-msg_ok "Installed Dependencies"
+echo "[garage-install] Updating apt indexes"
+apt-get update -y
 
-msg_info "Installing Docker"
-if ! command -v docker &> /dev/null; then
-  $STD apt-get install -y ca-certificates gnupg
+echo "[garage-install] Installing base dependencies"
+apt-get install -y curl sudo mc jq git openssl ca-certificates gnupg lsb-release
+
+echo "[garage-install] Installing Docker engine"
+if ! command -v docker >/dev/null 2>&1; then
   install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
   chmod a+r /etc/apt/keyrings/docker.gpg
@@ -26,17 +22,15 @@ if ! command -v docker &> /dev/null; then
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
     $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
     tee /etc/apt/sources.list.d/docker.list > /dev/null
-  $STD apt-get update
-  $STD apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  apt-get update -y
+  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 fi
-msg_ok "Installed Docker"
 
-msg_info "Setting up Garage directory"
+echo "[garage-install] Preparing /opt/garage"
 mkdir -p /opt/garage
 cd /opt/garage
-msg_ok "Created /opt/garage"
 
-msg_info "Fetching Deployment Configurations"
+echo "[garage-install] Writing deployment files"
 cat <<'EOF' > /opt/garage/Caddyfile
 :80 {
 	handle /api/* {
@@ -112,9 +106,8 @@ volumes:
   pgdata:
   uploads:
 EOF
-msg_ok "Fetched Deployment Configurations"
 
-msg_info "Generating Secrets and .env"
+echo "[garage-install] Generating .env secrets"
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 JWT_SECRET=$(openssl rand -hex 32)
 cat <<EOF > /opt/garage/.env
@@ -125,9 +118,8 @@ POSTGRES_DB=garage
 JWT_SECRET=${JWT_SECRET}
 OPINET_API_KEY=
 EOF
-msg_ok "Generated Secrets and .env"
 
-msg_info "Creating Garage Service"
+echo "[garage-install] Creating systemd service"
 cat <<'EOF' >/etc/systemd/system/garage.service
 [Unit]
 Description=Garage Docker Compose Stack
@@ -147,14 +139,8 @@ WantedBy=multi-user.target
 EOF
 
 systemctl enable -q --now garage.service
-msg_ok "Created Garage Service"
 
-motd_ssh
-customize
-
-# Override the update script created by customize.
 # Keep update logic local so rate limits on remote helper scripts cannot break updates.
-msg_info "Customizing update script path"
 cat <<'EOF' >/usr/bin/update
 #!/usr/bin/env bash
 set -euo pipefail
@@ -174,6 +160,7 @@ docker compose -f docker-compose.prod.yml up -d --remove-orphans
 echo "Garage update completed."
 EOF
 chmod +x /usr/bin/update
-msg_ok "Configured update script"
 
-cleanup_lxc
+IP_ADDR="$(hostname -I | awk '{print $1}')"
+echo "[garage-install] Completed successfully"
+echo "Access URL: http://${IP_ADDR}:80"
