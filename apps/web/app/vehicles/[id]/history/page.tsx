@@ -55,7 +55,7 @@ export default function HistoryPage() {
 
   async function loadFuelLogs(reset = false) {
     const currentOffset = reset ? 0 : fuelOffset;
-    const res = await apiFetch(`/api/fuel-logs?vehicleId=${vehicleId}&limit=${CHUNK_SIZE}&offset=${currentOffset}`);
+    const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=${CHUNK_SIZE}&offset=${currentOffset}`);
     if (res.ok) {
       const data: FuelLog[] = await res.json();
       if (reset) {
@@ -74,7 +74,7 @@ export default function HistoryPage() {
     const currentOffset = reset ? 0 : maintenanceOffset;
     const categoryParam = categoryFilter === "all" ? "" : `&category=${categoryFilter}`;
     const res = await apiFetch(
-      `/api/maintenance-records?vehicleId=${vehicleId}&limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(
+      `/api/vehicles/${vehicleId}/maintenance-records?limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(
         debouncedSearch,
       )}${categoryParam}`,
     );
@@ -145,6 +145,7 @@ export default function HistoryPage() {
               {fuelLogs.map((f) => (
                 <FuelLogRow
                   key={f.id}
+                  vehicleId={vehicleId}
                   log={f}
                   efficiency={fuelEfficiencyById[f.id] ?? null}
                   onChanged={() => loadFuelLogs(true)}
@@ -231,6 +232,7 @@ export default function HistoryPage() {
               {maintenanceRecords.map((m) => (
                 <MaintenanceRow
                   key={m.id}
+                  vehicleId={vehicleId}
                   record={m}
                   onChanged={() => loadMaintenanceRecords(true)}
                   t={t}
@@ -269,6 +271,7 @@ export default function HistoryPage() {
 }
 
 function FuelLogRow({
+  vehicleId,
   log,
   efficiency,
   onChanged,
@@ -277,6 +280,7 @@ function FuelLogRow({
   showToast,
   confirm,
 }: {
+  vehicleId: string;
   log: FuelLog;
   efficiency: FuelEfficiency | null;
   onChanged: () => void;
@@ -298,7 +302,7 @@ function FuelLogRow({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await apiFetch(`/api/fuel-logs/${log.id}`, {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs/${log.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           date,
@@ -323,7 +327,7 @@ function FuelLogRow({
 
   async function handleDelete() {
     if (!(await confirm(t("confirmDelete")))) return;
-    const res = await apiFetch(`/api/fuel-logs/${log.id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs/${log.id}`, { method: "DELETE" });
     if (res.ok) {
       showToast(t("toastDeleted"), "success");
       onChanged();
@@ -473,6 +477,7 @@ function AttachmentList({ attachments }: { attachments: { id: string; filePath: 
 }
 
 function MaintenanceRow({
+  vehicleId,
   record,
   onChanged,
   t,
@@ -480,6 +485,7 @@ function MaintenanceRow({
   showToast,
   confirm,
 }: {
+  vehicleId: string;
   record: MaintenanceRecord;
   onChanged: () => void;
   t: Translator;
@@ -501,7 +507,7 @@ function MaintenanceRow({
     e.preventDefault();
     setSubmitting(true);
     try {
-      const res = await apiFetch(`/api/maintenance-records/${record.id}`, {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}/maintenance-records/${record.id}`, {
         method: "PATCH",
         body: JSON.stringify({
           date,
@@ -527,7 +533,7 @@ function MaintenanceRow({
 
   async function handleDelete() {
     if (!(await confirm(t("confirmDelete")))) return;
-    const res = await apiFetch(`/api/maintenance-records/${record.id}`, { method: "DELETE" });
+    const res = await apiFetch(`/api/vehicles/${vehicleId}/maintenance-records/${record.id}`, { method: "DELETE" });
     if (res.ok) {
       showToast(t("toastDeleted"), "success");
       onChanged();

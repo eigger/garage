@@ -207,10 +207,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
     setSubmitting(true);
     setSaved(false);
     try {
-      const res = await apiFetch("/api/fuel-logs", {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs`, {
         method: "POST",
         body: JSON.stringify({
-          vehicleId,
           date,
           odometer: Number(odometer),
           liters: Number(liters),
@@ -440,10 +439,9 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
     setSaved(false);
 
     try {
-      const res = await apiFetch("/api/maintenance-records", {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}/maintenance-records`, {
         method: "POST",
         body: JSON.stringify({
-          vehicleId,
           date,
           odometer: Number(odometer),
           type: finalType,

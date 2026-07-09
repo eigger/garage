@@ -104,7 +104,7 @@ export default function VehicleIntegrationPage() {
             <li><code>Send data to web server</code>를 활성화합니다.</li>
             <li><code>Web Server URL</code> 항목에 아래 주소를 입력합니다:
               <div style={{ background: "#f1f5f9", padding: 8, borderRadius: 6, margin: "4px 0", wordBreak: "break-all", fontFamily: "monospace", fontSize: 12 }}>
-                {typeof window !== "undefined" ? `${window.location.origin}/api/ingest/obd/${vehicle.id}?token=${vehicle.apiToken}` : ""}
+                {typeof window !== "undefined" ? `${window.location.origin}/api/ingest/obd?token=${vehicle.apiToken}` : ""}
               </div>
             </li>
           </ol>
@@ -116,7 +116,7 @@ export default function VehicleIntegrationPage() {
             아래의 HTTP POST 규격으로 차량 주행 텔레메트리 정보를 실시간으로 인제스트할 수 있습니다:
           </p>
           <div style={{ background: "#f1f5f9", padding: 8, borderRadius: 6, wordBreak: "break-all", fontFamily: "monospace", fontSize: 12, overflow: "auto", lineHeight: "1.4" }}>
-            <strong>POST</strong> {typeof window !== "undefined" ? `${window.location.origin}/api/ingest/telemetry/${vehicle.id}` : ""}<br />
+            <strong>POST</strong> {typeof window !== "undefined" ? `${window.location.origin}/api/ingest/telemetry` : ""}<br />
             <strong>Header:</strong> <code>Authorization: Bearer {vehicle.apiToken}</code><br />
             <strong>Body (JSON):</strong>
             <pre style={{ margin: "4px 0 0", color: "#0f172a" }}>
