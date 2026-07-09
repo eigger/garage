@@ -69,6 +69,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   // Opinet convenience states
   const [vehicle, setVehicle] = useState<any>(null);
+  const [opinetConfigured, setOpinetConfigured] = useState(false);
   const [stations, setStations] = useState<any[]>([]);
   const [selectedStationId, setSelectedStationId] = useState("");
   const [location, setLocation] = useState("");
@@ -87,6 +88,12 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       .then((data) => {
         if (data.odometer > 0) setOdometer(String(data.odometer));
       });
+
+    // 오피넷이 미연동 상태면 목(mock) 데이터를 실제 가격으로 착각할 수 있어
+    // "주변 주유소 찾기" 기능 자체를 숨긴다.
+    apiFetch("/api/opinet/configured")
+      .then((res) => (res.ok ? res.json() : { configured: false }))
+      .then((data) => setOpinetConfigured(!!data.configured));
   }, [vehicleId]);
 
   // 오피넷은 sort=1(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
@@ -233,31 +240,33 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         autoFocus
       />
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <button
-          type="button"
-          onClick={handleFindStations}
-          disabled={locLoading || !vehicle || vehicle.fuelType === "ELECTRIC"}
-          style={{ padding: "0 12px", minHeight: 36, fontSize: 13, background: "#18523f", color: "#fff", flexShrink: 0 }}
-        >
-          {locLoading ? t("loading") : t("detectLocation")}
-        </button>
-        
-        {stations.length > 0 && (
-          <select
-            value={selectedStationId}
-            onChange={(e) => handleStationSelect(e.target.value)}
-            style={{ flex: 1, minHeight: 36, fontSize: 13, padding: "0 8px" }}
+      {opinetConfigured && (
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            onClick={handleFindStations}
+            disabled={locLoading || !vehicle || vehicle.fuelType === "ELECTRIC"}
+            style={{ padding: "0 12px", minHeight: 36, fontSize: 13, background: "#18523f", color: "#fff", flexShrink: 0 }}
           >
-            <option value="" disabled>{t("selectStation")}</option>
-            {stations.map((s) => (
-              <option key={s.id} value={s.id}>
-                [{s.brandLabel}] {s.name} - {s.price}원 ({s.distance}m)
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+            {locLoading ? t("loading") : t("detectLocation")}
+          </button>
+
+          {stations.length > 0 && (
+            <select
+              value={selectedStationId}
+              onChange={(e) => handleStationSelect(e.target.value)}
+              style={{ flex: 1, minHeight: 36, fontSize: 13, padding: "0 8px" }}
+            >
+              <option value="" disabled>{t("selectStation")}</option>
+              {stations.map((s) => (
+                <option key={s.id} value={s.id}>
+                  [{s.brandLabel}] {s.name} - {s.price}원 ({s.distance}m)
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
 
       <input
         placeholder={t("gasStation")}

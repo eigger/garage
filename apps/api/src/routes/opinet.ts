@@ -29,6 +29,14 @@ const FUEL_CODE_MAP: Record<string, string> = {
 export async function opinetRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
+  // 일반 사용자도 접근 가능해야 하므로 /api/settings(관리자 전용)와 별도로 둔다.
+  // 빠른 입력 화면이 "주변 주유소 찾기" 버튼을 보여줄지 판단하는 데 쓴다 —
+  // 미연동 상태에서 목(mock) 데이터를 실제 가격으로 착각해 저장하는 걸 막기 위함.
+  app.get("/configured", async () => {
+    const apiKey = await getSetting("OPINET_API_KEY");
+    return { configured: !!apiKey };
+  });
+
   app.get("/stations", async (request, reply) => {
     const { lat, lon, fuelType } = request.query as {
       lat?: string;
