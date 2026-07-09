@@ -1,4 +1,11 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+function resolveApiUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  // 배포(Caddy)에서는 same-origin(/api) 호출이 맞고, 로컬 개발에서는 8080 API를 기본값으로 쓴다.
+  if (typeof window !== "undefined" && window.location?.origin) return window.location.origin;
+  return "http://localhost:8080";
+}
+
+export const API_URL = resolveApiUrl();
 
 const TOKEN_KEY = "garage_token";
 
