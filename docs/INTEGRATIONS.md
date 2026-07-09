@@ -610,6 +610,10 @@ These commands use a **Garage login JWT**, not the vehicle `apiToken` used for t
 > `garage_add_odometer` uses a lightweight administrative maintenance record to bump `Vehicle.odometer` when the value is higher.  
 > For live GPS/telemetry sync, use `garage_send_telemetry` (section 3) with the per-vehicle `apiToken` instead.
 
+> Garage has **no standalone odometer endpoint** like LubeLogger.  
+> `garage_add_odometer` uses a lightweight administrative maintenance record to bump `Vehicle.odometer` when the value is higher.  
+> For live GPS/telemetry sync, use `garage_send_telemetry` (section 3) with the per-vehicle `apiToken` instead.
+
 **Placeholders**
 
 | Placeholder | Where to find it |
