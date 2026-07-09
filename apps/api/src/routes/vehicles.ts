@@ -1,10 +1,17 @@
 import { randomUUID } from "crypto";
 import type { FastifyInstance } from "fastify";
-import { vehicleSchema, vehicleUpdateSchema, vehicleAccessSchema } from "@garage/shared";
+import {
+  vehicleSchema,
+  vehicleUpdateSchema,
+  vehicleAccessSchema,
+  fuelLogSchema,
+  maintenanceRecordSchema,
+} from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
+import { syncReminders } from "../jobs/reminders.js";
 
 // 차량 등록 시 연료타입에 맞는 정비 마스터 프리셋을 그 차량의 관리 항목(ConsumablePart)으로
 // 복사한다. 마지막 시행일/주행거리는 정확히 알 수 없으니 "지금 시점 · 현재 주행거리"로 시작하고
@@ -110,6 +117,250 @@ export async function vehicleRoutes(app: FastifyInstance) {
   app.delete("/:id", { preHandler: [app.requireAdmin] }, async (request, reply) => {
     const { id } = request.params as { id: string };
     await prisma.vehicle.delete({ where: { id } });
+    return reply.code(204).send();
+  });
+
+  // 차량 경로 기반 레코드 생성 API:
+  // body에 vehicleId를 넣지 않아도 되도록 HA/스크립트 연동 단순화용으로 제공한다.
+  app.post("/:id/fuel-logs", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = fuelLogSchema.safeParse({
+      ...(request.body as Record<string, unknown>),
+      vehicleId: id,
+    });
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const fuelLog = await prisma.$transaction(async (tx) => {
+      const log = await tx.fuelLog.create({
+        data: { ...parsed.data, userId: sub },
+      });
+
+      const vehicle = await tx.vehicle.findUnique({
+        where: { id },
+        select: { odometer: true },
+      });
+
+      if (vehicle && parsed.data.odometer > vehicle.odometer) {
+        await tx.vehicle.update({
+          where: { id },
+          data: { odometer: parsed.data.odometer },
+        });
+      }
+
+      return log;
+    });
+
+    return reply.code(201).send(fuelLog);
+  });
+
+  app.get("/:id/fuel-logs", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const { limit, offset } = request.query as { limit?: string; offset?: string };
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const parsedOffset = offset ? parseInt(offset, 10) : undefined;
+    return prisma.fuelLog.findMany({
+      where: { vehicleId: id },
+      orderBy: { date: "desc" },
+      include: { attachments: true },
+      take: parsedLimit,
+      skip: parsedOffset,
+    });
+  });
+
+  app.patch("/:id/fuel-logs/:logId", async (request, reply) => {
+    const { id, logId } = request.params as { id: string; logId: string };
+    const parsed = fuelLogSchema.omit({ vehicleId: true }).partial().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const existing = await prisma.fuelLog.findUnique({ where: { id: logId } });
+    if (!existing || existing.vehicleId !== id) {
+      return reply.code(404).send({ error: "fuel log not found" });
+    }
+    const fuelLog = await prisma.$transaction(async (tx) => {
+      const log = await tx.fuelLog.update({ where: { id: logId }, data: parsed.data });
+      if (parsed.data.odometer !== undefined) {
+        const vehicle = await tx.vehicle.findUnique({
+          where: { id },
+          select: { odometer: true },
+        });
+        if (vehicle && parsed.data.odometer > vehicle.odometer) {
+          await tx.vehicle.update({
+            where: { id },
+            data: { odometer: parsed.data.odometer },
+          });
+        }
+      }
+      return log;
+    });
+    return fuelLog;
+  });
+
+  app.delete("/:id/fuel-logs/:logId", async (request, reply) => {
+    const { id, logId } = request.params as { id: string; logId: string };
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const existing = await prisma.fuelLog.findUnique({ where: { id: logId } });
+    if (!existing || existing.vehicleId !== id) {
+      return reply.code(404).send({ error: "fuel log not found" });
+    }
+    await prisma.fuelLog.delete({ where: { id: logId } });
+    return reply.code(204).send();
+  });
+
+  app.post("/:id/maintenance-records", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = maintenanceRecordSchema.safeParse({
+      ...(request.body as Record<string, unknown>),
+      vehicleId: id,
+    });
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const record = await prisma.$transaction(async (tx) => {
+      const rec = await tx.maintenanceRecord.create({ data: parsed.data });
+
+      await tx.consumablePart.updateMany({
+        where: {
+          vehicleId: id,
+          partType: parsed.data.type,
+        },
+        data: {
+          installedDate: new Date(parsed.data.date),
+          installedOdometer: parsed.data.odometer,
+        },
+      });
+
+      const vehicle = await tx.vehicle.findUnique({
+        where: { id },
+        select: { odometer: true },
+      });
+
+      if (vehicle && parsed.data.odometer > vehicle.odometer) {
+        await tx.vehicle.update({
+          where: { id },
+          data: { odometer: parsed.data.odometer },
+        });
+      }
+
+      return rec;
+    });
+
+    await syncReminders(id);
+    return reply.code(201).send(record);
+  });
+
+  app.get("/:id/maintenance-records", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const { limit, offset, search, category } = request.query as {
+      limit?: string;
+      offset?: string;
+      search?: string;
+      category?: string;
+    };
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const parsedOffset = offset ? parseInt(offset, 10) : undefined;
+    const whereClause: {
+      vehicleId: string;
+      category?: "MAINTENANCE" | "ADMINISTRATIVE";
+      OR?: Array<Record<string, unknown>>;
+    } = { vehicleId: id };
+    if (category === "MAINTENANCE" || category === "ADMINISTRATIVE") {
+      whereClause.category = category;
+    }
+    if (search) {
+      whereClause.OR = [
+        { type: { contains: search, mode: "insensitive" } },
+        { shop: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
+      ];
+    }
+    return prisma.maintenanceRecord.findMany({
+      where: whereClause,
+      orderBy: { date: "desc" },
+      include: { attachments: true },
+      take: parsedLimit,
+      skip: parsedOffset,
+    });
+  });
+
+  app.patch("/:id/maintenance-records/:recordId", async (request, reply) => {
+    const { id, recordId } = request.params as { id: string; recordId: string };
+    const parsed = maintenanceRecordSchema.omit({ vehicleId: true }).partial().safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const existing = await prisma.maintenanceRecord.findUnique({ where: { id: recordId } });
+    if (!existing || existing.vehicleId !== id) {
+      return reply.code(404).send({ error: "maintenance record not found" });
+    }
+    const record = await prisma.$transaction(async (tx) => {
+      const rec = await tx.maintenanceRecord.update({ where: { id: recordId }, data: parsed.data });
+      if (parsed.data.date !== undefined || parsed.data.odometer !== undefined || parsed.data.type !== undefined) {
+        await tx.consumablePart.updateMany({
+          where: {
+            vehicleId: id,
+            partType: rec.type,
+          },
+          data: {
+            installedDate: new Date(rec.date),
+            installedOdometer: rec.odometer,
+          },
+        });
+      }
+      if (parsed.data.odometer !== undefined) {
+        const vehicle = await tx.vehicle.findUnique({
+          where: { id },
+          select: { odometer: true },
+        });
+        if (vehicle && parsed.data.odometer > vehicle.odometer) {
+          await tx.vehicle.update({
+            where: { id },
+            data: { odometer: parsed.data.odometer },
+          });
+        }
+      }
+      return rec;
+    });
+    await syncReminders(id);
+    return record;
+  });
+
+  app.delete("/:id/maintenance-records/:recordId", async (request, reply) => {
+    const { id, recordId } = request.params as { id: string; recordId: string };
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+    const existing = await prisma.maintenanceRecord.findUnique({ where: { id: recordId } });
+    if (!existing || existing.vehicleId !== id) {
+      return reply.code(404).send({ error: "maintenance record not found" });
+    }
+    await prisma.maintenanceRecord.delete({ where: { id: recordId } });
+    await syncReminders(id);
     return reply.code(204).send();
   });
 

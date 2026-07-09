@@ -45,7 +45,7 @@ export default function Home() {
           const [odometerRes, tripSummaryRes, fuelRes] = await Promise.all([
             apiFetch(`/api/vehicles/${vehicle.id}/odometer`),
             apiFetch(`/api/trips/summary?vehicleId=${vehicle.id}&period=week`),
-            apiFetch(`/api/fuel-logs?vehicleId=${vehicle.id}&limit=1`),
+            apiFetch(`/api/vehicles/${vehicle.id}/fuel-logs?limit=1`),
           ]);
 
           const odometer = odometerRes.ok ? ((await odometerRes.json()) as { odometer: number }).odometer : null;

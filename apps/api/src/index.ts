@@ -11,8 +11,6 @@ import { prisma } from "./lib/prisma.js";
 import { authRoutes } from "./routes/auth.js";
 import { vehicleRoutes } from "./routes/vehicles.js";
 import { ingestRoutes } from "./routes/ingest.js";
-import { fuelLogRoutes } from "./routes/fuelLogs.js";
-import { maintenanceRecordRoutes } from "./routes/maintenanceRecords.js";
 import { consumablePartRoutes } from "./routes/consumableParts.js";
 import { reminderRoutes } from "./routes/reminders.js";
 import { attachmentRoutes } from "./routes/attachments.js";
@@ -96,8 +94,6 @@ app.get("/health", async () => {
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(vehicleRoutes, { prefix: "/api/vehicles" });
 await app.register(ingestRoutes, { prefix: "/api/ingest" });
-await app.register(fuelLogRoutes, { prefix: "/api/fuel-logs" });
-await app.register(maintenanceRecordRoutes, { prefix: "/api/maintenance-records" });
 await app.register(consumablePartRoutes, { prefix: "/api/consumable-parts" });
 await app.register(reminderRoutes, { prefix: "/api/reminders" });
 await app.register(attachmentRoutes, { prefix: "/api/attachments" });

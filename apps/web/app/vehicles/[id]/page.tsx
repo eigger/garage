@@ -60,8 +60,8 @@ export default function VehicleOverviewPage() {
       apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=week`),
       apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`),
       apiFetch(`/api/vehicles/${vehicleId}/odometer`),
-      apiFetch(`/api/fuel-logs?vehicleId=${vehicleId}&limit=500`),
-      apiFetch(`/api/maintenance-records?vehicleId=${vehicleId}&limit=500`),
+      apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=500`),
+      apiFetch(`/api/vehicles/${vehicleId}/maintenance-records?limit=500`),
     ]);
     if (vehicleRes.ok) {
       const vData = await vehicleRes.json();

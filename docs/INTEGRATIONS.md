@@ -99,14 +99,16 @@ When a station is selected in **Quick Log**, Garage fetches detail and saves `la
 ### Endpoint
 
 ```
-GET /api/ingest/obd/:vehicleId?token={apiToken}&speed=...&rpm=...&lat=...&lon=...&fuelLevel=...&odometer=...
+GET /api/ingest/obd?token={apiToken}&speed=...&rpm=...&lat=...&lon=...&fuelLevel=...&odometer=...
 ```
+
+`token` alone identifies the vehicle — it's unique per vehicle (`Vehicle.apiToken`), so no separate `vehicleId` path segment is needed.
 
 ### Query parameters
 
 | Parameter | Type | Description |
 |---|---|---|
-| `token` | string | **Required** — vehicle `apiToken` |
+| `token` | string | **Required** — vehicle `apiToken`, also identifies which vehicle |
 | `speed` | number | Speed (km/h) |
 | `rpm` | number | Engine RPM |
 | `lat` | number | Latitude (WGS84) |
@@ -122,7 +124,7 @@ GET /api/ingest/obd/:vehicleId?token={apiToken}&speed=...&rpm=...&lat=...&lon=..
 3. Paste the URL below into **Web Server URL** (copy from web **OBD & GPS** tab):
 
 ```
-https://<your-host>/api/ingest/obd/<vehicleId>?token=<apiToken>
+https://<your-host>/api/ingest/obd?token=<apiToken>
 ```
 
 ### Processing flow
@@ -145,10 +147,14 @@ https://<your-host>/api/ingest/obd/<vehicleId>?token=<apiToken>
 ### Endpoint
 
 ```
-POST /api/ingest/telemetry/:vehicleId
+POST /api/ingest/telemetry
 Authorization: Bearer {apiToken}
 Content-Type: application/json
 ```
+
+`apiToken` alone identifies the vehicle (unique per vehicle) — no `vehicleId` path segment needed.
+
+The `Bearer` prefix is optional: `Authorization: {apiToken}` (no prefix) works too. This isn't an OAuth token, just a per-vehicle shared secret, so plain clients that can't easily add a prefix are supported.
 
 ### Request body (JSON)
 
@@ -203,18 +209,17 @@ Copy the block below into `configuration.yaml` (or a package YAML file), replace
 | Placeholder | Where to find it |
 |---|---|
 | `GARAGE_HOST` | Garage server hostname or IP (no trailing slash), e.g. `192.168.1.50` or `garage.home` |
-| `VEHICLE_ID` | Garage web UI → **Vehicles → OBD & GPS** (vehicle ID in the ingest URL) |
-| `API_TOKEN` | Same page — **API token** value |
+| `API_TOKEN` | Garage web UI → **Vehicles → OBD & GPS** — **API token** value (identifies the vehicle too, no separate ID needed) |
 
 **Minimal config** — phone GPS with car Bluetooth presence (`inVehicle`):
 
 ```yaml
 # --- Garage telemetry ingest (minimal) ---
-# Paste into configuration.yaml, replace GARAGE_HOST / VEHICLE_ID / API_TOKEN, then reload rest commands.
+# Paste into configuration.yaml, replace GARAGE_HOST / API_TOKEN, then reload rest commands.
 
 rest_command:
   garage_send_telemetry:
-    url: "http://GARAGE_HOST/api/ingest/telemetry/VEHICLE_ID"
+    url: "http://GARAGE_HOST/api/ingest/telemetry"
     method: POST
     headers:
       Authorization: "Bearer API_TOKEN"
@@ -232,11 +237,11 @@ rest_command:
 
 ```yaml
 # --- Garage telemetry ingest (full) ---
-# Replace GARAGE_HOST, VEHICLE_ID, API_TOKEN, and sensor entity IDs below.
+# Replace GARAGE_HOST, API_TOKEN, and sensor entity IDs below.
 
 rest_command:
   garage_send_telemetry:
-    url: "http://GARAGE_HOST/api/ingest/telemetry/VEHICLE_ID"
+    url: "http://GARAGE_HOST/api/ingest/telemetry"
     method: POST
     headers:
       Authorization: "Bearer API_TOKEN"
@@ -286,7 +291,7 @@ service: rest_command.garage_send_telemetry
 ```yaml
 rest_command:
   garage_send_telemetry:
-    url: "http://192.168.0.244/api/ingest/telemetry/clxxxxxxxxxxxxxxxx"
+    url: "http://192.168.0.244/api/ingest/telemetry"
     method: POST
     headers:
       Authorization: "Bearer YOUR_VEHICLE_API_TOKEN"
@@ -317,7 +322,7 @@ rest_command:
 ### Endpoint
 
 ```
-WS /api/ingest/telemetry/:vehicleId/ws?token={apiToken}
+WS /api/ingest/telemetry/ws?token={apiToken}
 ```
 
 Pushes a JSON payload whenever telemetry is ingested. Connection closes immediately on auth failure.
@@ -466,13 +471,60 @@ These are standard mobile deep links; the user must have the app installed. Web 
 | Field | Value |
 |---|---|
 | Status | **Available** |
-| Auth | **JWT** from `POST /api/auth/login` (not the per-vehicle `apiToken`) |
-| Access | User must have access to the target vehicle (`canAccessVehicle`) |
-| Implementation | `apps/api/src/routes/fuelLogs.ts`, `apps/api/src/routes/maintenanceRecords.ts` |
+| Auth | **JWT** from `POST /api/auth/login` (Standard) or per-vehicle **apiToken** (Simplified) |
+| Access | User must have access to the target vehicle, or use valid per-vehicle `apiToken` |
+| Implementation | `apps/api/src/routes/fuelLogs.ts`, `apps/api/src/routes/maintenanceRecords.ts`, `apps/api/src/routes/ingest.ts` |
 
-Unlike telemetry ingest (sections 2–3), fuel and maintenance records require a **logged-in Garage account**. Use this for scripts, Home Assistant automations, or bulk backfill of historical data.
+For third-party integrations (Home Assistant, scripts, automations), you can use either the **Standard API** (requires user login JWT) or the **Simplified Ingest API** (requires only the per-vehicle `apiToken`).
 
-### Get a JWT
+---
+
+### 1) Simplified Ingest API (Recommended for HA & Scripts)
+
+Identify and authenticate the vehicle using its unique `apiToken` in the query parameter `?token=...` or `Authorization: Bearer <apiToken>` header. No `vehicleId` path segment or body field is required.
+
+| Method | Path | Description |
+|---|---|---|
+| `POST` | `/api/ingest/fuel-logs` | Create fuel log |
+| `POST` | `/api/ingest/maintenance-records` | Create maintenance record |
+
+#### Fuel logs (Simplified)
+```
+POST /api/ingest/fuel-logs?token={apiToken}
+Content-Type: application/json
+```
+```json
+{
+  "date": "2024-03-15",
+  "odometer": 45230,
+  "liters": 45.2,
+  "cost": 75000,
+  "fullTank": true,
+  "location": "OO주유소"
+}
+```
+
+#### Maintenance records (Simplified)
+```
+POST /api/ingest/maintenance-records?token={apiToken}
+Content-Type: application/json
+```
+```json
+{
+  "date": "2024-06-01",
+  "odometer": 48000,
+  "type": "자동차보험 갱신",
+  "category": "ADMINISTRATIVE",
+  "cost": 850000,
+  "shop": "OO정비소"
+}
+```
+
+---
+
+### 2) Standard API (requires User JWT)
+
+Requires a logged-in user account. Get a JWT:
 
 ```
 POST /api/auth/login
@@ -481,20 +533,16 @@ Content-Type: application/json
 { "email": "user@example.com", "password": "..." }
 ```
 
-Response includes `token` (no expiration by default). Send it on every request:
+Response includes `token` (no expiration by default). Send it on every request: `Authorization: Bearer <JWT>`.
 
-```
-Authorization: Bearer <JWT>
-```
-
-### Fuel logs
+#### Fuel logs (Standard)
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/fuel-logs?vehicleId={id}&limit=&offset=` | List (newest first) |
-| `POST` | `/api/fuel-logs` | Create |
-| `PATCH` | `/api/fuel-logs/:id` | Update (partial body) |
-| `DELETE` | `/api/fuel-logs/:id` | Delete |
+| `GET` | `/api/vehicles/{id}/fuel-logs?limit=&offset=` | List (newest first) |
+| `POST` | `/api/vehicles/{id}/fuel-logs` | Create |
+| `PATCH` | `/api/vehicles/{id}/fuel-logs/:logId` | Update (partial body) |
+| `DELETE` | `/api/vehicles/{id}/fuel-logs/:logId` | Delete |
 
 **Create body** (`packages/shared/src/schemas/records.ts`):
 
@@ -524,14 +572,14 @@ Authorization: Bearer <JWT>
 }
 ```
 
-### Maintenance records
+#### Maintenance records (Standard)
 
 | Method | Path | Description |
 |---|---|---|
-| `GET` | `/api/maintenance-records?vehicleId={id}&category=&search=&limit=&offset=` | List (newest first). `category`: `MAINTENANCE` or `ADMINISTRATIVE` |
-| `POST` | `/api/maintenance-records` | Create |
-| `PATCH` | `/api/maintenance-records/:id` | Update (partial body) |
-| `DELETE` | `/api/maintenance-records/:id` | Delete |
+| `GET` | `/api/vehicles/{id}/maintenance-records?category=&search=&limit=&offset=` | List (newest first) |
+| `POST` | `/api/vehicles/{id}/maintenance-records` | Create |
+| `PATCH` | `/api/vehicles/{id}/maintenance-records/:recordId` | Update (partial body) |
+| `DELETE` | `/api/vehicles/{id}/maintenance-records/:recordId` | Delete |
 
 **Create body**:
 
@@ -540,8 +588,8 @@ Authorization: Bearer <JWT>
 | `vehicleId` | string | yes | |
 | `date` | ISO date / string | yes | Past dates allowed |
 | `odometer` | integer ≥ 0 | yes | km at time of service |
-| `type` | string | yes | e.g. `엔진오일 교환` — syncs matching `ConsumablePart` schedule |
-| `category` | `MAINTENANCE` \| `ADMINISTRATIVE` | no | default `MAINTENANCE`. Use `ADMINISTRATIVE` for inspection, insurance, tax |
+| `type` | string | yes | e.g. `엔진오일 교환` |
+| `category` | `MAINTENANCE` \| `ADMINISTRATIVE` | no | default `MAINTENANCE` |
 | `cost` | integer ≥ 0 | no | |
 | `shop` | string | no | Shop name |
 | `notes` | string | no | |
@@ -594,98 +642,58 @@ Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`.
 
 ---
 
-### Home Assistant — Garage API 기준 `rest_command`
+### Home Assistant — Garage API 형식 `rest_command`
 
-아래 예시는 Garage API 스펙(`/api/fuel-logs`, `/api/maintenance-records`) 그대로 사용합니다.  
-`secrets.yaml` 없이 URL을 직접 넣은 예시이며, 센서값은 자동화 `data`에서 전달하는 형태입니다.
+아래는 차량의 `apiToken`을 사용한 단순화된 ingest API 형식입니다.
 
 ```yaml
 rest_command:
-  garage_add_odometer:
-    url: "http://192.168.0.244/api/maintenance-records"
+  garage_create_fuel_log:
+    url: "http://192.168.0.244/api/ingest/fuel-logs"
     method: post
     content_type: "application/json"
     headers:
-      Authorization: "Bearer {{ jwt }}"
+      Authorization: "Bearer YOUR_VEHICLE_API_TOKEN"
     payload: >
       {
-        "vehicleId": "{{ vehicle_id }}",
-        "date": "{{ date | default(now().strftime('%Y-%m-%d'), true) }}",
-        "odometer": {{ odometer | int(0) }},
-        "type": "주행거리 동기화",
-        "category": "ADMINISTRATIVE",
-        "notes": "{{ notes | default('홈어시스턴트 자동 동기화') }}"
+        "date": "{{ now().strftime('%Y-%m-%d') }}",
+        "odometer": {{ states('sensor.your_odometer') | int(0) }},
+        "liters": {{ states('input_number.fuel_liters') | float(0) }},
+        "cost": {{ states('input_number.fuel_cost') | int(0) }},
+        "fullTank": true,
+        "location": "{{ states('input_text.fuel_station') }}"
       }
 
-  garage_add_fuel:
-    url: "http://192.168.0.244/api/fuel-logs"
+  garage_create_maintenance_record:
+    url: "http://192.168.0.244/api/ingest/maintenance-records"
     method: post
     content_type: "application/json"
     headers:
-      Authorization: "Bearer {{ jwt }}"
+      Authorization: "Bearer YOUR_VEHICLE_API_TOKEN"
     payload: >
       {
-        "vehicleId": "{{ vehicle_id }}",
-        "date": "{{ date | default(now().strftime('%Y-%m-%d'), true) }}",
-        "odometer": {{ odometer | int(0) }},
-        "liters": {{ liters | float(0) }},
-        "cost": {{ cost | int(0) }},
-        "fullTank": {% if full_tank | default(true) %}true{% else %}false{% endif %},
-        "location": "{{ location | default('홈어시스턴트 자동 동기화') }}"
+        "date": "{{ now().strftime('%Y-%m-%d') }}",
+        "odometer": {{ states('sensor.your_odometer') | int(0) }},
+        "type": "{{ states('input_text.maintenance_type') }}",
+        "category": "MAINTENANCE",
+        "cost": {{ states('input_number.maintenance_cost') | int(0) }},
+        "shop": "{{ states('input_text.maintenance_shop') }}",
+        "notes": "{{ states('input_text.maintenance_notes') }}"
       }
 ```
 
-자동화에서 센서값 전달 예시:
+수동 호출 예시:
 
 ```yaml
-automation:
-  - id: garage_sync_odometer_from_sensor
-    alias: "Garage: sync odometer"
-    trigger:
-      - platform: state
-        entity_id: sensor.your_odometer
-    action:
-      - service: rest_command.garage_add_odometer
-        data:
-          jwt: "YOUR_GARAGE_LOGIN_JWT"
-          vehicle_id: "clxxxxxxxxxxxxxxxx"
-          odometer: "{{ states('sensor.your_odometer') }}"
-          notes: "홈어시스턴트 자동 동기화"
-
-  - id: garage_log_fuel_from_helpers
-    alias: "Garage: log fuel"
-    trigger:
-      - platform: state
-        entity_id: input_button.submit_fuel_log
-    action:
-      - service: rest_command.garage_add_fuel
-        data:
-          jwt: "YOUR_GARAGE_LOGIN_JWT"
-          vehicle_id: "clxxxxxxxxxxxxxxxx"
-          odometer: "{{ states('sensor.your_odometer') }}"
-          liters: "{{ states('input_number.fuel_liters') }}"
-          cost: "{{ states('input_number.fuel_cost') }}"
-          full_tank: true
-          location: "{{ states('input_text.fuel_station') }}"
+service: rest_command.garage_create_fuel_log
 ```
-
-수동 테스트 예시:
 
 ```yaml
-service: rest_command.garage_add_fuel
-data:
-  jwt: "YOUR_GARAGE_LOGIN_JWT"
-  vehicle_id: "clxxxxxxxxxxxxxxxx"
-  odometer: 45230
-  liters: 45.2
-  cost: 75000
-  full_tank: true
-  location: "OO주유소"
+service: rest_command.garage_create_maintenance_record
 ```
 
-> JWT는 `POST http://192.168.0.244/api/auth/login` 응답 `token` 사용  
-> `vehicleId`는 숫자가 아니라 Garage 차량 ID 문자열(`clx...`)  
-> 오도미터 단독 API는 없으므로 행정 레코드(maintenance-records) 방식으로 동기화
+> `YOUR_VEHICLE_API_TOKEN`은 웹 **차량 상세 → OBD & GPS** (`/vehicles/[id]/integration`) 탭에서 확인할 수 있는 고유 토큰입니다.
+
 
 ---
 
