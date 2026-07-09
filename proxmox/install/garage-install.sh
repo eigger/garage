@@ -151,14 +151,26 @@ msg_ok "Created Garage Service"
 motd_ssh
 customize
 
-# Override the update script created by customize to point to our own repository
+# Override the update script created by customize.
+# Keep update logic local so rate limits on remote helper scripts cannot break updates.
 msg_info "Customizing update script path"
 cat <<'EOF' >/usr/bin/update
 #!/usr/bin/env bash
+set -euo pipefail
+
 set -a
 [ -f /etc/profile.d/90-http-proxy.sh ] && . /etc/profile.d/90-http-proxy.sh
 set +a
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/eigger/garage/master/proxmox/ct/garage.sh)"
+
+if [[ ! -d /opt/garage ]]; then
+  echo "No Garage installation found at /opt/garage"
+  exit 1
+fi
+
+cd /opt/garage
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d --remove-orphans
+echo "Garage update completed."
 EOF
 chmod +x /usr/bin/update
 msg_ok "Configured update script"
