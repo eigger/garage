@@ -141,6 +141,16 @@ EOF
 
 systemctl enable -q --now garage.service
 
+echo "[garage-install] Setting up console auto-login for root"
+mkdir -p /etc/systemd/system/container-getty@1.service.d/
+cat <<'EOF' >/etc/systemd/system/container-getty@1.service.d/override.conf
+[Service]
+ExecStart=
+ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud tty%I 115200,38400,9600 $TERM
+EOF
+systemctl daemon-reload
+systemctl restart container-getty@1.service || true
+
 # Keep update logic local so rate limits on remote helper scripts cannot break updates.
 cat <<'EOF' >/usr/bin/update
 #!/usr/bin/env bash
