@@ -4,6 +4,9 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* 페이지마다 콘텐츠 높이가 달라 세로 스크롤바가 생겼다 없어졌다 하면 .container의
+     margin: 0 auto 정렬이 그때마다 좌우로 튄다 — 스크롤바 자리를 항상 예약해서 방지. */
+  scrollbar-gutter: stable;
 }
 
 body {

@@ -30,17 +30,6 @@ export function SettingsBar() {
       .catch((err) => console.error("Failed to check update:", err));
   }, [user]);
 
-  const selectStyle: React.CSSProperties = {
-    height: 36,
-    minHeight: 36,
-    fontSize: 13,
-    padding: "0 28px 0 8px",
-    flexShrink: 0,
-    width: "auto",
-    display: "inline-block",
-    lineHeight: "36px",
-  };
-
   return (
     <div
       style={{
@@ -57,36 +46,6 @@ export function SettingsBar() {
       className="no-scrollbar"
       aria-label={t("settingsLabel")}
     >
-      <select
-        value={locale}
-        onChange={(e) => setLocale(e.target.value as Locale)}
-        aria-label={t("languageLabel")}
-        style={selectStyle}
-      >
-        <option value="ko">한국어</option>
-        <option value="en">English</option>
-      </select>
-
-      <select
-        value={distanceUnit}
-        onChange={(e) => setDistanceUnit(e.target.value as DistanceUnit)}
-        aria-label={t("distanceUnitLabel")}
-        style={selectStyle}
-      >
-        <option value="km">km</option>
-        <option value="mi">mi</option>
-      </select>
-
-      <select
-        value={currency}
-        onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
-        aria-label={t("currencyLabel")}
-        style={selectStyle}
-      >
-        <option value="KRW">₩ KRW</option>
-        <option value="USD">$ USD</option>
-      </select>
-
       {user && (
         <Link
           href="/profile"
