@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSettings } from "../lib/i18n/settings-context";
 import type { Locale } from "../lib/i18n/translations";
@@ -10,6 +11,22 @@ export function SettingsBar() {
   const { locale, setLocale, distanceUnit, setDistanceUnit, currency, setCurrency, t } =
     useSettings();
   const { user } = useAuth();
+  const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/health")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data.updateAvailable === "boolean") {
+          setUpdateInfo({
+            latestVersion: data.latestVersion,
+            updateAvailable: data.updateAvailable,
+          });
+        }
+      })
+      .catch((err) => console.error("Failed to check update:", err));
+  }, [user]);
 
   return (
     <div
@@ -102,9 +119,31 @@ export function SettingsBar() {
           fontSize: 12,
           alignSelf: "center",
           paddingRight: 4,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
         }}
       >
         v{process.env.APP_VERSION}
+        {updateInfo?.updateAvailable && (
+          <span
+            title={`New version v${updateInfo.latestVersion} is available!`}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "#ff4d4f",
+              color: "white",
+              fontSize: 10,
+              fontWeight: "bold",
+              borderRadius: 10,
+              padding: "2px 6px",
+              cursor: "help",
+            }}
+          >
+            Update Available
+          </span>
+        )}
       </span>
     </div>
   );

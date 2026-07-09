@@ -28,6 +28,31 @@ const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
 const APP_VERSION = pkg.version;
 
+let latestVersion = APP_VERSION;
+let lastVersionCheck = 0;
+const VERSION_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes cache
+
+async function checkLatestVersion(): Promise<string> {
+  const now = Date.now();
+  if (now - lastVersionCheck < VERSION_CHECK_INTERVAL) {
+    return latestVersion;
+  }
+  try {
+    const res = await fetch("https://api.github.com/repos/eigger/garage/releases/latest", {
+      headers: { "User-Agent": "garage-app" }
+    });
+    if (res.ok) {
+      const data = await res.json() as { tag_name: string };
+      latestVersion = data.tag_name.replace(/^v/, "");
+      lastVersionCheck = now;
+    }
+  } catch (err) {
+    // Suppress errors to avoid crashing healthcheck on network/GitHub API limit errors
+    console.error("Failed to check latest version from GitHub:", err);
+  }
+  return latestVersion;
+}
+
 const app = Fastify({ logger: true });
 
 if (!process.env.JWT_SECRET) {
@@ -52,7 +77,16 @@ app.decorate("requireAdmin", async (request, reply) => {
   }
 });
 
-app.get("/health", async () => ({ status: "ok", version: APP_VERSION }));
+app.get("/health", async () => {
+  const latest = await checkLatestVersion();
+  const updateAvailable = latest !== APP_VERSION;
+  return {
+    status: "ok",
+    version: APP_VERSION,
+    latestVersion: latest,
+    updateAvailable
+  };
+});
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(vehicleRoutes, { prefix: "/api/vehicles" });
