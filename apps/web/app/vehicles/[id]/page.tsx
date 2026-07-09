@@ -40,6 +40,8 @@ export default function VehicleOverviewPage() {
   const [plate, setPlate] = useState("");
   const [year, setYear] = useState("");
   const [vin, setVin] = useState("");
+  const [tireSize, setTireSize] = useState("");
+  const [batteryCapacity, setBatteryCapacity] = useState("");
   const [regFile, setRegFile] = useState<File | null>(null);
   const [savingState, setSavingState] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -63,6 +65,8 @@ export default function VehicleOverviewPage() {
       setPlate(vData.plate || "");
       setYear(vData.year ? String(vData.year) : "");
       setVin(vData.vin || "");
+      setTireSize(vData.tireSize || "");
+      setBatteryCapacity(vData.batteryCapacity || "");
     }
     if (remindersRes.ok) {
       const all: Reminder[] = await remindersRes.json();
@@ -146,6 +150,8 @@ export default function VehicleOverviewPage() {
           plate: plate || null,
           year: year ? Number(year) : null,
           vin: vin || null,
+          tireSize: tireSize || null,
+          batteryCapacity: batteryCapacity || null,
         }),
       });
 
@@ -333,6 +339,25 @@ export default function VehicleOverviewPage() {
                 />
               </div>
 
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleTireSize")}</label>
+                  <input
+                    placeholder="205/55R16"
+                    value={tireSize}
+                    onChange={(e) => setTireSize(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleBatteryCapacity")}</label>
+                  <input
+                    placeholder="77.4 kWh"
+                    value={batteryCapacity}
+                    onChange={(e) => setBatteryCapacity(e.target.value)}
+                  />
+                </div>
+              </div>
+
               <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 12 }}>
                 <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>
                   {t("registrationCertificate")}
@@ -369,6 +394,10 @@ export default function VehicleOverviewPage() {
               </div>
               <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
                 <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
+                <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
+                <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
               </div>
               <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
                 <strong>{t("registrationCertificate")}:</strong>{" "}

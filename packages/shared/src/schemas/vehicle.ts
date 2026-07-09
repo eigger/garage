@@ -5,12 +5,17 @@ export type FuelType = z.infer<typeof fuelTypeSchema>;
 
 export const vehicleSchema = z.object({
   name: z.string().min(1),
-  plate: z.string().optional(),
-  make: z.string().optional(),
-  model: z.string().optional(),
-  year: z.number().int().optional(),
-  vin: z.string().optional(),
+  // 프론트엔드가 빈 입력란을 저장할 때 undefined(생략)가 아니라 명시적 null(값 지우기)을
+  // 보내므로, DB에서 nullable인 필드는 전부 .nullable()을 같이 줘야 한다 — 이게 빠져 있으면
+  // 차량 편집 폼에서 빈 필드가 하나라도 있을 때 항상 400으로 저장이 실패한다.
+  plate: z.string().nullable().optional(),
+  make: z.string().nullable().optional(),
+  model: z.string().nullable().optional(),
+  year: z.number().int().nullable().optional(),
+  vin: z.string().nullable().optional(),
   fuelType: fuelTypeSchema.optional(),
+  tireSize: z.string().nullable().optional(),
+  batteryCapacity: z.string().nullable().optional(),
 });
 export type VehicleInput = z.infer<typeof vehicleSchema>;
 

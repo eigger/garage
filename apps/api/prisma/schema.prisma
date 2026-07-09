@@ -43,17 +43,19 @@ model User {
 }
 
 model Vehicle {
-  id        String    @id @default(cuid())
-  name      String
-  plate     String?
-  make      String?
-  model     String?
-  year      Int?
-  vin       String?
-  fuelType  FuelType?
-  apiToken  String?   @unique
-  odometer  Int       @default(0)
-  createdAt DateTime  @default(now())
+  id              String    @id @default(cuid())
+  name            String
+  plate           String?
+  make            String?
+  model           String?
+  year            Int?
+  vin             String?
+  fuelType        FuelType?
+  tireSize        String?
+  batteryCapacity String?
+  apiToken        String?   @unique
+  odometer        Int       @default(0)
+  createdAt       DateTime  @default(now())
 
   access             UserVehicleAccess[]
   trips              Trip[]
@@ -216,6 +218,6 @@ model Attachment {
   maintenanceRecordId String?
   maintenanceRecord   MaintenanceRecord? @relation(fields: [maintenanceRecordId], references: [id], onDelete: Cascade)
 
-  vehicleId           String?
-  vehicle             Vehicle?            @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  vehicleId String?
+  vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 }
