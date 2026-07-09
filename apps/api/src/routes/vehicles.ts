@@ -77,7 +77,27 @@ export async function vehicleRoutes(app: FastifyInstance) {
       include: { attachments: true },
     });
     if (!vehicle) return reply.code(404).send({ error: "vehicle not found" });
-    return omitApiTokenUnlessAdmin(vehicle, role);
+
+    // Fetch latest fuel level from telemetry
+    const latestTelemetry = await prisma.telemetryRaw.findFirst({
+      where: {
+        vehicleId: id,
+        fuelLevel: { not: null },
+      },
+      orderBy: {
+        time: "desc",
+      },
+      select: {
+        fuelLevel: true,
+      },
+    });
+
+    const responseData = {
+      ...vehicle,
+      fuelLevel: latestTelemetry?.fuelLevel ?? null,
+    };
+
+    return omitApiTokenUnlessAdmin(responseData, role);
   });
 
   // 차량 등록/수정/삭제는 관리자만.

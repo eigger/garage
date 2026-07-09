@@ -452,6 +452,7 @@ export default function VehicleOverviewPage() {
                 <div><strong>{t("vehicleYear")}:</strong> {vehicle.year || "-"}</div>
                 <div><strong>{t("vehicleFuelType")}:</strong> {vehicle.fuelType ? t(fuelTypeLabelKey(vehicle.fuelType)) : "-"}</div>
                 <div><strong>{t("dashboardOdometer")}:</strong> {vehicle.odometer !== null && vehicle.odometer !== undefined ? formatDistance(vehicle.odometer) : "-"}</div>
+                <div><strong>{t("fuelLevel")}:</strong> {vehicle.fuelLevel !== null && vehicle.fuelLevel !== undefined ? `${vehicle.fuelLevel.toFixed(1)}%` : "-"}</div>
               </div>
               <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
                 <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
