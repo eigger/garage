@@ -29,6 +29,17 @@ async function applyPresetsToVehicle(vehicleId: string, fuelType: string): Promi
   });
 }
 
+// apiToken은 인증 없이 텔레메트리를 주입할 수 있는 자격 증명이라 관리자만 봐야 한다.
+// 접근권한만 있는 일반 사용자에게는 나머지 필드는 그대로 두고 이 필드만 가린다.
+function omitApiTokenUnlessAdmin<T extends { apiToken?: string | null }>(
+  vehicle: T,
+  role: "ADMIN" | "GENERAL",
+): T {
+  if (role === "ADMIN") return vehicle;
+  const { apiToken, ...rest } = vehicle;
+  return rest as T;
+}
+
 export async function vehicleRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
@@ -37,9 +48,10 @@ export async function vehicleRoutes(app: FastifyInstance) {
     const { sub, role } = request.user;
     if (role === "ADMIN") return prisma.vehicle.findMany();
 
-    return prisma.vehicle.findMany({
+    const vehicles = await prisma.vehicle.findMany({
       where: { access: { some: { userId: sub } } },
     });
+    return vehicles.map((v) => omitApiTokenUnlessAdmin(v, role));
   });
 
   app.get("/:id", async (request, reply) => {
@@ -55,7 +67,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
       include: { attachments: true },
     });
     if (!vehicle) return reply.code(404).send({ error: "vehicle not found" });
-    return vehicle;
+    return omitApiTokenUnlessAdmin(vehicle, role);
   });
 
   // 차량 등록/수정/삭제는 관리자만.
@@ -154,6 +166,22 @@ export async function vehicleRoutes(app: FastifyInstance) {
         where: { userId_vehicleId: { userId, vehicleId: id } },
       });
       return reply.code(204).send();
+    },
+  );
+
+  app.post(
+    "/:id/token/reset",
+    { preHandler: [app.requireAdmin] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const existing = await prisma.vehicle.findUnique({ where: { id } });
+      if (!existing) return reply.code(404).send({ error: "vehicle not found" });
+
+      const updated = await prisma.vehicle.update({
+        where: { id },
+        data: { apiToken: randomUUID() },
+      });
+      return { apiToken: updated.apiToken };
     },
   );
 }

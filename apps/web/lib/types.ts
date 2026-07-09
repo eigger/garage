@@ -18,6 +18,8 @@ export type Vehicle = {
   year: number | null;
   vin: string | null;
   fuelType: FuelType | null;
+  // 관리자가 아닌 사용자에게는 API에서 이 필드 자체를 내려주지 않는다(인증 자격 증명이라 노출 제한).
+  apiToken?: string | null;
   attachments?: Attachment[];
 };
 

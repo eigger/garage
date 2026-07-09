@@ -6,6 +6,7 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
+import websocket from "@fastify/websocket";
 import { prisma } from "./lib/prisma.js";
 import { authRoutes } from "./routes/auth.js";
 import { vehicleRoutes } from "./routes/vehicles.js";
@@ -62,6 +63,7 @@ if (!process.env.JWT_SECRET) {
 await app.register(cors, { origin: true });
 await app.register(jwt, { secret: process.env.JWT_SECRET ?? "dev-secret-change-me" });
 await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB
+await app.register(websocket);
 
 app.decorate("authenticate", async (request, reply) => {
   try {

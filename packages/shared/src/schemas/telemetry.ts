@@ -8,6 +8,7 @@ export const obdIngestQuerySchema = z.object({
   lat: z.coerce.number().optional(),
   lon: z.coerce.number().optional(),
   fuelLevel: z.coerce.number().optional(),
+  odometer: z.coerce.number().optional(),
 });
 
 export type ObdIngestQuery = z.infer<typeof obdIngestQuerySchema>;

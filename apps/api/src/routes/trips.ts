@@ -7,7 +7,11 @@ export async function tripRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/", async (request, reply) => {
-    const { vehicleId, limit } = request.query as { vehicleId?: string; limit?: string };
+    const { vehicleId, limit, offset } = request.query as {
+      vehicleId?: string;
+      limit?: string;
+      offset?: string;
+    };
     if (!vehicleId) return reply.code(400).send({ error: "vehicleId is required" });
 
     const { sub, role } = request.user;
@@ -15,10 +19,14 @@ export async function tripRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
+    const parsedLimit = limit ? parseInt(limit, 10) : 20;
+    const parsedOffset = offset ? parseInt(offset, 10) : undefined;
+
     return prisma.trip.findMany({
       where: { vehicleId },
       orderBy: { startTime: "desc" },
-      take: limit ? Number(limit) : 20,
+      take: parsedLimit,
+      skip: parsedOffset,
     });
   });
 

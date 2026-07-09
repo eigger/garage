@@ -8,7 +8,12 @@ export async function maintenanceRecordRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/", async (request, reply) => {
-    const { vehicleId } = request.query as { vehicleId?: string };
+    const { vehicleId, limit, offset, search } = request.query as {
+      vehicleId?: string;
+      limit?: string;
+      offset?: string;
+      search?: string;
+    };
     if (!vehicleId) return reply.code(400).send({ error: "vehicleId is required" });
 
     const { sub, role } = request.user;
@@ -16,10 +21,24 @@ export async function maintenanceRecordRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const parsedOffset = offset ? parseInt(offset, 10) : undefined;
+
+    const whereClause: any = { vehicleId };
+    if (search) {
+      whereClause.OR = [
+        { type: { contains: search, mode: "insensitive" } },
+        { shop: { contains: search, mode: "insensitive" } },
+        { notes: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     return prisma.maintenanceRecord.findMany({
-      where: { vehicleId },
+      where: whereClause,
       orderBy: { date: "desc" },
       include: { attachments: true },
+      take: parsedLimit,
+      skip: parsedOffset,
     });
   });
 
@@ -46,6 +65,19 @@ export async function maintenanceRecordRoutes(app: FastifyInstance) {
           installedOdometer: parsed.data.odometer,
         },
       });
+
+      // 차량 오도미터 동기화
+      const vehicle = await tx.vehicle.findUnique({
+        where: { id: parsed.data.vehicleId },
+        select: { odometer: true },
+      });
+
+      if (vehicle && parsed.data.odometer > vehicle.odometer) {
+        await tx.vehicle.update({
+          where: { id: parsed.data.vehicleId },
+          data: { odometer: parsed.data.odometer },
+        });
+      }
 
       return rec;
     });
@@ -82,6 +114,21 @@ export async function maintenanceRecordRoutes(app: FastifyInstance) {
             installedOdometer: rec.odometer,
           },
         });
+      }
+
+      // 차량 오도미터 동기화
+      if (parsed.data.odometer !== undefined) {
+        const vehicle = await tx.vehicle.findUnique({
+          where: { id: rec.vehicleId },
+          select: { odometer: true },
+        });
+
+        if (vehicle && parsed.data.odometer > vehicle.odometer) {
+          await tx.vehicle.update({
+            where: { id: rec.vehicleId },
+            data: { odometer: parsed.data.odometer },
+          });
+        }
       }
 
       return rec;

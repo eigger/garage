@@ -14,6 +14,7 @@ type Point = {
   lat: number | null;
   lon: number | null;
   speed: number | null;
+  odometer: number | null;
 };
 
 export async function closeTrips(): Promise<void> {
@@ -27,7 +28,7 @@ async function closeTripsForVehicle(vehicleId: string): Promise<void> {
   const points = await prisma.telemetryRaw.findMany({
     where: { vehicleId, tripId: null, lat: { not: null }, lon: { not: null } },
     orderBy: { time: "asc" },
-    select: { id: true, time: true, lat: true, lon: true, speed: true },
+    select: { id: true, time: true, lat: true, lon: true, speed: true, odometer: true },
   });
   if (points.length === 0) return;
 
@@ -80,27 +81,43 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
   }
   const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : null;
 
+  // 텔레메트리 내에 기록된 계기판 주행거리 정보가 있다면 그 차이를 총 운행 거리로 사용
+  let finalDistance = distanceKm;
+  const odometerPoints = segment.filter((p): p is Point & { odometer: number } => p.odometer !== null && p.odometer > 0);
+  if (odometerPoints.length >= 2) {
+    const firstOdo = odometerPoints[0].odometer;
+    const lastOdo = odometerPoints[odometerPoints.length - 1].odometer;
+    const diff = lastOdo - firstOdo;
+    if (diff >= 0) {
+      finalDistance = diff;
+    }
+  }
+
   const routePolyline = encodeRoute(
     segment
       .filter((p): p is Point & { lat: number; lon: number } => p.lat !== null && p.lon !== null)
       .map((p) => ({ lat: p.lat, lon: p.lon })),
   );
 
-  const trip = await prisma.trip.create({
-    data: {
-      vehicleId,
-      startTime: segment[0].time,
-      endTime: segment[segment.length - 1].time,
-      distanceKm: Math.round(distanceKm * 100) / 100,
-      avgSpeed: avgSpeed !== null ? Math.round(avgSpeed * 10) / 10 : null,
-      idleTimeSec: Math.round(idleTimeSec),
-      routePolyline,
-    },
-  });
+  const trip = await prisma.$transaction(async (tx) => {
+    const t = await tx.trip.create({
+      data: {
+        vehicleId,
+        startTime: segment[0].time,
+        endTime: segment[segment.length - 1].time,
+        distanceKm: Math.round(finalDistance * 100) / 100,
+        avgSpeed: avgSpeed !== null ? Math.round(avgSpeed * 10) / 10 : null,
+        idleTimeSec: Math.round(idleTimeSec),
+        routePolyline,
+      },
+    });
 
-  await prisma.telemetryRaw.updateMany({
-    where: { id: { in: segment.map((p) => p.id) } },
-    data: { tripId: trip.id },
+    await tx.telemetryRaw.updateMany({
+      where: { id: { in: segment.map((p) => p.id) } },
+      data: { tripId: t.id },
+    });
+
+    return t;
   });
 }
 

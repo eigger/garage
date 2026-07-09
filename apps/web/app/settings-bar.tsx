@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useSettings } from "../lib/i18n/settings-context";
 import type { Locale } from "../lib/i18n/translations";
 import type { CurrencyCode, DistanceUnit } from "../lib/i18n/settings-context";
@@ -11,6 +12,7 @@ export function SettingsBar() {
   const { locale, setLocale, distanceUnit, setDistanceUnit, currency, setCurrency, t } =
     useSettings();
   const { user } = useAuth();
+  const pathname = usePathname();
   const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
 
   useEffect(() => {
@@ -73,7 +75,7 @@ export function SettingsBar() {
       {user && (
         <Link
           href="/profile"
-          className="nav-btn-premium"
+          className={`nav-btn-premium ${pathname === "/profile" ? "active" : ""}`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
           {t("navProfile")}
@@ -83,7 +85,7 @@ export function SettingsBar() {
       {user && user.role === "ADMIN" && (
         <Link
           href="/backup"
-          className="nav-btn-premium"
+          className={`nav-btn-premium ${pathname === "/backup" ? "active" : ""}`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
           {t("navBackupRestore")}
