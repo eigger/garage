@@ -98,10 +98,11 @@ export default function Home() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h2 style={{ margin: "24px 0 8px" }}>{t("vehiclesHeading")}</h2>
         {user.role === "ADMIN" && (
-          <span style={{ display: "flex", gap: 12 }}>
+          <span style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
             <Link href="/vehicles">{t("manageVehicles")}</Link>
             <Link href="/users">{t("manageUsers")}</Link>
             <Link href="/maintenance-presets">{t("presetsHeading")}</Link>
+            <Link href="/integrations">{t("navIntegrations")}</Link>
           </span>
         )}
       </div>

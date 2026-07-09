@@ -191,6 +191,16 @@ model Reminder {
   consumablePart ConsumablePart? @relation(fields: [consumablePartId], references: [id], onDelete: Cascade)
 }
 
+// 외부 API 연동 키 등 관리자가 UI에서 직접 입력/변경하는 설정값.
+// env 변수보다 우선 적용되며(getSetting 헬퍼 참고), 서버 재시작 없이 즉시 반영된다.
+// 백업/복원 대상에서 의도적으로 제외한다 — 내보낸 백업 파일이 외부로 유출될 경우
+// 연동 키까지 함께 노출되는 것을 막기 위함.
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 // 영수증/보험증권/견적서 등 사진·PDF 첨부
 model Attachment {
   id         String   @id @default(cuid())

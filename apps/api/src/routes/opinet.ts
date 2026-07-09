@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import proj4 from "proj4";
+import { getSetting } from "../lib/settings.js";
 
 // KATEC projection configuration from the user's Home Assistant custom component
 const KATEC_PROJ = "+proj=tmerc +lat_0=38 +lon_0=128 +k=0.9999 +x_0=400000 +y_0=600000 +ellps=bessel +units=m +no_defs +towgs84=-115.80,474.99,674.11,1.16,-2.31,-1.63,6.43";
@@ -47,7 +48,7 @@ export async function opinetRoutes(app: FastifyInstance) {
     }
 
     const prodcd = FUEL_CODE_MAP[fuelType] ?? "B027";
-    const apiKey = process.env.OPINET_API_KEY;
+    const apiKey = await getSetting("OPINET_API_KEY");
 
     if (apiKey) {
       try {

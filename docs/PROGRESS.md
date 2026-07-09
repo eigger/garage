@@ -1,6 +1,6 @@
 # Garage 프로젝트 진행 현황
 
-마지막 업데이트: 2026-07-09 (Windows 로컬 개발 환경에서 실사용 검증 완료, 사용자 편의성 UX 개선 8종 구현 및 브라우저 검증 완료 — 아직 커밋 전)
+마지막 업데이트: 2026-07-09 (Windows 로컬 개발 환경 실사용 검증, UX 개선 8종, API 연동 키 관리 화면(`/integrations`) 구현 완료)
 
 ## 1. 프로젝트 개요
 
@@ -97,6 +97,15 @@
 
 **참고**: dev 서버가 켜진 상태에서 `next build`(프로덕션 빌드)를 실행하면 `.next` 캐시가 충돌해 dev 서버가 `MODULE_NOT_FOUND` 런타임 에러를 내는 것을 확인함 — 이 경우 `apps/web/.next`를 삭제하고 dev 서버를 재시작하면 해결됨.
 
+### API 연동 키 관리 화면 (2026-07-09)
+오피넷 API 키를 `.env` 파일 편집으로만 설정할 수 있었던 것을 발견하고("연동은 되는데 이 앱의 실제 사용자인 가족 구성원 관리자가 서버 파일을 직접 편집해야 하는 건 비현실적" — 사용자 피드백), UI에서 관리하는 방식으로 전환했다. 지도 API(3단계) 등 앞으로 추가될 연동 키도 같은 패턴을 재사용하도록 범용적으로 설계.
+
+- **데이터 모델**: `Setting { key, value, updatedAt }` key-value 테이블 신규(`apps/api/prisma/schema.prisma`). **의도적으로 백업/복원 대상에서 제외** — `apps/api/src/routes/backup.ts`가 테이블을 명시적으로 나열하는 방식이라 자동으로 포함되지 않는데, 이는 의도한 설계: 백업 파일이 외부(노트북, 클라우드 등)로 유출될 때 연동 키까지 함께 노출되는 걸 막기 위함.
+- **백엔드**: `apps/api/src/lib/settings.ts`의 `getSetting(key)`가 DB 값을 우선 사용하고 없으면 `process.env[key]`로 폴백 — UI 없이 `docker-compose`의 환경변수만으로도 계속 동작 가능. `apps/api/src/routes/settings.ts` 신규(관리자 전용 `GET/PUT/DELETE /api/settings`). 허용 키 화이트리스트는 `packages/shared/src/schemas/settings.ts`의 `settingKeySchema`(현재 `OPINET_API_KEY` 하나, 추가 시 여기만 확장). `apps/api/src/routes/opinet.ts`가 `process.env.OPINET_API_KEY` 직접 참조 대신 `getSetting("OPINET_API_KEY")`를 쓰도록 변경.
+- **프론트엔드**: `/integrations` 관리자 전용 페이지 신규(`apps/web/app/integrations/page.tsx`). 키 값은 절대 평문으로 다시 내려주지 않고 마스킹(`••••1234`)과 출처(DB 저장 vs 서버 환경변수 폴백)만 표시. 대시보드 관리자 링크 목록에 추가.
+- **검증**: 브라우저로 키 미설정→목 데이터 폴백(4건), 관리 화면에서 키 저장→실제 API 경로로 전환(가짜 키라 빈 배열 응답, 목 데이터가 아님을 확인해 실제 경로를 탔음을 검증), 확인 모달을 거쳐 키 삭제→목 데이터로 복귀까지 전체 사이클 확인.
+- **부수 수정**: `.env.example`에 `OPINET_API_KEY` 안내 추가, `docker-compose.yml`의 `api` 서비스 환경변수에 `OPINET_API_KEY` 전달이 누락돼 있던 것도 함께 추가(이건 여전히 컨테이너 배포 시 폴백 경로로 유효).
+
 ### 로드맵상 다음 단계
 - **3단계**: 지도 API(네이버/카카오) 연동으로 트립 경로 시각화, 운전 습관 점수 계산, 전용 GPS/OBD 로거 + Traccar 연동, Home Assistant MQTT 센서 노출 (이때 `mosquitto` 서비스 주석 해제)
 - **4단계**: Grafana 기반 비용/연비 분석 대시보드, 가족 구성원별 유류비 정산 리포트 고도화
@@ -122,4 +131,4 @@
 ### 2) 오피넷(Opinet) API 기반 주변 주유소 가격 조회
 - 백엔드 `/api/opinet/stations` 라우트([opinet.ts](../apps/api/src/routes/opinet.ts))가 KATEC 좌표 변환(`proj4`) 후 오피넷 `aroundAll.do`를 호출해 반경 5km 내 주유소 목록(이름/브랜드/거리/유종별 단가)을 반환. `OPINET_API_KEY` 미설정 시 또는 API 호출 실패 시 실제와 유사한 목(mock) 데이터로 자동 폴백.
 - 빠른 입력 폼에서 브라우저 GPS 위치 기준으로 근처 주유소를 조회해 선택하면 유종별 단가가 자동 바인딩되는 흐름까지 구현됨.
-- **실 배포 전 확인 필요**: `OPINET_API_KEY` 발급 및 `.env` 등록 여부, 실제 오피넷 API 응답 필드가 코드의 파싱 로직(`s.UNI_ID`, `s.OS_NM`, `s.POLL_DIV_CO` 등)과 맞는지 실제 키로 검증 필요 — 이번 세션에서는 키 없이 목 데이터 경로만 확인함.
+- **실 배포 전 확인 필요**: `OPINET_API_KEY` 실제 발급 필요 (관리자 화면 `/integrations`에서 입력 가능, `.env` 등록은 선택), 실제 오피넷 API 응답 필드가 코드의 파싱 로직(`s.UNI_ID`, `s.OS_NM`, `s.POLL_DIV_CO` 등)과 맞는지 실제 키로 검증 필요 — 이번 세션에서는 가짜 키로 "DB 값이 실제로 쓰이는지"만 확인했고, 진짜 키의 응답 형식 검증은 아직임.
