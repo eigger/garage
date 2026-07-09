@@ -45,7 +45,7 @@ app.decorate("requireAdmin", async (request, reply) => {
   }
 });
 
-app.get("/health", async () => ({ status: "ok" }));
+app.get("/health", async () => ({ status: "ok", version: "0.1.0" }));
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(vehicleRoutes, { prefix: "/api/vehicles" });

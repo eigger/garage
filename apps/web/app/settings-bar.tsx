@@ -94,6 +94,18 @@ export function SettingsBar() {
           💾 {t("navBackupRestore")}
         </Link>
       )}
+
+      <span
+        style={{
+          marginLeft: "auto",
+          color: "#888",
+          fontSize: 12,
+          alignSelf: "center",
+          paddingRight: 4,
+        }}
+      >
+        v0.1.0
+      </span>
     </div>
   );
 }
