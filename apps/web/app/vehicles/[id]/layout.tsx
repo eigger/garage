@@ -60,12 +60,6 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
     { href: `${basePath}/quick-log`, label: t("navQuickLog") },
     { href: `${basePath}/schedule`, label: t("navSchedule") },
     { href: `${basePath}/history`, label: t("navHistory") },
-    ...(isAdmin
-      ? [
-          { href: `${basePath}/access`, label: t("navAccess") },
-          { href: `${basePath}/integration`, label: t("navIntegration") },
-        ]
-      : []),
   ];
 
   return (
@@ -75,8 +69,8 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
         <Link href="/">{t("backToDashboard")}</Link>
       </p>
       {vehicle && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
-          <h1 style={{ margin: 0, fontSize: "clamp(18px, 4.5vw, 24px)", wordBreak: "break-all" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8, width: "100%" }}>
+          <h1 style={{ margin: 0, fontSize: "clamp(18px, 4.5vw, 24px)", wordBreak: "break-all", flex: "1 1 0%", minWidth: 0 }}>
             {vehicle.name} {vehicle.plate ? `(${vehicle.plate})` : ""}
             {vehicle.fuelType ? ` · ${t(fuelTypeLabelKey(vehicle.fuelType))}` : ""}
           </h1>

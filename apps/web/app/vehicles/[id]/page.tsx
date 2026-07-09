@@ -510,7 +510,7 @@ export default function VehicleOverviewPage() {
             </form>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
                 <div><strong>{t("vehicleMake")} / {t("vehicleModel")}:</strong> {vehicle.make || "-"} / {vehicle.model || "-"}</div>
                 <div><strong>{t("vehiclePlate")}:</strong> {vehicle.plate || "-"}</div>
                 <div><strong>{t("vehicleYear")}:</strong> {vehicle.year || "-"}</div>
@@ -521,7 +521,7 @@ export default function VehicleOverviewPage() {
               <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4, wordBreak: "break-all" }}>
                 <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
                 <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
                 <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
               </div>
@@ -609,6 +609,30 @@ export default function VehicleOverviewPage() {
               naver: t("navLaunchNaver"),
             }}
           />
+        </section>
+      )}
+
+      {vehicle && isAdmin && (
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 12 }}>
+            ⚙️ {t("vehicleManagementHeading") || "차량 관리 및 연동"}
+          </h2>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Link
+              href={`/vehicles/${vehicleId}/access`}
+              className="nav-btn-premium"
+              style={{ flex: 1, minWidth: 120, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, textDecoration: "none" }}
+            >
+              🔒 {t("navAccess")}
+            </Link>
+            <Link
+              href={`/vehicles/${vehicleId}/integration`}
+              className="nav-btn-premium"
+              style={{ flex: 1, minWidth: 120, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, textDecoration: "none" }}
+            >
+              🔌 {t("navIntegration")}
+            </Link>
+          </div>
         </section>
       )}
     </>

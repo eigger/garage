@@ -782,12 +782,12 @@ function TripSection({
 
   return (
     <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: "0 0 8px" }}>{t("tripsHeading")}</h2>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
+        <h2 style={{ margin: 0, fontSize: 16 }}>{t("tripsHeading")}</h2>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value as "week" | "month")}
-          style={{ minHeight: 36, fontSize: 13, padding: "0 8px" }}
+          style={{ height: 36, minHeight: 36, fontSize: 13, padding: "0 28px 0 8px", flexShrink: 0 }}
         >
           <option value="week">{t("tripPeriodWeek")}</option>
           <option value="month">{t("tripPeriodMonth")}</option>

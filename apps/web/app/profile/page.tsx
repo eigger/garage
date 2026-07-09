@@ -12,7 +12,7 @@ import { PushNotificationSettings } from "../../components/PushNotificationSetti
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
-  const { t } = useSettings();
+  const { locale, setLocale, distanceUnit, setDistanceUnit, currency, setCurrency, t } = useSettings();
   const { showToast } = useToast();
   const router = useRouter();
 
@@ -140,6 +140,45 @@ export default function ProfilePage() {
           {submitting ? t("saving") : t("save")}
         </button>
       </form>
+
+      <h3 style={{ marginTop: 28, marginBottom: 12, fontSize: 15, borderBottom: "1px solid #eee", paddingBottom: 6 }}>
+        ⚙️ {t("preferences")}
+      </h3>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 400, marginBottom: 24 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("languageLabel")}</label>
+          <select
+            value={locale}
+            onChange={(e) => setLocale(e.target.value as any)}
+            style={{ width: "100%", height: 48, minHeight: 48 }}
+          >
+            <option value="ko">한국어</option>
+            <option value="en">English</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("distanceUnitLabel")}</label>
+          <select
+            value={distanceUnit}
+            onChange={(e) => setDistanceUnit(e.target.value as any)}
+            style={{ width: "100%", height: 48, minHeight: 48 }}
+          >
+            <option value="km">km</option>
+            <option value="mi">mi</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("currencyLabel")}</label>
+          <select
+            value={currency}
+            onChange={(e) => setCurrency(e.target.value as any)}
+            style={{ width: "100%", height: 48, minHeight: 48 }}
+          >
+            <option value="KRW">₩ KRW</option>
+            <option value="USD">$ USD</option>
+          </select>
+        </div>
+      </div>
 
       <PushNotificationSettings />
     </main>
