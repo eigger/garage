@@ -89,6 +89,20 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       });
   }, [vehicleId]);
 
+  // 오피넷은 sort=1(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
+  function applyStation(station: { id: string; name: string; price: number }) {
+    setSelectedStationId(station.id);
+    setLocation(station.name);
+    setUnitPrice(String(station.price));
+
+    // Live recalculation based on whatever was typed last
+    if (cost && Number(cost) > 0) {
+      setLiters(String((Number(cost) / station.price).toFixed(2)));
+    } else if (liters && Number(liters) > 0) {
+      setCost(String(Math.round(Number(liters) * station.price)));
+    }
+  }
+
   async function handleFindStations() {
     if (!navigator.geolocation) {
       showToast(t("toastError"), "error");
@@ -104,6 +118,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           if (res.ok) {
             const data = await res.json();
             setStations(data);
+            if (data.length > 0) applyStation(data[0]);
           }
         } catch (err) {
           console.error(err);
@@ -117,26 +132,18 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         const fType = vehicle?.fuelType || "GASOLINE";
         apiFetch(`/api/opinet/stations?lat=37.5665&lon=126.9780&fuelType=${fType}`)
           .then((res) => (res.ok ? res.json() : []))
-          .then(setStations)
+          .then((data) => {
+            setStations(data);
+            if (data.length > 0) applyStation(data[0]);
+          })
           .finally(() => setLocLoading(false));
       }
     );
   }
 
   function handleStationSelect(stationId: string) {
-    setSelectedStationId(stationId);
     const station = stations.find((s) => s.id === stationId);
-    if (station) {
-      setLocation(station.name);
-      setUnitPrice(String(station.price));
-      
-      // Live recalculation based on whatever was typed last
-      if (cost && Number(cost) > 0) {
-        setLiters(String((Number(cost) / station.price).toFixed(2)));
-      } else if (liters && Number(liters) > 0) {
-        setCost(String(Math.round(Number(liters) * station.price)));
-      }
-    }
+    if (station) applyStation(station);
   }
 
   function handleLitersChange(val: string) {
