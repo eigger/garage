@@ -6,12 +6,13 @@ set -euo pipefail
 # Source: https://github.com/eigger/garage
 
 export DEBIAN_FRONTEND=noninteractive
+APT_QUIET_FLAGS=(-y -qq -o=Dpkg::Use-Pty=0)
 
 echo "[garage-install] Updating apt indexes"
-apt-get update -y
+apt-get update "${APT_QUIET_FLAGS[@]}"
 
 echo "[garage-install] Installing base dependencies"
-apt-get install -y curl sudo mc jq git openssl ca-certificates gnupg lsb-release
+apt-get install "${APT_QUIET_FLAGS[@]}" curl sudo mc jq git openssl ca-certificates gnupg lsb-release
 
 echo "[garage-install] Installing Docker engine"
 if ! command -v docker >/dev/null 2>&1; then
@@ -22,8 +23,8 @@ if ! command -v docker >/dev/null 2>&1; then
     "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
     $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
     tee /etc/apt/sources.list.d/docker.list > /dev/null
-  apt-get update -y
-  apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  apt-get update "${APT_QUIET_FLAGS[@]}"
+  apt-get install "${APT_QUIET_FLAGS[@]}" docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 fi
 
 echo "[garage-install] Preparing /opt/garage"
