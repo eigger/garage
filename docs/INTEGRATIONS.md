@@ -489,7 +489,7 @@ Content-Type: application/json
 { "email": "user@example.com", "password": "..." }
 ```
 
-Response includes `token` (valid **30 days**). Send it on every request:
+Response includes `token` (no expiration by default). Send it on every request:
 
 ```
 Authorization: Bearer <JWT>
@@ -604,7 +604,7 @@ Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`.
 
 ### Home Assistant — copy & paste `rest_command`
 
-These commands use a **Garage login JWT**, not the vehicle `apiToken` used for telemetry. Obtain the JWT once via login and store it in `secrets.yaml` (refresh every 30 days).
+These commands use a **Garage login JWT**, not the vehicle `apiToken` used for telemetry. Obtain the JWT once via login and store it in `secrets.yaml`.
 
 > Garage has **no standalone odometer endpoint** like LubeLogger.  
 > `garage_add_odometer` uses a lightweight administrative maintenance record to bump `Vehicle.odometer` when the value is higher.  
