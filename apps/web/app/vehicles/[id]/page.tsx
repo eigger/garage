@@ -510,7 +510,7 @@ export default function VehicleOverviewPage() {
             </form>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
                 <div><strong>{t("vehicleMake")} / {t("vehicleModel")}:</strong> {vehicle.make || "-"} / {vehicle.model || "-"}</div>
                 <div><strong>{t("vehiclePlate")}:</strong> {vehicle.plate || "-"}</div>
                 <div><strong>{t("vehicleYear")}:</strong> {vehicle.year || "-"}</div>
@@ -521,7 +521,7 @@ export default function VehicleOverviewPage() {
               <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4, wordBreak: "break-all" }}>
                 <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
                 <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
                 <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
               </div>

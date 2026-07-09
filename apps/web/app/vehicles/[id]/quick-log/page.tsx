@@ -336,16 +336,18 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         </div>
       )}
 
-      <input
-        placeholder={t("gasStation")}
-        value={location}
-        onChange={(e) => {
-          setLocation(e.target.value);
-          setStationAddress(null);
-          setStationCoords(null);
-          setSelectedStationId("");
-        }}
-      />
+      {stations.length === 0 && (
+        <input
+          placeholder={t("gasStation")}
+          value={location}
+          onChange={(e) => {
+            setLocation(e.target.value);
+            setStationAddress(null);
+            setStationCoords(null);
+            setSelectedStationId("");
+          }}
+        />
+      )}
 
       {stationAddress && (
         <p style={{ fontSize: 12, color: "#666", margin: 0 }}>{stationAddress}</p>
@@ -406,21 +408,23 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginTop: 4, marginBottom: 12, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", gap: 6, marginTop: 4, marginBottom: 12, overflowX: "auto", whiteSpace: "nowrap", paddingBottom: 4 }} className="no-scrollbar">
         {presets.map((p) => (
           <button
             key={p.label}
             type="button"
             onClick={() => handleAddPreset(p.value)}
             style={{
-              padding: "4px 8px",
+              padding: "4px 10px",
               fontSize: 12,
               minHeight: 32,
-              flex: "1 1 auto",
+              height: 32,
+              flexShrink: 0,
               background: "#e8f0ec",
               color: "#18523f",
               border: "1px solid #cddcd4",
               borderRadius: 4,
+              cursor: "pointer",
             }}
           >
             {p.label}
@@ -430,17 +434,19 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           type="button"
           onClick={handleClearCost}
           style={{
-            padding: "4px 8px",
+            padding: "4px 10px",
             fontSize: 12,
             minHeight: 32,
-            flex: "1 1 auto",
+            height: 32,
+            flexShrink: 0,
             background: "#fdf2f2",
             color: "#a12a24",
             border: "1px solid #fde2e2",
             borderRadius: 4,
+            cursor: "pointer",
           }}
         >
-          {isKo ? "지우기" : "Clear"}
+          🗑️ {isKo ? "지우기" : "Clear"}
         </button>
       </div>
 
