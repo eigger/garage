@@ -6,16 +6,21 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 
-// 연료타입별 정비 마스터 템플릿. 조회는 인증된 누구나(차량 등록 폼 등에서 참고),
+// 연료타입별 정비·전역 행정 마스터 템플릿. 조회는 인증된 누구나,
 // 생성/수정/삭제는 관리자만.
 export async function maintenancePresetRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/", async (request) => {
-    const { fuelType } = request.query as { fuelType?: string };
+    const { fuelType, category } = request.query as { fuelType?: string; category?: string };
     return prisma.maintenancePresetTemplate.findMany({
-      where: fuelType ? { fuelType: fuelType as never } : undefined,
-      orderBy: [{ fuelType: "asc" }, { sortOrder: "asc" }],
+      where: {
+        ...(category === "MAINTENANCE" || category === "ADMINISTRATIVE"
+          ? { category: category as never }
+          : {}),
+        ...(fuelType ? { fuelType: fuelType as never } : {}),
+      },
+      orderBy: [{ category: "asc" }, { fuelType: "asc" }, { sortOrder: "asc" }],
     });
   });
 
@@ -52,33 +57,56 @@ export async function maintenancePresetRoutes(app: FastifyInstance) {
   });
 
   app.post("/apply-existing", { preHandler: [app.requireAdmin] }, async (request) => {
-    const { fuelType } = (request.body ?? {}) as { fuelType?: string };
+    const { fuelType, category } = (request.body ?? {}) as {
+      fuelType?: string;
+      category?: "MAINTENANCE" | "ADMINISTRATIVE";
+    };
 
+    const targetCategory = category ?? "MAINTENANCE";
     const vehicles = await prisma.vehicle.findMany({
-      where: fuelType ? { fuelType: fuelType as never } : { fuelType: { not: null } },
+      where:
+        targetCategory === "MAINTENANCE" && fuelType
+          ? { fuelType: fuelType as never }
+          : targetCategory === "MAINTENANCE"
+            ? { fuelType: { not: null } }
+            : {},
       select: { id: true, fuelType: true },
     });
+
+    const presets = await prisma.maintenancePresetTemplate.findMany({
+      where: {
+        category: targetCategory,
+        ...(targetCategory === "MAINTENANCE" && fuelType
+          ? { fuelType: fuelType as never }
+          : {}),
+      },
+    });
+    if (presets.length === 0) return { updatedVehicles: 0, updatedItems: 0, createdItems: 0 };
 
     let updatedVehicles = 0;
     let updatedItems = 0;
     let createdItems = 0;
 
     for (const vehicle of vehicles) {
-      if (!vehicle.fuelType) continue;
-      const presets = await prisma.maintenancePresetTemplate.findMany({
-        where: { fuelType: vehicle.fuelType as never },
-      });
-      if (presets.length === 0) continue;
+      if (targetCategory === "MAINTENANCE" && !vehicle.fuelType) continue;
+      const applicablePresets =
+        targetCategory === "MAINTENANCE"
+          ? presets.filter((preset) => preset.fuelType === vehicle.fuelType)
+          : presets;
+      if (applicablePresets.length === 0) continue;
 
       const currentOdometer = await getLatestOdometer(vehicle.id);
       const existing = await prisma.consumablePart.findMany({
-        where: { vehicleId: vehicle.id },
+        where: {
+          vehicleId: vehicle.id,
+          category: targetCategory,
+        },
         select: { id: true, partType: true },
       });
       const existingByType = new Map(existing.map((item) => [item.partType, item]));
 
       let changed = false;
-      for (const preset of presets) {
+      for (const preset of applicablePresets) {
         const matched = existingByType.get(preset.name);
         if (matched) {
           await prisma.consumablePart.update({
@@ -98,6 +126,7 @@ export async function maintenancePresetRoutes(app: FastifyInstance) {
           data: {
             vehicleId: vehicle.id,
             partType: preset.name,
+            category: targetCategory,
             installedDate: new Date(),
             installedOdometer: currentOdometer,
             expectedLifeKm: preset.intervalKm,

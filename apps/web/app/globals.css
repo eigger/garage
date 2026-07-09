@@ -87,17 +87,43 @@ p {
   gap: 10px;
 }
 
+.form input,
+.form select,
+.form button,
+.form-select {
+  width: 100%;
+}
+
 input,
 select,
 button {
   font-size: 16px; /* iOS에서 16px 미만이면 입력 시 자동 확대되는 걸 방지 */
-  min-height: 44px; /* 터치 타깃 최소 크기 */
+  min-height: 48px; /* 터치 타깃 최소 크기 */
   border-radius: 10px;
   border: 1px solid #d0d0d0;
-  padding: 0 14px;
+  padding: 12px 14px;
+  box-sizing: border-box;
+}
+
+/* native select는 min-height만으로는 입력 필드와 높이가 맞지 않는 경우가 많다 */
+.form select,
+.form-select,
+select {
+  display: block;
+  height: 48px;
+  min-height: 48px;
+  padding: 12px 36px 12px 14px;
+  line-height: 1.2;
+  background-color: #fff;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
 }
 
 button {
+  padding: 12px 14px;
   background: #18523f;
   color: #fff;
   border: none;

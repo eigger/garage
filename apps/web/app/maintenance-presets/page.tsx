@@ -12,18 +12,20 @@ import { SettingsBar } from "../settings-bar";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
 import { formatItemLabel } from "../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../lib/i18n/translations";
-import type { FuelType, MaintenancePresetTemplate } from "../../lib/types";
+import type { FuelType, MaintenancePresetTemplate, RecordCategory } from "../../lib/types";
 import {
   FUEL_TYPES,
+  adminPresetCatalogDefs,
   maintenancePresetDefsForFuelType,
   resolveCatalogKey,
-  resolveMaintenanceItemKey,
+  type AdminItemKey,
   type MaintenanceItemKey,
   type MaintenancePresetDef,
 } from "@garage/shared";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type AddMode = "catalog" | "custom";
+type PresetCategory = RecordCategory;
 
 const FUEL_TYPES_LIST: FuelType[] = [...FUEL_TYPES];
 
@@ -32,7 +34,7 @@ function presetStoredKey(name: string): string | null {
 }
 
 function isCatalogPresetName(name: string): boolean {
-  return resolveMaintenanceItemKey(name) !== null;
+  return resolveCatalogKey(name) !== null;
 }
 
 export default function MaintenancePresetsPage() {
@@ -41,6 +43,7 @@ export default function MaintenancePresetsPage() {
   const { t } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const [category, setCategory] = useState<PresetCategory>("MAINTENANCE");
   const [fuelType, setFuelType] = useState<FuelType>("GASOLINE");
   const [presets, setPresets] = useState<MaintenancePresetTemplate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,14 +58,16 @@ export default function MaintenancePresetsPage() {
 
   async function load() {
     setLoading(true);
-    const res = await apiFetch(`/api/maintenance-presets?fuelType=${fuelType}`);
+    const params = new URLSearchParams({ category });
+    if (category === "MAINTENANCE") params.set("fuelType", fuelType);
+    const res = await apiFetch(`/api/maintenance-presets?${params.toString()}`);
     if (res.ok) setPresets(await res.json());
     setLoading(false);
   }
 
   useEffect(() => {
     if (user && isAdmin) load();
-  }, [user, isAdmin, fuelType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, isAdmin, fuelType, category]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (authLoading || (user && isAdmin && loading)) {
     return (
@@ -73,6 +78,8 @@ export default function MaintenancePresetsPage() {
   }
   if (!user || !isAdmin) return null;
 
+  const isAdministrative = category === "ADMINISTRATIVE";
+
   return (
     <main className="container">
       <SettingsBar />
@@ -80,14 +87,37 @@ export default function MaintenancePresetsPage() {
         <Link href="/">{t("backToDashboard")}</Link>
       </p>
       <h1>{t("presetsHeading")}</h1>
-      <p>{t("presetsIntro")}</p>
+      <p>{isAdministrative ? t("presetsIntroAdministrative") : t("presetsIntro")}</p>
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        {(["MAINTENANCE", "ADMINISTRATIVE"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            onClick={() => setCategory(tab)}
+            style={{
+              background: category === tab ? "#18523f" : "#eee",
+              color: category === tab ? "#fff" : "#333",
+              flex: 1,
+            }}
+          >
+            {tab === "MAINTENANCE" ? t("presetsTabMaintenance") : t("presetsTabAdministrative")}
+          </button>
+        ))}
+      </div>
+
       <button
         type="button"
         onClick={async () => {
-          if (!(await confirm(t("presetsApplyExistingConfirm")))) return;
+          const confirmKey = isAdministrative
+            ? "presetsApplyExistingAdministrativeConfirm"
+            : "presetsApplyExistingConfirm";
+          if (!(await confirm(t(confirmKey)))) return;
           const res = await apiFetch("/api/maintenance-presets/apply-existing", {
             method: "POST",
-            body: JSON.stringify({ fuelType }),
+            body: JSON.stringify(
+              isAdministrative ? { category: "ADMINISTRATIVE" } : { category: "MAINTENANCE", fuelType },
+            ),
           });
           if (!res.ok) {
             showToast(t("toastError"), "error");
@@ -98,25 +128,27 @@ export default function MaintenancePresetsPage() {
         }}
         style={{ marginBottom: 16 }}
       >
-        {t("presetsApplyExisting")}
+        {isAdministrative ? t("presetsApplyExistingAdministrative") : t("presetsApplyExisting")}
       </button>
 
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {FUEL_TYPES_LIST.map((ft) => (
-          <button
-            key={ft}
-            type="button"
-            onClick={() => setFuelType(ft)}
-            style={{
-              background: fuelType === ft ? "#18523f" : "#eee",
-              color: fuelType === ft ? "#fff" : "#333",
-              flex: 1,
-            }}
-          >
-            {t(fuelTypeLabelKey(ft))}
-          </button>
-        ))}
-      </div>
+      {!isAdministrative && (
+        <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+          {FUEL_TYPES_LIST.map((ft) => (
+            <button
+              key={ft}
+              type="button"
+              onClick={() => setFuelType(ft)}
+              style={{
+                background: fuelType === ft ? "#18523f" : "#eee",
+                color: fuelType === ft ? "#fff" : "#333",
+                flex: 1,
+              }}
+            >
+              {t(fuelTypeLabelKey(ft))}
+            </button>
+          ))}
+        </div>
+      )}
 
       <ul className="list">
         {presets.map((p) => (
@@ -126,6 +158,7 @@ export default function MaintenancePresetsPage() {
 
       <h2>{t("addPreset")}</h2>
       <AddPresetForm
+        category={category}
         fuelType={fuelType}
         presets={presets}
         onCreated={load}
@@ -157,6 +190,7 @@ function PresetRow({
     preset.intervalMonths ? String(preset.intervalMonths) : "",
   );
   const [submitting, setSubmitting] = useState(false);
+  const isAdministrative = preset.category === "ADMINISTRATIVE";
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -202,12 +236,14 @@ function PresetRow({
           ) : (
             <input value={name} onChange={(e) => setName(e.target.value)} required />
           )}
-          <input
-            type="number"
-            placeholder={t("intervalKm")}
-            value={intervalKm}
-            onChange={(e) => setIntervalKm(e.target.value)}
-          />
+          {!isAdministrative && (
+            <input
+              type="number"
+              placeholder={t("intervalKm")}
+              value={intervalKm}
+              onChange={(e) => setIntervalKm(e.target.value)}
+            />
+          )}
           <input
             type="number"
             placeholder={t("intervalMonths")}
@@ -234,7 +270,7 @@ function PresetRow({
     >
       <span>
         {formatItemLabel(t, preset.name)}
-        {preset.intervalKm ? ` · ${preset.intervalKm}km` : ""}
+        {!isAdministrative && preset.intervalKm ? ` · ${preset.intervalKm}km` : ""}
         {preset.intervalMonths ? ` · ${preset.intervalMonths}${t("months")}` : ""}
       </span>
       <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -250,12 +286,14 @@ function PresetRow({
 }
 
 function AddPresetForm({
+  category,
   fuelType,
   presets,
   onCreated,
   t,
   showToast,
 }: {
+  category: PresetCategory;
   fuelType: FuelType;
   presets: MaintenancePresetTemplate[];
   onCreated: () => void;
@@ -263,25 +301,25 @@ function AddPresetForm({
   showToast: (message: string, type?: "success" | "error") => void;
 }) {
   const [mode, setMode] = useState<AddMode>("catalog");
-  const [catalogKey, setCatalogKey] = useState<MaintenanceItemKey | "">("");
+  const [catalogKey, setCatalogKey] = useState("");
   const [customName, setCustomName] = useState("");
   const [intervalKm, setIntervalKm] = useState("");
   const [intervalMonths, setIntervalMonths] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const isAdministrative = category === "ADMINISTRATIVE";
 
   const existingKeys = useMemo(
     () => new Set(presets.map((p) => presetStoredKey(p.name)).filter(Boolean)),
     [presets],
   );
 
-  const catalogOptions = useMemo(
-    () =>
-      maintenancePresetDefsForFuelType(fuelType).filter(
-        (def) => !existingKeys.has(def.itemKey),
-      ),
-    [fuelType, existingKeys],
-  );
+  const catalogOptions = useMemo(() => {
+    if (isAdministrative) {
+      return adminPresetCatalogDefs().filter((def) => !existingKeys.has(def.itemKey));
+    }
+    return maintenancePresetDefsForFuelType(fuelType).filter((def) => !existingKeys.has(def.itemKey));
+  }, [fuelType, existingKeys, isAdministrative]);
 
   useEffect(() => {
     setCatalogKey("");
@@ -289,9 +327,9 @@ function AddPresetForm({
     setIntervalKm("");
     setIntervalMonths("");
     setError("");
-  }, [fuelType, mode]);
+  }, [fuelType, category, mode]);
 
-  function applyDefIntervals(def: MaintenancePresetDef) {
+  function applyDefIntervals(def: MaintenancePresetDef | { intervalMonths?: number; intervalKm?: number }) {
     setIntervalKm(def.intervalKm ? String(def.intervalKm) : "");
     setIntervalMonths(def.intervalMonths ? String(def.intervalMonths) : "");
   }
@@ -311,9 +349,10 @@ function AddPresetForm({
       const res = await apiFetch("/api/maintenance-presets", {
         method: "POST",
         body: JSON.stringify({
-          fuelType,
+          category,
+          ...(isAdministrative ? {} : { fuelType }),
           name,
-          intervalKm: intervalKm ? Number(intervalKm) : undefined,
+          intervalKm: !isAdministrative && intervalKm ? Number(intervalKm) : undefined,
           intervalMonths: intervalMonths ? Number(intervalMonths) : undefined,
         }),
       });
@@ -361,11 +400,16 @@ function AddPresetForm({
 
       {mode === "catalog" ? (
         <select
+          className="form-select"
           value={catalogKey}
           onChange={(e) => {
-            const next = e.target.value as MaintenanceItemKey | "";
+            const next = e.target.value;
             setCatalogKey(next);
-            const def = catalogOptions.find((d) => d.itemKey === next);
+            const def = catalogOptions.find((d) =>
+              isAdministrative
+                ? (d as { itemKey: AdminItemKey }).itemKey === next
+                : (d as MaintenancePresetDef).itemKey === next,
+            );
             if (def) applyDefIntervals(def);
           }}
           required
@@ -373,11 +417,16 @@ function AddPresetForm({
           <option value="" disabled>
             {t("presetSelectCatalogItem")}
           </option>
-          {catalogOptions.map((def) => (
-            <option key={def.itemKey} value={def.itemKey}>
-              {formatItemLabel(t, def.itemKey)}
-            </option>
-          ))}
+          {catalogOptions.map((def) => {
+            const key = isAdministrative
+              ? (def as { itemKey: AdminItemKey }).itemKey
+              : (def as MaintenancePresetDef).itemKey;
+            return (
+              <option key={key} value={key}>
+                {formatItemLabel(t, key)}
+              </option>
+            );
+          })}
         </select>
       ) : (
         <input
@@ -387,12 +436,14 @@ function AddPresetForm({
         />
       )}
 
-      <input
-        type="number"
-        placeholder={t("intervalKm")}
-        value={intervalKm}
-        onChange={(e) => setIntervalKm(e.target.value)}
-      />
+      {!isAdministrative && (
+        <input
+          type="number"
+          placeholder={t("intervalKm")}
+          value={intervalKm}
+          onChange={(e) => setIntervalKm(e.target.value)}
+        />
+      )}
       <input
         type="number"
         placeholder={t("intervalMonths")}

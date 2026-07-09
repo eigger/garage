@@ -66,3 +66,17 @@ export function adminStoredVariants(key: AdminItemKey): string[] {
 export function hasStoredAdminItem(existing: Set<string>, key: AdminItemKey): boolean {
   return hasStoredCatalogItem(ADMIN_ITEMS, existing, key);
 }
+
+export function adminPresetCatalogDefs(): { itemKey: AdminItemKey; intervalMonths?: number }[] {
+  const defaults = new Map(ADMIN_SCHEDULE_DEFS.map((d) => [d.itemKey, d.expectedLifeMonths]));
+  return (Object.keys(ADMIN_ITEMS) as AdminItemKey[]).map((itemKey) => ({
+    itemKey,
+    intervalMonths: defaults.get(itemKey),
+  }));
+}
+
+export function hasStoredAdminPresetName(existing: Set<string>, name: string): boolean {
+  if (existing.has(name)) return true;
+  const key = resolveAdminItemKey(name);
+  return key ? hasStoredAdminItem(existing, key) : false;
+}

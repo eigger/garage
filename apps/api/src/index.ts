@@ -26,6 +26,7 @@ import { pushRoutes } from "./routes/push.js";
 import { startReminderJob } from "./jobs/reminders.js";
 import { startTripJob } from "./jobs/trips.js";
 import { startTelemetryRetentionJob } from "./jobs/telemetryRetention.js";
+import { ensureMaintenancePresets } from "./lib/seedPresets.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
@@ -127,6 +128,16 @@ async function backfillVehicleTokens() {
   }
 }
 await backfillVehicleTokens();
+
+async function bootstrapMaintenancePresets() {
+  try {
+    const count = await ensureMaintenancePresets();
+    app.log.info(`Maintenance presets ready (${count} templates)`);
+  } catch (err) {
+    app.log.error(err, "Failed to seed maintenance presets:");
+  }
+}
+await bootstrapMaintenancePresets();
 
 const port = Number(process.env.PORT ?? 8080);
 

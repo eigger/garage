@@ -29,7 +29,8 @@ export type Vehicle = {
 
 export type MaintenancePresetTemplate = {
   id: string;
-  fuelType: FuelType;
+  category: RecordCategory;
+  fuelType: FuelType | null;
   name: string;
   intervalKm: number | null;
   intervalMonths: number | null;

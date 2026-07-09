@@ -19,12 +19,35 @@ type SettingEntry = {
   masked: string | null;
 };
 
-// 새 연동을 추가할 때는 백엔드 settingKeySchema와 여기 라벨/설명 매핑만 늘리면 된다.
-const SETTING_META: Record<string, { labelKey: TranslationKey; helpKey: TranslationKey }> = {
-  OPINET_API_KEY: { labelKey: "opinetApiKeyLabel", helpKey: "opinetApiKeyHelp" },
-  KAKAO_MAP_APP_KEY: { labelKey: "kakaoMapAppKeyLabel", helpKey: "kakaoMapAppKeyHelp" },
-  NAVER_MAP_CLIENT_ID: { labelKey: "naverMapClientIdLabel", helpKey: "naverMapClientIdHelp" },
-  TMAP_APP_KEY: { labelKey: "tmapMapAppKeyLabel", helpKey: "tmapMapAppKeyHelp" },
+// 새 연동을 추가할 때는 백엔드 settingKeySchema와 여기 라벨/설명/발급 URL 매핑만 늘리면 된다.
+const SETTING_META: Record<
+  string,
+  { labelKey: TranslationKey; helpKey: TranslationKey; signupUrl: string; signupLabelKey: TranslationKey }
+> = {
+  OPINET_API_KEY: {
+    labelKey: "opinetApiKeyLabel",
+    helpKey: "opinetApiKeyHelp",
+    signupUrl: "https://www.opinet.co.kr/user/custapi/custApiInfo.do",
+    signupLabelKey: "integrationLinkOpinet",
+  },
+  KAKAO_MAP_APP_KEY: {
+    labelKey: "kakaoMapAppKeyLabel",
+    helpKey: "kakaoMapAppKeyHelp",
+    signupUrl: "https://developers.kakao.com/console/app",
+    signupLabelKey: "integrationLinkKakao",
+  },
+  NAVER_MAP_CLIENT_ID: {
+    labelKey: "naverMapClientIdLabel",
+    helpKey: "naverMapClientIdHelp",
+    signupUrl: "https://console.ncloud.com/maps/application",
+    signupLabelKey: "integrationLinkNaver",
+  },
+  TMAP_APP_KEY: {
+    labelKey: "tmapMapAppKeyLabel",
+    helpKey: "tmapMapAppKeyHelp",
+    signupUrl: "https://openapi.sk.com/",
+    signupLabelKey: "integrationLinkTmap",
+  },
 };
 
 export default function IntegrationsPage() {
@@ -146,6 +169,13 @@ function SettingRow({
     <section className="card" style={{ marginTop: 16 }}>
       <strong>{meta ? t(meta.labelKey) : entry.key}</strong>
       {meta && <p style={{ fontSize: 13, color: "#666", margin: "4px 0 8px" }}>{t(meta.helpKey)}</p>}
+      {meta && (
+        <p style={{ fontSize: 13, margin: "0 0 8px" }}>
+          <a href={meta.signupUrl} target="_blank" rel="noopener noreferrer">
+            {t(meta.signupLabelKey)}
+          </a>
+        </p>
+      )}
       <p
         style={{
           fontSize: 13,

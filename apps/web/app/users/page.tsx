@@ -117,7 +117,11 @@ export default function UsersPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
-        <select value={role} onChange={(e) => setRole(e.target.value as "ADMIN" | "GENERAL")}>
+        <select
+          className="form-select"
+          value={role}
+          onChange={(e) => setRole(e.target.value as "ADMIN" | "GENERAL")}
+        >
           <option value="GENERAL">{t("roleGeneral")}</option>
           <option value="ADMIN">{t("roleAdmin")}</option>
         </select>
