@@ -1,9 +1,38 @@
 import type { FastifyInstance } from "fastify";
 import bcrypt from "bcryptjs";
-import { createUserSchema, loginSchema, updateProfileSchema } from "@garage/shared";
+import {
+  bootstrapAdminSchema,
+  createUserSchema,
+  loginSchema,
+  updateProfileSchema,
+} from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 
 export async function authRoutes(app: FastifyInstance) {
+  app.get("/bootstrap/status", async () => {
+    const userCount = await prisma.user.count();
+    return { needsBootstrap: userCount === 0 };
+  });
+
+  app.post("/bootstrap/admin", async (request, reply) => {
+    const parsed = bootstrapAdminSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const userCount = await prisma.user.count();
+    if (userCount > 0) {
+      return reply.code(409).send({ error: "bootstrap disabled" });
+    }
+
+    const { name, email, password } = parsed.data;
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.user.create({
+      data: { name, email, passwordHash, role: "ADMIN" },
+    });
+    return reply
+      .code(201)
+      .send({ id: user.id, name: user.name, email: user.email, role: user.role });
+  });
+
   app.post("/login", async (request, reply) => {
     const parsed = loginSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });

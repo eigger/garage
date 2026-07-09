@@ -14,6 +14,13 @@ export const createUserSchema = z.object({
 });
 export type CreateUserInput = z.infer<typeof createUserSchema>;
 
+export const bootstrapAdminSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+export type BootstrapAdminInput = z.infer<typeof bootstrapAdminSchema>;
+
 export const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
