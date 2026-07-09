@@ -150,4 +150,17 @@ msg_ok "Created Garage Service"
 
 motd_ssh
 customize
+
+# Override the update script created by customize to point to our own repository
+msg_info "Customizing update script path"
+cat <<'EOF' >/usr/bin/update
+#!/usr/bin/env bash
+set -a
+[ -f /etc/profile.d/90-http-proxy.sh ] && . /etc/profile.d/90-http-proxy.sh
+set +a
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/eigger/garage/master/proxmox/ct/garage.sh)"
+EOF
+chmod +x /usr/bin/update
+msg_ok "Configured update script"
+
 cleanup_lxc
