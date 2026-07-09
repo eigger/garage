@@ -611,6 +611,30 @@ export default function VehicleOverviewPage() {
           />
         </section>
       )}
+
+      {vehicle && isAdmin && (
+        <section className="card" style={{ marginTop: 16 }}>
+          <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 12 }}>
+            ⚙️ {t("vehicleManagementHeading") || "차량 관리 및 연동"}
+          </h2>
+          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <Link
+              href={`/vehicles/${vehicleId}/access`}
+              className="nav-btn-premium"
+              style={{ flex: 1, minWidth: 120, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, textDecoration: "none" }}
+            >
+              🔒 {t("navAccess")}
+            </Link>
+            <Link
+              href={`/vehicles/${vehicleId}/integration`}
+              className="nav-btn-premium"
+              style={{ flex: 1, minWidth: 120, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, textDecoration: "none" }}
+            >
+              🔌 {t("navIntegration")}
+            </Link>
+          </div>
+        </section>
+      )}
     </>
   );
 }

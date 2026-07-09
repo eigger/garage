@@ -60,12 +60,6 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
     { href: `${basePath}/quick-log`, label: t("navQuickLog") },
     { href: `${basePath}/schedule`, label: t("navSchedule") },
     { href: `${basePath}/history`, label: t("navHistory") },
-    ...(isAdmin
-      ? [
-          { href: `${basePath}/access`, label: t("navAccess") },
-          { href: `${basePath}/integration`, label: t("navIntegration") },
-        ]
-      : []),
   ];
 
   return (
