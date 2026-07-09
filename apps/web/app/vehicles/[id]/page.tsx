@@ -274,10 +274,9 @@ export default function VehicleOverviewPage() {
                   key={r.id}
                   style={{
                     display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
+                    flexDirection: "column",
                     gap: 8,
-                    padding: "10px 12px",
+                    padding: "12px",
                     backgroundColor,
                     border: `1px solid ${borderColor}`,
                     borderLeft: `4px solid ${borderLeftColor}`,
@@ -286,9 +285,9 @@ export default function VehicleOverviewPage() {
                     color: textColor,
                   }}
                 >
-                  <span style={{ fontWeight: "500", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>{r.isDue ? "🚨" : "⚠️"}</span>
-                    <span>
+                  <span style={{ fontWeight: "600", display: "flex", alignItems: "flex-start", gap: 6, lineHeight: "1.4" }}>
+                    <span style={{ flexShrink: 0 }}>{r.isDue ? "🚨" : "⚠️"}</span>
+                    <span style={{ wordBreak: "break-all" }}>
                       {formatItemLabel(t, r.type)}
                       {r.dueOdometer !== null && (
                         <>
@@ -298,28 +297,29 @@ export default function VehicleOverviewPage() {
                       )}
                     </span>
                   </span>
-                  <div style={{ display: "flex", gap: 10, alignItems: "center", flexShrink: 0 }}>
+                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", borderTop: "1px dashed rgba(0,0,0,0.06)", paddingTop: 8 }}>
                     <button
                       type="button"
                       style={{
                         minHeight: 28,
                         height: 28,
-                        padding: "0 8px",
+                        padding: "0 10px",
                         fontSize: 12,
                         borderRadius: 6,
                         background: r.isDue ? "#ef4444" : "#f59e0b",
                         color: "#fff",
                         border: "none",
                         cursor: "pointer",
+                        fontWeight: "600",
                       }}
                       onClick={() => dismissReminder(r.id)}
                     >
                       {t("dismissReminder")}
                     </button>
-                    <Link href={`/vehicles/${vehicleId}/schedule`} style={{ fontSize: 12, textDecoration: "underline", color: textColor }}>
+                    <Link href={`/vehicles/${vehicleId}/schedule`} style={{ fontSize: 12, fontWeight: "500", textDecoration: "underline", color: textColor }}>
                       {t("reminderGoSchedule")}
                     </Link>
-                    <Link href={`/vehicles/${vehicleId}/quick-log`} style={{ fontSize: 12, textDecoration: "underline", color: textColor }}>
+                    <Link href={`/vehicles/${vehicleId}/quick-log`} style={{ fontSize: 12, fontWeight: "500", textDecoration: "underline", color: textColor }}>
                       {t("reminderGoQuickLog")}
                     </Link>
                   </div>
@@ -609,30 +609,6 @@ export default function VehicleOverviewPage() {
               naver: t("navLaunchNaver"),
             }}
           />
-        </section>
-      )}
-
-      {vehicle && isAdmin && (
-        <section className="card" style={{ marginTop: 16 }}>
-          <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 12 }}>
-            ⚙️ {t("vehicleManagementHeading") || "차량 관리 및 연동"}
-          </h2>
-          <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link
-              href={`/vehicles/${vehicleId}/access`}
-              className="nav-btn-premium"
-              style={{ flex: 1, minWidth: 120, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, textDecoration: "none" }}
-            >
-              🔒 {t("navAccess")}
-            </Link>
-            <Link
-              href={`/vehicles/${vehicleId}/integration`}
-              className="nav-btn-premium"
-              style={{ flex: 1, minWidth: 120, minHeight: 40, display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 13, textDecoration: "none" }}
-            >
-              🔌 {t("navIntegration")}
-            </Link>
-          </div>
         </section>
       )}
     </>
