@@ -73,42 +73,20 @@ export function SettingsBar() {
       {user && (
         <Link
           href="/profile"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 36,
-            padding: "0 12px",
-            fontSize: 13,
-            backgroundColor: "#eee",
-            color: "#333",
-            textDecoration: "none",
-            borderRadius: 4,
-            border: "1px solid #ccc",
-          }}
+          className="nav-btn-premium"
         >
-          👤 {t("navProfile")}
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          {t("navProfile")}
         </Link>
       )}
 
       {user && user.role === "ADMIN" && (
         <Link
           href="/backup"
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            justifyContent: "center",
-            minHeight: 36,
-            padding: "0 12px",
-            fontSize: 13,
-            backgroundColor: "#eee",
-            color: "#333",
-            textDecoration: "none",
-            borderRadius: 4,
-            border: "1px solid #ccc",
-          }}
+          className="nav-btn-premium"
         >
-          💾 {t("navBackupRestore")}
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5V19A9 3 0 0 0 21 19V5"/><path d="M3 12A9 3 0 0 0 21 12"/></svg>
+          {t("navBackupRestore")}
         </Link>
       )}
 

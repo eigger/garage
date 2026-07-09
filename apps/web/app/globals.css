@@ -218,3 +218,36 @@ button:disabled {
   background: #18523f;
   transition: width 0.15s ease;
 }
+
+/* Premium Navigation Buttons (Profile, Backup) */
+.nav-btn-premium {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #ffffff;
+  color: #18523f;
+  text-decoration: none;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+}
+
+.nav-btn-premium:hover {
+  background: #18523f;
+  color: #ffffff;
+  border-color: #18523f;
+  box-shadow: 0 4px 12px rgba(24, 82, 63, 0.18);
+  transform: translateY(-1px);
+}
+
+.nav-btn-premium:active {
+  transform: translateY(0);
+}
+
