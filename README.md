@@ -126,7 +126,7 @@ Stack: PostgreSQL 16 + API + Web + Caddy on port 80. Mosquitto, cloudflared, Red
 
 ## Proxmox VE LXC One-Click Installation
 
-Bootstrap an isolated Debian 12 LXC with Docker, pull production images, generate credentials, and start the stack from the **Proxmox VE shell**:
+Bootstrap an isolated Debian 13 LXC with Docker, pull production images, generate credentials, and start the stack from the **Proxmox VE shell**:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/eigger/garage/master/proxmox/ct/garage.sh)"
