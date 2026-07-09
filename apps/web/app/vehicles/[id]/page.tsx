@@ -10,6 +10,8 @@ import { useToast } from "../../../lib/toast-context";
 import { useConfirm } from "../../../lib/confirm-context";
 import type { ConsumablePart, FuelType, Reminder, TripSummary, Vehicle } from "../../../lib/types";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
+import { formatItemLabel } from "../../../lib/i18n/itemLabel";
+import { FUEL_TYPES } from "@garage/shared";
 
 function addMonths(date: Date, months: number): Date {
   const d = new Date(date);
@@ -22,7 +24,7 @@ export default function VehicleOverviewPage() {
   const router = useRouter();
   const vehicleId = params.id;
   const { isAdmin } = useAuth();
-  const { t, formatDistance } = useSettings();
+  const { t, formatDistance, formatCurrency } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
 
@@ -31,6 +33,8 @@ export default function VehicleOverviewPage() {
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [dueCount, setDueCount] = useState(0);
   const [upcomingCount, setUpcomingCount] = useState(0);
+  const [monthFuelCost, setMonthFuelCost] = useState(0);
+  const [monthMaintenanceCost, setMonthMaintenanceCost] = useState(0);
   const [loading, setLoading] = useState(true);
 
   // Edit States
@@ -50,12 +54,14 @@ export default function VehicleOverviewPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function load() {
-    const [vehicleRes, remindersRes, summaryRes, partsRes, odoRes] = await Promise.all([
+    const [vehicleRes, remindersRes, summaryRes, partsRes, odoRes, fuelRes, maintenanceRes] = await Promise.all([
       apiFetch(`/api/vehicles/${vehicleId}`),
       apiFetch("/api/reminders"),
       apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=week`),
       apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`),
       apiFetch(`/api/vehicles/${vehicleId}/odometer`),
+      apiFetch(`/api/fuel-logs?vehicleId=${vehicleId}&limit=500`),
+      apiFetch(`/api/maintenance-records?vehicleId=${vehicleId}&limit=500`),
     ]);
     if (vehicleRes.ok) {
       const vData = await vehicleRes.json();
@@ -73,6 +79,21 @@ export default function VehicleOverviewPage() {
       setReminders(all.filter((r) => r.vehicleId === vehicleId && r.isDue));
     }
     if (summaryRes.ok) setSummary(await summaryRes.json());
+    if (fuelRes.ok && maintenanceRes.ok) {
+      const start = new Date();
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      const fuelLogs = (await fuelRes.json()) as { date: string; cost: number }[];
+      const maintenanceRecords = (await maintenanceRes.json()) as { date: string; cost: number | null }[];
+      const fuelCost = fuelLogs
+        .filter((log) => new Date(log.date) >= start)
+        .reduce((sum, log) => sum + log.cost, 0);
+      const maintenanceCost = maintenanceRecords
+        .filter((record) => new Date(record.date) >= start)
+        .reduce((sum, record) => sum + (record.cost ?? 0), 0);
+      setMonthFuelCost(fuelCost);
+      setMonthMaintenanceCost(maintenanceCost);
+    }
 
     if (partsRes.ok && odoRes.ok) {
       const parts: ConsumablePart[] = await partsRes.json();
@@ -196,10 +217,11 @@ export default function VehicleOverviewPage() {
             <option value="" disabled>
               {t("vehicleFuelType")}
             </option>
-            <option value="GASOLINE">{t("fuelTypeGasoline")}</option>
-            <option value="DIESEL">{t("fuelTypeDiesel")}</option>
-            <option value="LPG">{t("fuelTypeLpg")}</option>
-            <option value="ELECTRIC">{t("fuelTypeElectric")}</option>
+            {FUEL_TYPES.map((ft) => (
+              <option key={ft} value={ft}>
+                {t(fuelTypeLabelKey(ft))}
+              </option>
+            ))}
           </select>
         </section>
       )}
@@ -214,7 +236,7 @@ export default function VehicleOverviewPage() {
                 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}
               >
                 <span>
-                  {t(r.type as any)}
+                  {formatItemLabel(t, r.type)}
                   {r.dueOdometer !== null && (
                     <>
                       {" — "}
@@ -229,6 +251,12 @@ export default function VehicleOverviewPage() {
                 >
                   {t("dismissReminder")}
                 </button>
+                <Link href={`/vehicles/${vehicleId}/schedule`} style={{ fontSize: 13 }}>
+                  {t("reminderGoSchedule")}
+                </Link>
+                <Link href={`/vehicles/${vehicleId}/quick-log`} style={{ fontSize: 13 }}>
+                  {t("reminderGoQuickLog")}
+                </Link>
               </li>
             ))}
           </ul>
@@ -259,6 +287,24 @@ export default function VehicleOverviewPage() {
           </strong>
         </Link>
       </div>
+
+      <section className="card" style={{ marginTop: 20 }}>
+        <h2 style={{ margin: "0 0 8px", fontSize: 16 }}>{t("monthlyCostSummary")}</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(140px, 1fr))", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: "#666" }}>{t("monthlyFuelCost")}</div>
+            <strong>{formatCurrency(monthFuelCost)}</strong>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "#666" }}>{t("monthlyMaintenanceCost")}</div>
+            <strong>{formatCurrency(monthMaintenanceCost)}</strong>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "#666" }}>{t("monthlyTotalCost")}</div>
+            <strong>{formatCurrency(monthFuelCost + monthMaintenanceCost)}</strong>
+          </div>
+        </div>
+      </section>
 
       {/* Vehicle Metadata & Registration Certificate Card */}
       {vehicle && (

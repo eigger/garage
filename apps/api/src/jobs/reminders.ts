@@ -1,6 +1,8 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma.js";
 import { getLatestOdometer } from "../lib/odometer.js";
+import { datesEqual } from "../jobs/pushReminders.js";
+import { sendDueReminderPushes } from "../jobs/pushReminders.js";
 
 // 소모품별로 "installedDate + expectedLifeMonths"와 "installedOdometer + expectedLifeKm"를
 // 계산해서 Reminder를 upsert한다. 실제로 기한이 지났는지 여부는 조회 시점(reminders 라우트)에
@@ -28,13 +30,22 @@ export async function syncReminders(vehicleId?: string): Promise<void> {
       odometerCache.set(part.vehicleId, await getLatestOdometer(part.vehicleId));
     }
 
+    const existing = await prisma.reminder.findUnique({
+      where: { consumablePartId: part.id },
+    });
+
+    const dueChanged =
+      existing &&
+      (!datesEqual(existing.dueDate, dueDate) || existing.dueOdometer !== dueOdometer);
+
     await prisma.reminder.upsert({
       where: { consumablePartId: part.id },
-      update: { 
-        dueDate, 
-        dueOdometer, 
-        type: part.partType, 
-        status: "PENDING", // 새 주기가 적용되었으므로 PENDING으로 복원
+      update: {
+        dueDate,
+        dueOdometer,
+        type: part.partType,
+        status: "PENDING",
+        ...(dueChanged ? { pushNotifiedAt: null } : {}),
       },
       create: {
         vehicleId: part.vehicleId,
@@ -49,9 +60,17 @@ export async function syncReminders(vehicleId?: string): Promise<void> {
 }
 
 export function startReminderJob(): void {
-  // 서버 기동 시 한 번 즉시 동기화하고, 이후 매일 새벽 3시에 갱신한다.
-  syncReminders().catch((err) => console.error("[reminders] initial sync failed", err));
+  async function run() {
+    await syncReminders();
+    await sendDueReminderPushes();
+  }
+
+  run().catch((err) => console.error("[reminders] initial sync failed", err));
   cron.schedule("0 3 * * *", () => {
-    syncReminders().catch((err) => console.error("[reminders] scheduled sync failed", err));
+    run().catch((err) => console.error("[reminders] scheduled sync failed", err));
+  });
+  // 오전 8시에도 푸시 재확인 (주행거리 변동으로 당일 기한 도래 가능)
+  cron.schedule("0 8 * * *", () => {
+    sendDueReminderPushes().catch((err) => console.error("[push] scheduled send failed", err));
   });
 }

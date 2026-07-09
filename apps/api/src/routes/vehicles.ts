@@ -4,6 +4,7 @@ import { vehicleSchema, vehicleUpdateSchema, vehicleAccessSchema } from "@garage
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
+import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 
 // 차량 등록 시 연료타입에 맞는 정비 마스터 프리셋을 그 차량의 관리 항목(ConsumablePart)으로
 // 복사한다. 마지막 시행일/주행거리는 정확히 알 수 없으니 "지금 시점 · 현재 주행거리"로 시작하고
@@ -82,6 +83,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
       },
     });
     if (vehicle.fuelType) await applyPresetsToVehicle(vehicle.id, vehicle.fuelType);
+    await ensureAdminSchedule(vehicle.id);
     return reply.code(201).send(vehicle);
   });
 

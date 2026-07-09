@@ -1,7 +1,8 @@
 import { z } from "zod";
 
-export const fuelTypeSchema = z.enum(["GASOLINE", "DIESEL", "LPG", "ELECTRIC"]);
+export const fuelTypeSchema = z.enum(["GASOLINE", "DIESEL", "LPG", "ELECTRIC", "HYBRID"]);
 export type FuelType = z.infer<typeof fuelTypeSchema>;
+export const FUEL_TYPES = fuelTypeSchema.options;
 
 export const vehicleSchema = z.object({
   name: z.string().min(1),

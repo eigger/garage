@@ -1,7 +1,7 @@
 {
   "name": "garage",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -13,7 +13,7 @@
     "build": "npm run build:shared && npm run build -w apps/api && npm run build -w apps/web",
     "prisma:generate": "npm run prisma:generate -w apps/api",
     "prisma:migrate": "npm run prisma:migrate -w apps/api",
-    "test": "npm run test -w apps/api && npm run test -w apps/web"
+    "test": "npm run build:shared && npm run test -w apps/api && npm run test -w apps/web"
   },
   "allowScripts": {
     "@prisma/client@5.22.0": true,

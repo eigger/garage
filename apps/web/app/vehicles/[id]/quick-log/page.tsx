@@ -6,7 +6,11 @@ import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import type { ConsumablePart } from "../../../../lib/types";
+import type { RecordCategory } from "../../../../lib/types";
+import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
+import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
+import type { OpinetStationSummary } from "@garage/shared";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type Tab = "fuel" | "maintenance";
@@ -70,9 +74,11 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   // Opinet convenience states
   const [vehicle, setVehicle] = useState<any>(null);
   const [opinetConfigured, setOpinetConfigured] = useState(false);
-  const [stations, setStations] = useState<any[]>([]);
+  const [stations, setStations] = useState<OpinetStationSummary[]>([]);
   const [selectedStationId, setSelectedStationId] = useState("");
   const [location, setLocation] = useState("");
+  const [stationAddress, setStationAddress] = useState<string | null>(null);
+  const [stationCoords, setStationCoords] = useState<{ lat: number; lon: number; name: string } | null>(null);
   const [unitPrice, setUnitPrice] = useState("");
   const [locLoading, setLocLoading] = useState(false);
 
@@ -97,12 +103,24 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   }, [vehicleId]);
 
   // 오피넷은 sort=1(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
-  function applyStation(station: { id: string; name: string; price: number }) {
+  async function applyStation(station: OpinetStationSummary) {
     setSelectedStationId(station.id);
     setLocation(station.name);
     setUnitPrice(String(station.price));
+    setStationAddress(null);
+    setStationCoords(null);
 
-    // Live recalculation based on whatever was typed last
+    if (opinetConfigured && !station.id.startsWith("MOCK_")) {
+      const res = await apiFetch(`/api/opinet/stations/${station.id}`);
+      if (res.ok) {
+        const detail = await res.json();
+        setStationAddress(detail.roadAddress || detail.address || null);
+        if (detail.lat !== null && detail.lon !== null) {
+          setStationCoords({ lat: detail.lat, lon: detail.lon, name: detail.name });
+        }
+      }
+    }
+
     if (cost && Number(cost) > 0) {
       setLiters(String((Number(cost) / station.price).toFixed(2)));
     } else if (liters && Number(liters) > 0) {
@@ -123,9 +141,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         try {
           const res = await apiFetch(`/api/opinet/stations?lat=${latitude}&lon=${longitude}&fuelType=${fType}`);
           if (res.ok) {
-            const data = await res.json();
+            const data: OpinetStationSummary[] = await res.json();
             setStations(data);
-            if (data.length > 0) applyStation(data[0]);
+            if (data.length > 0) await applyStation(data[0]);
           }
         } catch (err) {
           console.error(err);
@@ -139,9 +157,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         const fType = vehicle?.fuelType || "GASOLINE";
         apiFetch(`/api/opinet/stations?lat=37.5665&lon=126.9780&fuelType=${fType}`)
           .then((res) => (res.ok ? res.json() : []))
-          .then((data) => {
+          .then(async (data: OpinetStationSummary[]) => {
             setStations(data);
-            if (data.length > 0) applyStation(data[0]);
+            if (data.length > 0) await applyStation(data[0]);
           })
           .finally(() => setLocLoading(false));
       }
@@ -150,7 +168,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   function handleStationSelect(stationId: string) {
     const station = stations.find((s) => s.id === stationId);
-    if (station) applyStation(station);
+    if (station) void applyStation(station);
   }
 
   function handleLitersChange(val: string) {
@@ -199,6 +217,11 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           cost: Number(cost),
           fullTank,
           location: location || undefined,
+          latitude: stationCoords?.lat,
+          longitude: stationCoords?.lon,
+          address: stationAddress || undefined,
+          opinetStationId:
+            selectedStationId && !selectedStationId.startsWith("MOCK_") ? selectedStationId : undefined,
         }),
       });
       if (res.ok) {
@@ -214,6 +237,8 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         setCost("");
         setUnitPrice("");
         setLocation("");
+        setStationAddress(null);
+        setStationCoords(null);
         setSelectedStationId("");
         setStations([]);
         setDate(today());
@@ -271,8 +296,29 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       <input
         placeholder={t("gasStation")}
         value={location}
-        onChange={(e) => setLocation(e.target.value)}
+        onChange={(e) => {
+          setLocation(e.target.value);
+          setStationAddress(null);
+          setStationCoords(null);
+          setSelectedStationId("");
+        }}
       />
+
+      {stationAddress && (
+        <p style={{ fontSize: 12, color: "#666", margin: 0 }}>{stationAddress}</p>
+      )}
+
+      {stationCoords && (
+        <NavLaunchButtons
+          destination={stationCoords}
+          heading={t("navLaunchHeading")}
+          labels={{
+            tmap: t("navLaunchTmap"),
+            kakao: t("navLaunchKakao"),
+            naver: t("navLaunchNaver"),
+          }}
+        />
+      )}
 
       <input
         type="number"
@@ -359,7 +405,8 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
   const { showToast } = useToast();
 
   // Linked schedule selection states
-  const [parts, setParts] = useState<any[]>([]);
+  const [parts, setParts] = useState<ConsumablePart[]>([]);
+  const [category, setCategory] = useState<RecordCategory>("MAINTENANCE");
   const [selectedPartType, setSelectedPartType] = useState("");
   const [customType, setCustomType] = useState("");
 
@@ -382,6 +429,8 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
     setError("");
 
     const finalType = selectedPartType === "CUSTOM" || !selectedPartType ? customType : selectedPartType;
+    const matchedPart = parts.find((p) => p.partType === finalType);
+    const recordCategory = matchedPart?.category ?? category;
     if (!odometer || !finalType.trim()) {
       setError(t("requiredField"));
       return;
@@ -398,6 +447,7 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
           date,
           odometer: Number(odometer),
           type: finalType,
+          category: recordCategory,
           cost: cost ? Number(cost) : undefined,
           shop: shop || undefined,
           notes: notes || undefined,
@@ -449,21 +499,53 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
         autoFocus
       />
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        {(
+          [
+            ["MAINTENANCE", "recordCategoryMaintenance"],
+            ["ADMINISTRATIVE", "recordCategoryAdministrative"],
+          ] as const
+        ).map(([value, labelKey]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => {
+              setCategory(value);
+              setSelectedPartType("");
+              setCustomType("");
+            }}
+            style={{
+              flex: 1,
+              fontSize: 13,
+              minHeight: 36,
+              background: category === value ? "#18523f" : "#eee",
+              color: category === value ? "#fff" : "#333",
+            }}
+          >
+            {t(labelKey)}
+          </button>
+        ))}
+      </div>
+
       <select
         value={selectedPartType}
         onChange={(e) => {
           setSelectedPartType(e.target.value);
           if (e.target.value !== "CUSTOM") {
             setCustomType("");
+            const part = parts.find((p) => p.partType === e.target.value);
+            if (part) setCategory(part.category);
           }
         }}
       >
         <option value="" disabled>{t("selectMaintenanceTask")}</option>
-        {parts.map((p) => (
-          <option key={p.id} value={p.partType}>
-            {t(p.partType as any)}
-          </option>
-        ))}
+        {parts
+          .filter((p) => p.category === category)
+          .map((p) => (
+            <option key={p.id} value={p.partType}>
+              {formatItemLabel(t, p.partType)}
+            </option>
+          ))}
         <option value="CUSTOM">{t("customInput")}</option>
       </select>
 

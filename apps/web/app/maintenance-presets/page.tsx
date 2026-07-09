@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
@@ -10,12 +10,30 @@ import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
 import { SettingsBar } from "../settings-bar";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
-import type { FuelType, MaintenancePresetTemplate } from "../../lib/types";
+import { formatItemLabel } from "../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../lib/i18n/translations";
+import type { FuelType, MaintenancePresetTemplate } from "../../lib/types";
+import {
+  FUEL_TYPES,
+  maintenancePresetDefsForFuelType,
+  resolveCatalogKey,
+  resolveMaintenanceItemKey,
+  type MaintenanceItemKey,
+  type MaintenancePresetDef,
+} from "@garage/shared";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
+type AddMode = "catalog" | "custom";
 
-const FUEL_TYPES: FuelType[] = ["GASOLINE", "DIESEL", "LPG", "ELECTRIC"];
+const FUEL_TYPES_LIST: FuelType[] = [...FUEL_TYPES];
+
+function presetStoredKey(name: string): string | null {
+  return resolveCatalogKey(name)?.key ?? null;
+}
+
+function isCatalogPresetName(name: string): boolean {
+  return resolveMaintenanceItemKey(name) !== null;
+}
 
 export default function MaintenancePresetsPage() {
   const router = useRouter();
@@ -63,9 +81,28 @@ export default function MaintenancePresetsPage() {
       </p>
       <h1>{t("presetsHeading")}</h1>
       <p>{t("presetsIntro")}</p>
+      <button
+        type="button"
+        onClick={async () => {
+          if (!(await confirm(t("presetsApplyExistingConfirm")))) return;
+          const res = await apiFetch("/api/maintenance-presets/apply-existing", {
+            method: "POST",
+            body: JSON.stringify({ fuelType }),
+          });
+          if (!res.ok) {
+            showToast(t("toastError"), "error");
+            return;
+          }
+          const data = (await res.json()) as { updatedVehicles: number };
+          showToast(t("presetsApplyExistingDone", { count: data.updatedVehicles }), "success");
+        }}
+        style={{ marginBottom: 16 }}
+      >
+        {t("presetsApplyExisting")}
+      </button>
 
       <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-        {FUEL_TYPES.map((ft) => (
+        {FUEL_TYPES_LIST.map((ft) => (
           <button
             key={ft}
             type="button"
@@ -88,7 +125,13 @@ export default function MaintenancePresetsPage() {
       </ul>
 
       <h2>{t("addPreset")}</h2>
-      <AddPresetForm fuelType={fuelType} onCreated={load} t={t} showToast={showToast} />
+      <AddPresetForm
+        fuelType={fuelType}
+        presets={presets}
+        onCreated={load}
+        t={t}
+        showToast={showToast}
+      />
     </main>
   );
 }
@@ -106,6 +149,7 @@ function PresetRow({
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
+  const isCatalog = isCatalogPresetName(preset.name);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(preset.name);
   const [intervalKm, setIntervalKm] = useState(preset.intervalKm ? String(preset.intervalKm) : "");
@@ -121,7 +165,7 @@ function PresetRow({
       const res = await apiFetch(`/api/maintenance-presets/${preset.id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          name,
+          ...(isCatalog ? {} : { name }),
           intervalKm: intervalKm ? Number(intervalKm) : undefined,
           intervalMonths: intervalMonths ? Number(intervalMonths) : undefined,
         }),
@@ -153,7 +197,11 @@ function PresetRow({
     return (
       <li className="list-item">
         <form onSubmit={handleSave} className="form">
-          <input value={name} onChange={(e) => setName(e.target.value)} required />
+          {isCatalog ? (
+            <p style={{ margin: 0, fontWeight: 600 }}>{formatItemLabel(t, preset.name)}</p>
+          ) : (
+            <input value={name} onChange={(e) => setName(e.target.value)} required />
+          )}
           <input
             type="number"
             placeholder={t("intervalKm")}
@@ -185,7 +233,7 @@ function PresetRow({
       style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}
     >
       <span>
-        {t(preset.name as any)}
+        {formatItemLabel(t, preset.name)}
         {preset.intervalKm ? ` · ${preset.intervalKm}km` : ""}
         {preset.intervalMonths ? ` · ${preset.intervalMonths}${t("months")}` : ""}
       </span>
@@ -203,28 +251,61 @@ function PresetRow({
 
 function AddPresetForm({
   fuelType,
+  presets,
   onCreated,
   t,
   showToast,
 }: {
   fuelType: FuelType;
+  presets: MaintenancePresetTemplate[];
   onCreated: () => void;
   t: Translator;
   showToast: (message: string, type?: "success" | "error") => void;
 }) {
-  const [name, setName] = useState("");
+  const [mode, setMode] = useState<AddMode>("catalog");
+  const [catalogKey, setCatalogKey] = useState<MaintenanceItemKey | "">("");
+  const [customName, setCustomName] = useState("");
   const [intervalKm, setIntervalKm] = useState("");
   const [intervalMonths, setIntervalMonths] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const existingKeys = useMemo(
+    () => new Set(presets.map((p) => presetStoredKey(p.name)).filter(Boolean)),
+    [presets],
+  );
+
+  const catalogOptions = useMemo(
+    () =>
+      maintenancePresetDefsForFuelType(fuelType).filter(
+        (def) => !existingKeys.has(def.itemKey),
+      ),
+    [fuelType, existingKeys],
+  );
+
+  useEffect(() => {
+    setCatalogKey("");
+    setCustomName("");
+    setIntervalKm("");
+    setIntervalMonths("");
+    setError("");
+  }, [fuelType, mode]);
+
+  function applyDefIntervals(def: MaintenancePresetDef) {
+    setIntervalKm(def.intervalKm ? String(def.intervalKm) : "");
+    setIntervalMonths(def.intervalMonths ? String(def.intervalMonths) : "");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!name.trim()) {
+
+    const name = mode === "catalog" ? catalogKey : customName.trim();
+    if (!name) {
       setError(t("requiredField"));
       return;
     }
+
     setSubmitting(true);
     try {
       const res = await apiFetch("/api/maintenance-presets", {
@@ -237,7 +318,8 @@ function AddPresetForm({
         }),
       });
       if (res.ok) {
-        setName("");
+        setCatalogKey("");
+        setCustomName("");
         setIntervalKm("");
         setIntervalMonths("");
         showToast(t("toastCreated"), "success");
@@ -252,11 +334,59 @@ function AddPresetForm({
 
   return (
     <form onSubmit={handleSubmit} className="form" noValidate>
-      <input
-        placeholder={t("itemName")}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
+      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+        <button
+          type="button"
+          onClick={() => setMode("catalog")}
+          style={{
+            background: mode === "catalog" ? "#18523f" : "#eee",
+            color: mode === "catalog" ? "#fff" : "#333",
+            flex: 1,
+          }}
+        >
+          {t("presetAddFromCatalog")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMode("custom")}
+          style={{
+            background: mode === "custom" ? "#18523f" : "#eee",
+            color: mode === "custom" ? "#fff" : "#333",
+            flex: 1,
+          }}
+        >
+          {t("presetAddCustom")}
+        </button>
+      </div>
+
+      {mode === "catalog" ? (
+        <select
+          value={catalogKey}
+          onChange={(e) => {
+            const next = e.target.value as MaintenanceItemKey | "";
+            setCatalogKey(next);
+            const def = catalogOptions.find((d) => d.itemKey === next);
+            if (def) applyDefIntervals(def);
+          }}
+          required
+        >
+          <option value="" disabled>
+            {t("presetSelectCatalogItem")}
+          </option>
+          {catalogOptions.map((def) => (
+            <option key={def.itemKey} value={def.itemKey}>
+              {formatItemLabel(t, def.itemKey)}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          placeholder={t("itemName")}
+          value={customName}
+          onChange={(e) => setCustomName(e.target.value)}
+        />
+      )}
+
       <input
         type="number"
         placeholder={t("intervalKm")}
@@ -269,7 +399,7 @@ function AddPresetForm({
         value={intervalMonths}
         onChange={(e) => setIntervalMonths(e.target.value)}
       />
-      <button type="submit" disabled={submitting}>
+      <button type="submit" disabled={submitting || (mode === "catalog" && catalogOptions.length === 0)}>
         {submitting ? t("saving") : t("save")}
       </button>
       {error && <p className="field-error">{error}</p>}

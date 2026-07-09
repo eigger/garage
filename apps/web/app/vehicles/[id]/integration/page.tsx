@@ -105,7 +105,8 @@ export default function VehicleIntegrationPage() {
   rpm: 2000,
   lat: 37.5665,
   lon: 126.9780,
-  fuelLevel: 85
+  fuelLevel: 85,
+  inVehicle: true
 }, null, 2)}
             </pre>
           </div>

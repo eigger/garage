@@ -60,7 +60,7 @@ export async function reminderRoutes(app: FastifyInstance) {
 
     const reminder = await prisma.reminder.update({
       where: { id },
-      data: { status: "DISMISSED" },
+      data: { status: "DISMISSED", pushNotifiedAt: new Date() },
     });
     return reminder;
   });

@@ -1,6 +1,6 @@
 {
   "name": "@garage/api",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -25,6 +25,7 @@
     "mqtt": "^5.10.0",
     "node-cron": "^3.0.3",
     "proj4": "^2.20.9",
+    "web-push": "^3.6.7",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -33,6 +34,7 @@
     "@types/node": "^20.14.15",
     "@types/node-cron": "^3.0.11",
     "@types/proj4": "^2.5.6",
+    "@types/web-push": "^3.6.4",
     "prisma": "^5.18.0",
     "tsx": "^4.16.5",
     "typescript": "^5.5.4",

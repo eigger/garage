@@ -4,6 +4,7 @@ import {
   maintenancePresetTemplateUpdateSchema,
 } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
+import { getLatestOdometer } from "../lib/odometer.js";
 
 // 연료타입별 정비 마스터 템플릿. 조회는 인증된 누구나(차량 등록 폼 등에서 참고),
 // 생성/수정/삭제는 관리자만.
@@ -48,5 +49,69 @@ export async function maintenancePresetRoutes(app: FastifyInstance) {
 
     await prisma.maintenancePresetTemplate.delete({ where: { id } });
     return reply.code(204).send();
+  });
+
+  app.post("/apply-existing", { preHandler: [app.requireAdmin] }, async (request) => {
+    const { fuelType } = (request.body ?? {}) as { fuelType?: string };
+
+    const vehicles = await prisma.vehicle.findMany({
+      where: fuelType ? { fuelType: fuelType as never } : { fuelType: { not: null } },
+      select: { id: true, fuelType: true },
+    });
+
+    let updatedVehicles = 0;
+    let updatedItems = 0;
+    let createdItems = 0;
+
+    for (const vehicle of vehicles) {
+      if (!vehicle.fuelType) continue;
+      const presets = await prisma.maintenancePresetTemplate.findMany({
+        where: { fuelType: vehicle.fuelType as never },
+      });
+      if (presets.length === 0) continue;
+
+      const currentOdometer = await getLatestOdometer(vehicle.id);
+      const existing = await prisma.consumablePart.findMany({
+        where: { vehicleId: vehicle.id },
+        select: { id: true, partType: true },
+      });
+      const existingByType = new Map(existing.map((item) => [item.partType, item]));
+
+      let changed = false;
+      for (const preset of presets) {
+        const matched = existingByType.get(preset.name);
+        if (matched) {
+          await prisma.consumablePart.update({
+            where: { id: matched.id },
+            data: {
+              expectedLifeKm: preset.intervalKm,
+              expectedLifeMonths: preset.intervalMonths,
+              presetTemplateId: preset.id,
+            },
+          });
+          updatedItems += 1;
+          changed = true;
+          continue;
+        }
+
+        await prisma.consumablePart.create({
+          data: {
+            vehicleId: vehicle.id,
+            partType: preset.name,
+            installedDate: new Date(),
+            installedOdometer: currentOdometer,
+            expectedLifeKm: preset.intervalKm,
+            expectedLifeMonths: preset.intervalMonths,
+            presetTemplateId: preset.id,
+          },
+        });
+        createdItems += 1;
+        changed = true;
+      }
+
+      if (changed) updatedVehicles += 1;
+    }
+
+    return { updatedVehicles, updatedItems, createdItems };
   });
 }

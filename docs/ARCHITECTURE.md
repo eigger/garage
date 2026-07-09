@@ -164,3 +164,38 @@ services:
 **GPS 경로 요약**: 트립이 끝나는 시점에 해당 시간대의 `telemetry_raw` 포인트들을 모아 경로를 하나의 폴리라인으로 압축 인코딩해서 `trips.route_polyline`에 저장해두는 방식을 추천한다(구글 폴리라인 인코딩, npm `@mapbox/polyline` 등으로 처리). 이렇게 하면 리포트/지도를 열 때마다 원시 텔레메트리를 다시 훑지 않아도 되고 저장 공간도 절약된다. 재생(리플레이)처럼 시간 흐름에 따른 상세 궤적이 필요해지면 `telemetry_raw.trip_id`로 원본 포인트를 그대로 조회할 수 있다.
 
 **지도 API 연동**: 네이버 지도(NCP Maps)와 카카오맵 둘 다 JS SDK로 지도 위에 폴리라인·마커를 그리는 기능을 기본 제공해서, 나중에 API 키를 발급받아 프론트엔드에 스크립트만 추가하면 된다. 두 서비스 모두 콘솔에서 사용할 도메인(홈서버 도메인)을 등록해야 키가 정상 동작한다. 좌표를 "출발: OO동 ~ 도착: XX동" 같은 주소로 바꿔 보여주고 싶다면 리버스 지오코딩 REST API를 쓰면 되는데, 이건 키 노출을 막기 위해 프론트에서 직접 부르지 말고 백엔드가 프록시해서 호출하고 결과를 캐싱하는 걸 추천한다(가정용 호출량이면 무료 티어로 충분할 것으로 보인다). 나중에 두 업체 중 무엇을 쓸지, 혹은 둘 다 옵션으로 둘지 바꿀 수 있도록 지도 렌더링 부분만 별도 컴포넌트로 분리해두면 교체 부담이 적다.
+
+## 11. 정비 항목 카탈로그와 i18n
+
+정비·행정 스케줄 항목명은 DB에 **catalog key** 문자열(예: `engineOilFilter`, `autoInsuranceRenewal`)로 저장한다. 표시 문구는 `@garage/shared` 카탈로그가 단일 진실 공급원이다.
+
+```
+packages/shared/src/catalog/
+  maintenanceItems.ts   # 정비 항목 key + legacyKo + ko/en labels
+  adminItems.ts         # 행정·법정 항목
+  recordTypes.ts        # 특수 기록 유형 (주행거리 기록 등)
+  presetDefs.ts         # 연료타입별 마스터 프리셋 기본값
+  resolve.ts            # resolveCatalogKey, formatStoredItemLabel, buildCatalogTranslationMap
+```
+
+**표시 흐름**
+
+1. DB에서 `partType` / `type` / `preset.name` 문자열을 읽는다.
+2. `resolveCatalogKey(stored)`로 catalog key를 찾는다 (key 직접 저장 또는 legacy 한글 역매핑).
+3. 웹 UI는 `formatItemLabel(t, stored)` → `translations`의 `item*` / `admin*` / `record*` 키로 렌더링한다.
+4. 카탈로그에 없는 **사용자 직접 입력** 항목(예: `사고 수리`)은 저장 문자열을 그대로 표시한다.
+
+**번역 키 규칙**
+
+| 접두어 | 예시 | 용도 |
+|---|---|---|
+| (없음) | `loginButton` | UI 고정 문구 |
+| `item` | `itemEngineOilFilter` | 정비 카탈로그 |
+| `admin` | `adminVehicleInspection` | 행정·법정 카탈로그 |
+| `record` | `recordOdometerLog` | 특수 기록 유형 |
+
+`translations.ts`의 카탈로그 라벨은 `buildCatalogTranslationMap()`에서 병합하므로, 항목 추가 시 카탈로그 `labels`만 수정하면 웹·푸시 알림이 함께 맞춰진다.
+
+**푸시 알림**: `PushSubscription.locale`에 구독 시점의 UI 언어를 저장하고, 서버가 `buildReminderPushMessage()`로 기기별 문구를 생성한다.
+
+**마스터 프리셋 UI**: 시스템 항목은 카탈로그에서 선택(이름은 key로 고정), 관리자 전용 커스텀 항목만 자유 입력한다.

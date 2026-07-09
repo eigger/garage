@@ -60,7 +60,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   }
 
   function t(key: TranslationKey, params?: Record<string, string | number>): string {
-    let text: string = translations[locale][key] ?? translations.ko[key] ?? key;
+    const table = translations[locale] as Record<string, string>;
+    const fallback = translations.ko as Record<string, string>;
+    let text: string = table[key] ?? fallback[key] ?? key;
     if (params) {
       for (const [k, v] of Object.entries(params)) {
         text = text.replace(new RegExp(`{{${k}}}`, "g"), String(v));

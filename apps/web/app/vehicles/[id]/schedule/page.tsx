@@ -6,7 +6,9 @@ import { apiFetch } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
-import type { ConsumablePart } from "../../../../lib/types";
+import type { ConsumablePart, RecordCategory } from "../../../../lib/types";
+import { CategoryBadge } from "../../../../components/CategoryBadge";
+import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
@@ -78,6 +80,7 @@ export default function SchedulePage() {
   const [odometer, setOdometer] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "due">("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | RecordCategory>("all");
 
   async function load() {
     const [partsRes, odoRes] = await Promise.all([
@@ -104,32 +107,42 @@ export default function SchedulePage() {
     return rank[sa] - rank[sb];
   });
 
-  const visible =
-    filter === "due"
-      ? sorted.filter((part) => computeStatus(part, odometer).status !== "ok")
-      : sorted;
+  const visible = sorted.filter((part) => {
+    if (categoryFilter !== "all" && part.category !== categoryFilter) return false;
+    if (filter === "due" && computeStatus(part, odometer).status === "ok") return false;
+    return true;
+  });
 
   return (
     <section>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
         <h1 style={{ margin: 0 }}>{t("scheduleHeading")}</h1>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {(
+            [
+              ["all", "scheduleFilterAll"],
+              ["MAINTENANCE", "scheduleFilterMaintenance"],
+              ["ADMINISTRATIVE", "scheduleFilterAdministrative"],
+            ] as const
+          ).map(([value, labelKey]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setCategoryFilter(value)}
+              style={{
+                fontSize: 12,
+                padding: "4px 10px",
+                minHeight: "auto",
+                background: categoryFilter === value ? "#18523f" : "#eee",
+                color: categoryFilter === value ? "#fff" : "#333",
+              }}
+            >
+              {t(labelKey)}
+            </button>
+          ))}
           <button
             type="button"
-            onClick={() => setFilter("all")}
-            style={{
-              fontSize: 12,
-              padding: "4px 10px",
-              minHeight: "auto",
-              background: filter === "all" ? "#18523f" : "#eee",
-              color: filter === "all" ? "#fff" : "#333",
-            }}
-          >
-            {t("scheduleFilterAll")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter("due")}
+            onClick={() => setFilter(filter === "due" ? "all" : "due")}
             style={{
               fontSize: 12,
               padding: "4px 10px",
@@ -191,6 +204,10 @@ function ScheduleRow({
   const [installedDate, setInstalledDate] = useState(part.installedDate.slice(0, 10));
   const [installedOdometer, setInstalledOdometer] = useState(String(part.installedOdometer));
   const [submitting, setSubmitting] = useState(false);
+  const [completing, setCompleting] = useState(false);
+  const [completionCost, setCompletionCost] = useState("");
+  const [completionShop, setCompletionShop] = useState("");
+  const [completionNotes, setCompletionNotes] = useState("");
 
   const { status, dueDate } = computeStatus(part, odometer);
 
@@ -267,7 +284,11 @@ function ScheduleRow({
     }
   }
 
-  async function handleMarkDone() {
+  async function submitCompletion(extra?: {
+    completionCost?: number;
+    completionShop?: string;
+    completionNotes?: string;
+  }) {
     setSubmitting(true);
     try {
       const res = await apiFetch(`/api/consumable-parts/${part.id}`, {
@@ -275,9 +296,15 @@ function ScheduleRow({
         body: JSON.stringify({
           installedDate: new Date().toISOString().slice(0, 10),
           installedOdometer: odometer,
+          recordCompletion: true,
+          ...extra,
         }),
       });
       if (res.ok) {
+        setCompleting(false);
+        setCompletionCost("");
+        setCompletionShop("");
+        setCompletionNotes("");
         showToast(t("toastSaved"), "success");
         onChanged();
       } else {
@@ -286,6 +313,23 @@ function ScheduleRow({
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function handleMarkDone() {
+    if (part.category === "ADMINISTRATIVE") {
+      setCompleting(true);
+      return;
+    }
+    await submitCompletion();
+  }
+
+  async function handleConfirmCompletion(e: React.FormEvent) {
+    e.preventDefault();
+    await submitCompletion({
+      completionCost: completionCost ? Number(completionCost) : undefined,
+      completionShop: completionShop || undefined,
+      completionNotes: completionNotes || undefined,
+    });
   }
 
   async function handleDelete() {
@@ -350,7 +394,10 @@ function ScheduleRow({
   return (
     <li className="list-item">
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <strong>{t(part.partType as any)}</strong>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <CategoryBadge category={part.category} t={t} />
+          <strong>{formatItemLabel(t, part.partType)}</strong>
+        </div>
         <StatusBadge status={status} t={t} />
       </div>
       <div style={{ fontSize: 13, color: "#666", margin: "4px 0 8px" }}>
@@ -416,10 +463,43 @@ function ScheduleRow({
         </div>
       )}
 
+      {completing && (
+        <form onSubmit={handleConfirmCompletion} className="form" style={{ marginTop: 12 }}>
+          <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>{t("completeWithCostTitle")}</p>
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: "#666" }}>{t("completeWithCostHint")}</p>
+          <input
+            type="number"
+            placeholder={t("cost")}
+            value={completionCost}
+            onChange={(e) => setCompletionCost(e.target.value)}
+          />
+          <input
+            placeholder={t("shop")}
+            value={completionShop}
+            onChange={(e) => setCompletionShop(e.target.value)}
+          />
+          <input
+            placeholder={t("notes")}
+            value={completionNotes}
+            onChange={(e) => setCompletionNotes(e.target.value)}
+          />
+          <div style={{ display: "flex", gap: 8 }}>
+            <button type="submit" disabled={submitting}>
+              {submitting ? t("saving") : t("save")}
+            </button>
+            <button type="button" onClick={() => setCompleting(false)}>
+              {t("cancel")}
+            </button>
+          </div>
+        </form>
+      )}
+
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={handleMarkDone} disabled={submitting}>
-          {t("markDone")}
-        </button>
+        {!completing && (
+          <button type="button" onClick={handleMarkDone} disabled={submitting}>
+            {t("markDone")}
+          </button>
+        )}
         <button type="button" onClick={() => setEditing(true)}>
           {t("edit")}
         </button>
@@ -445,6 +525,7 @@ function AddScheduleItemForm({
   showToast: (message: string, type?: "success" | "error") => void;
 }) {
   const [partType, setPartType] = useState("");
+  const [category, setCategory] = useState<RecordCategory>("MAINTENANCE");
   const [expectedLifeKm, setExpectedLifeKm] = useState("");
   const [expectedLifeMonths, setExpectedLifeMonths] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -464,6 +545,7 @@ function AddScheduleItemForm({
         body: JSON.stringify({
           vehicleId,
           partType,
+          category,
           installedDate: new Date().toISOString().slice(0, 10),
           installedOdometer: odometer,
           expectedLifeKm: expectedLifeKm ? Number(expectedLifeKm) : undefined,
@@ -472,6 +554,7 @@ function AddScheduleItemForm({
       });
       if (res.ok) {
         setPartType("");
+        setCategory("MAINTENANCE");
         setExpectedLifeKm("");
         setExpectedLifeMonths("");
         showToast(t("toastCreated"), "success");
@@ -486,6 +569,10 @@ function AddScheduleItemForm({
 
   return (
     <form onSubmit={handleSubmit} className="form" noValidate>
+      <select value={category} onChange={(e) => setCategory(e.target.value as RecordCategory)}>
+        <option value="MAINTENANCE">{t("recordCategoryMaintenance")}</option>
+        <option value="ADMINISTRATIVE">{t("recordCategoryAdministrative")}</option>
+      </select>
       <input
         placeholder={t("itemName")}
         value={partType}

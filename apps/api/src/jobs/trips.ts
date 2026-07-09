@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { prisma } from "../lib/prisma.js";
 import { haversineKm, encodeRoute } from "../lib/geo.js";
+import { isActivePoint, type TripDetectionPoint } from "../lib/tripDetection.js";
 
 // 이 간격보다 다음 포인트까지의 시간이 더 벌어지면 새 트립으로 간주한다.
 // 같은 값을 "이 세그먼트가 끝났다고 확정해도 되는가"의 기준으로도 쓴다 —
@@ -28,22 +29,52 @@ async function closeTripsForVehicle(vehicleId: string): Promise<void> {
   const points = await prisma.telemetryRaw.findMany({
     where: { vehicleId, tripId: null, lat: { not: null }, lon: { not: null } },
     orderBy: { time: "asc" },
-    select: { id: true, time: true, lat: true, lon: true, speed: true, odometer: true },
+    select: {
+      id: true,
+      time: true,
+      lat: true,
+      lon: true,
+      speed: true,
+      odometer: true,
+      rpm: true,
+      source: true,
+      inVehicle: true,
+    },
   });
   if (points.length === 0) return;
+
+  const activePoints: Point[] = [];
+  let prev: TripDetectionPoint | null = null;
+  for (const p of points) {
+    const detection: TripDetectionPoint = {
+      lat: p.lat,
+      lon: p.lon,
+      speed: p.speed,
+      rpm: p.rpm,
+      odometer: p.odometer,
+      source: p.source,
+      inVehicle: p.inVehicle,
+    };
+    if (isActivePoint(detection, prev)) {
+      activePoints.push(p);
+    }
+    prev = detection;
+  }
+
+  if (activePoints.length === 0) return;
 
   const gapMs = TRIP_GAP_MINUTES * 60 * 1000;
   const now = Date.now();
 
   const segments: Point[][] = [];
-  let current: Point[] = [points[0]];
-  for (let i = 1; i < points.length; i++) {
-    const gap = points[i].time.getTime() - points[i - 1].time.getTime();
+  let current: Point[] = [activePoints[0]];
+  for (let i = 1; i < activePoints.length; i++) {
+    const gap = activePoints[i].time.getTime() - activePoints[i - 1].time.getTime();
     if (gap > gapMs) {
       segments.push(current);
-      current = [points[i]];
+      current = [activePoints[i]];
     } else {
-      current.push(points[i]);
+      current.push(activePoints[i]);
     }
   }
   segments.push(current);
@@ -99,7 +130,7 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
       .map((p) => ({ lat: p.lat, lon: p.lon })),
   );
 
-  const trip = await prisma.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     const t = await tx.trip.create({
       data: {
         vehicleId,
@@ -116,8 +147,6 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
       where: { id: { in: segment.map((p) => p.id) } },
       data: { tripId: t.id },
     });
-
-    return t;
   });
 }
 
