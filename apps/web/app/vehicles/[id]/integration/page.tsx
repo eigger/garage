@@ -31,6 +31,16 @@ export default function VehicleIntegrationPage() {
     load();
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  async function handleCopyToken() {
+    if (!vehicle?.apiToken) return;
+    try {
+      await navigator.clipboard.writeText(vehicle.apiToken);
+      showToast(t("copyTokenSuccess"), "success");
+    } catch {
+      showToast(t("copyTokenError"), "error");
+    }
+  }
+
   async function handleResetToken() {
     if (!(await confirm(t("resetTokenConfirm"), { confirmLabel: t("resetToken") }))) return;
     setResettingToken(true);
@@ -66,14 +76,24 @@ export default function VehicleIntegrationPage() {
                 {vehicle.apiToken || t("apiTokenNotIssued")}
               </code>
             </div>
-            <button
-              type="button"
-              onClick={handleResetToken}
-              disabled={resettingToken}
-              style={{ minHeight: "auto", padding: "6px 12px", fontSize: 12 }}
-            >
-              {resettingToken ? t("resetting") : t("resetToken")}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              <button
+                type="button"
+                onClick={handleCopyToken}
+                disabled={!vehicle.apiToken}
+                style={{ minHeight: "auto", padding: "6px 12px", fontSize: 12, background: "#eee", color: "#333" }}
+              >
+                {t("copyToken")}
+              </button>
+              <button
+                type="button"
+                onClick={handleResetToken}
+                disabled={resettingToken}
+                style={{ minHeight: "auto", padding: "6px 12px", fontSize: 12 }}
+              >
+                {resettingToken ? t("resetting") : t("resetToken")}
+              </button>
+            </div>
           </div>
         </div>
 

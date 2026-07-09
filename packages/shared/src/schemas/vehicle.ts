@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recordCategorySchema } from "./category.js";
 
 export const fuelTypeSchema = z.enum(["GASOLINE", "DIESEL", "LPG", "ELECTRIC", "HYBRID"]);
 export type FuelType = z.infer<typeof fuelTypeSchema>;
@@ -28,17 +29,27 @@ export const vehicleAccessSchema = z.object({
 });
 export type VehicleAccessInput = z.infer<typeof vehicleAccessSchema>;
 
-export const maintenancePresetTemplateSchema = z.object({
-  fuelType: fuelTypeSchema,
+const maintenancePresetTemplateBaseSchema = z.object({
+  category: recordCategorySchema.default("MAINTENANCE"),
+  fuelType: fuelTypeSchema.optional(),
   name: z.string().min(1),
   intervalKm: z.number().int().positive().optional(),
   intervalMonths: z.number().int().positive().optional(),
   sortOrder: z.number().int().default(0),
 });
-export type MaintenancePresetTemplateInput = z.infer<typeof maintenancePresetTemplateSchema>;
 
-export const maintenancePresetTemplateUpdateSchema = maintenancePresetTemplateSchema
-  .omit({ fuelType: true })
+export const maintenancePresetTemplateSchema = maintenancePresetTemplateBaseSchema.superRefine((data, ctx) => {
+  if (data.category === "MAINTENANCE" && !data.fuelType) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "fuelType required", path: ["fuelType"] });
+  }
+  if (data.category === "ADMINISTRATIVE" && data.fuelType) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, message: "fuelType not allowed", path: ["fuelType"] });
+  }
+});
+export type MaintenancePresetTemplateInput = z.infer<typeof maintenancePresetTemplateBaseSchema>;
+
+export const maintenancePresetTemplateUpdateSchema = maintenancePresetTemplateBaseSchema
+  .omit({ fuelType: true, category: true })
   .partial();
 export type MaintenancePresetTemplateUpdateInput = z.infer<
   typeof maintenancePresetTemplateUpdateSchema

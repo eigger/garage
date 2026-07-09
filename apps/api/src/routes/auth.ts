@@ -44,7 +44,8 @@ export async function authRoutes(app: FastifyInstance) {
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) return reply.code(401).send({ error: "invalid credentials" });
 
-    const token = app.jwt.sign({ sub: user.id, role: user.role }, { expiresIn: "30d" });
+    // 만료를 두지 않아 재발급 전까지 토큰이 유지된다.
+    const token = app.jwt.sign({ sub: user.id, role: user.role });
     return {
       token,
       user: { id: user.id, name: user.name, email: user.email, role: user.role },

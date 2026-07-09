@@ -12,7 +12,9 @@ import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 // 기준으로 삼는다), 이후 차량별로 독립적으로 수정한다 (마스터 템플릿을 바꿔도 이미 복사된 차량
 // 항목엔 영향 없음).
 async function applyPresetsToVehicle(vehicleId: string, fuelType: string): Promise<void> {
-  const presets = await prisma.maintenancePresetTemplate.findMany({ where: { fuelType: fuelType as never } });
+  const presets = await prisma.maintenancePresetTemplate.findMany({
+    where: { category: "MAINTENANCE", fuelType: fuelType as never },
+  });
   if (presets.length === 0) return;
 
   const currentOdometer = await getLatestOdometer(vehicleId);

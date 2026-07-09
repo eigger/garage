@@ -1,11 +1,7 @@
 // 최초 관리자 계정과 연료타입별 정비 마스터 프리셋을 만드는 시드 스크립트.
 import bcrypt from "bcryptjs";
 import { PrismaClient } from "@prisma/client";
-import {
-  DEPRECATED_MAINTENANCE_PRESETS,
-  MAINTENANCE_PRESET_DEFS,
-  maintenanceStoredVariants,
-} from "@garage/shared";
+import { ensureMaintenancePresets } from "../src/lib/seedPresets.js";
 
 const prisma = new PrismaClient();
 
@@ -32,30 +28,8 @@ async function seedAdmin() {
 }
 
 async function seedMaintenancePresets() {
-  for (const dep of DEPRECATED_MAINTENANCE_PRESETS) {
-    await prisma.maintenancePresetTemplate.deleteMany({
-      where: { fuelType: dep.fuelType, name: { in: maintenanceStoredVariants(dep.itemKey) } },
-    });
-  }
-
-  for (let i = 0; i < MAINTENANCE_PRESET_DEFS.length; i++) {
-    const preset = MAINTENANCE_PRESET_DEFS[i];
-    await prisma.maintenancePresetTemplate.upsert({
-      where: { fuelType_name: { fuelType: preset.fuelType, name: preset.itemKey } },
-      update: {
-        intervalKm: preset.intervalKm ?? null,
-        intervalMonths: preset.intervalMonths ?? null,
-      },
-      create: {
-        fuelType: preset.fuelType,
-        name: preset.itemKey,
-        intervalKm: preset.intervalKm ?? null,
-        intervalMonths: preset.intervalMonths ?? null,
-        sortOrder: i,
-      },
-    });
-  }
-  console.log(`정비 마스터 프리셋 ${MAINTENANCE_PRESET_DEFS.length}건 확인/생성 완료`);
+  const count = await ensureMaintenancePresets();
+  console.log(`정비 마스터 프리셋 ${count}건 확인/생성 완료`);
 }
 
 async function main() {

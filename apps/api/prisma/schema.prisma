@@ -176,20 +176,21 @@ model ConsumablePart {
   reminder       Reminder?
 }
 
-// 연료타입별 정비 마스터 템플릿 (관리자 전역 관리). 차량 등록 시 해당 연료타입 템플릿이
+// 연료타입별 정비·전역 행정 마스터 템플릿 (관리자 전역 관리). 차량 등록 시 해당 템플릿이
 // 그 차량의 ConsumablePart로 복사되고, 이후에는 차량별로 독립적으로 수정된다.
 model MaintenancePresetTemplate {
-  id             String   @id @default(cuid())
-  fuelType       FuelType
+  id             String         @id @default(cuid())
+  category       RecordCategory @default(MAINTENANCE)
+  fuelType       FuelType?
   name           String
   intervalKm     Int?
   intervalMonths Int?
-  sortOrder      Int      @default(0)
-  createdAt      DateTime @default(now())
+  sortOrder      Int            @default(0)
+  createdAt      DateTime       @default(now())
 
   consumableParts ConsumablePart[]
 
-  @@unique([fuelType, name])
+  @@unique([category, fuelType, name])
 }
 
 // 거리·기간 중 먼저 도래하는 조건으로 계산되는 정비/소모품 리마인더.
