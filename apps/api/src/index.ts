@@ -1,4 +1,7 @@
 import { randomUUID } from "crypto";
+import { readFileSync } from "fs";
+import { join } from "path";
+import { fileURLToPath } from "url";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
@@ -20,6 +23,10 @@ import { settingsRoutes } from "./routes/settings.js";
 import { startReminderJob } from "./jobs/reminders.js";
 import { startTripJob } from "./jobs/trips.js";
 import { startTelemetryRetentionJob } from "./jobs/telemetryRetention.js";
+
+const __dirname = fileURLToPath(new URL(".", import.meta.url));
+const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
+const APP_VERSION = pkg.version;
 
 const app = Fastify({ logger: true });
 
@@ -45,7 +52,7 @@ app.decorate("requireAdmin", async (request, reply) => {
   }
 });
 
-app.get("/health", async () => ({ status: "ok", version: "0.1.0" }));
+app.get("/health", async () => ({ status: "ok", version: APP_VERSION }));
 
 await app.register(authRoutes, { prefix: "/api/auth" });
 await app.register(vehicleRoutes, { prefix: "/api/vehicles" });

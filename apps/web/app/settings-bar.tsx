@@ -104,7 +104,7 @@ export function SettingsBar() {
           paddingRight: 4,
         }}
       >
-        v0.1.0
+        v{process.env.APP_VERSION}
       </span>
     </div>
   );
