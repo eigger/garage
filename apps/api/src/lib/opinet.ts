@@ -59,7 +59,9 @@ export async function fetchNearbyStations(
   try {
     const { x, y } = wgs84ToKatec(lon, lat);
     const prodcd = FUEL_CODE_MAP[fuelType] ?? "B027";
-    const url = `https://www.opinet.co.kr/api/aroundAll.do?code=${apiKey}&out=json&x=${x}&y=${y}&radius=5000&prodcd=${prodcd}&sort=1`;
+    // 오피넷 API의 sort 파라미터는 1=가격순, 2=거리순이다 (실제 API 응답으로 확인됨,
+    // 공식 문서에 적힌 것과 반대라 헷갈리기 쉬움).
+    const url = `https://www.opinet.co.kr/api/aroundAll.do?code=${apiKey}&out=json&x=${x}&y=${y}&radius=5000&prodcd=${prodcd}&sort=2`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Opinet API responded with status ${res.status}`);
 
