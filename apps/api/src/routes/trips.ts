@@ -22,12 +22,35 @@ export async function tripRoutes(app: FastifyInstance) {
     const parsedLimit = limit ? parseInt(limit, 10) : 20;
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
 
-    return prisma.trip.findMany({
+    const trips = await prisma.trip.findMany({
       where: { vehicleId },
       orderBy: { startTime: "desc" },
       take: parsedLimit,
       skip: parsedOffset,
     });
+
+    const tripsWithFuel = await Promise.all(
+      trips.map(async (trip) => {
+        const firstPoint = await prisma.telemetryRaw.findFirst({
+          where: { tripId: trip.id, fuelLevel: { not: null } },
+          orderBy: { time: "asc" },
+          select: { fuelLevel: true },
+        });
+        const lastPoint = await prisma.telemetryRaw.findFirst({
+          where: { tripId: trip.id, fuelLevel: { not: null } },
+          orderBy: { time: "desc" },
+          select: { fuelLevel: true },
+        });
+
+        return {
+          ...trip,
+          startFuelLevel: firstPoint?.fuelLevel ?? null,
+          endFuelLevel: lastPoint?.fuelLevel ?? null,
+        };
+      })
+    );
+
+    return tripsWithFuel;
   });
 
   // 기간별 주행 리포트: week(최근 7일) 또는 month(최근 30일) 기준 거리·시간·트립 수 집계.
@@ -102,6 +125,22 @@ export async function tripRoutes(app: FastifyInstance) {
     }
 
     const trip = await prisma.trip.update({ where: { id }, data: parsed.data });
-    return trip;
+
+    const firstPoint = await prisma.telemetryRaw.findFirst({
+      where: { tripId: trip.id, fuelLevel: { not: null } },
+      orderBy: { time: "asc" },
+      select: { fuelLevel: true },
+    });
+    const lastPoint = await prisma.telemetryRaw.findFirst({
+      where: { tripId: trip.id, fuelLevel: { not: null } },
+      orderBy: { time: "desc" },
+      select: { fuelLevel: true },
+    });
+
+    return {
+      ...trip,
+      startFuelLevel: firstPoint?.fuelLevel ?? null,
+      endFuelLevel: lastPoint?.fuelLevel ?? null,
+    };
   });
 }

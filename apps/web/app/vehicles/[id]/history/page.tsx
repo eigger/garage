@@ -6,7 +6,7 @@ import { apiFetch, API_URL, getToken } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
-import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, TripSummary } from "../../../../lib/types";
+import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, TripSummary, Vehicle } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
@@ -810,10 +810,17 @@ function TripSection({
   const [tripPointsCache, setTripPointsCache] = useState<Record<string, SpeedPoint[]>>({});
   const mapConfig = useMapProviders();
   const [mapProvider, setMapProvider] = useState<MapProvider>("osm");
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
 
   useEffect(() => {
     setMapProvider(pickDefaultProvider(mapConfig));
   }, [mapConfig.providers.join(",")]);
+
+  useEffect(() => {
+    apiFetch(`/api/vehicles/${vehicleId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setVehicle);
+  }, [vehicleId]);
 
   // 트립의 원시 텔레메트리(위경도+속도)를 가져와 경로에 속도별 색상을 입힌다.
   // 보존 기간이 지나 텔레메트리가 삭제된 오래된 트립은 routePolyline 기반 단색 표시로 폴백한다.
@@ -923,8 +930,46 @@ function TripSection({
                     }}
                   >
                     <span>
-                      {formatDateTime(trip.startTime)} ·{" "}
-                      {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
+                      {(() => {
+                        const durationSec = trip.endTime
+                          ? Math.round((new Date(trip.endTime).getTime() - new Date(trip.startTime).getTime()) / 1000)
+                          : null;
+                        const durationStr = durationSec !== null ? `${formatDuration(durationSec, t)} · ` : "";
+                        
+                        let fuelConsumedStr = "";
+                        if (trip.startFuelLevel !== null && trip.startFuelLevel !== undefined && trip.endFuelLevel !== null && trip.endFuelLevel !== undefined) {
+                          const fuelDiff = trip.startFuelLevel - trip.endFuelLevel;
+                          if (fuelDiff > 0) {
+                            const isEv = vehicle?.fuelType === "ELECTRIC";
+                            if (isEv) {
+                              const capacity = parseFloat(vehicle?.batteryCapacity || "");
+                              if (!isNaN(capacity) && capacity > 0) {
+                                const kwh = (fuelDiff / 100) * capacity;
+                                fuelConsumedStr = ` · ${t("batteryConsumed", { value: fuelDiff.toFixed(1) })} (${kwh.toFixed(1)} kWh)`;
+                              } else {
+                                fuelConsumedStr = ` · ${t("batteryConsumed", { value: fuelDiff.toFixed(1) })}`;
+                              }
+                            } else {
+                              fuelConsumedStr = ` · ${t("fuelConsumed", { value: fuelDiff.toFixed(1) })}`;
+                            }
+                          } else if (fuelDiff < 0) {
+                            const isEv = vehicle?.fuelType === "ELECTRIC";
+                            if (isEv) {
+                              fuelConsumedStr = ` · ${t("batteryCharged", { value: Math.abs(fuelDiff).toFixed(1) })}`;
+                            } else {
+                              fuelConsumedStr = ` · ${t("fuelIncreased", { value: Math.abs(fuelDiff).toFixed(1) })}`;
+                            }
+                          }
+                        }
+
+                        return (
+                          <>
+                            {formatDateTime(trip.startTime)} · {durationStr}
+                            {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
+                            {fuelConsumedStr}
+                          </>
+                        );
+                      })()}
                     </span>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                       <button

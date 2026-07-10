@@ -102,6 +102,8 @@ export type Trip = {
   idleTimeSec: number | null;
   purpose: "BUSINESS" | "PERSONAL" | null;
   routePolyline: string | null;
+  startFuelLevel?: number | null;
+  endFuelLevel?: number | null;
 };
 
 export type TripSummary = {
