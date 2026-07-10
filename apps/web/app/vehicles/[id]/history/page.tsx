@@ -866,7 +866,7 @@ function TripSection({
                         onChange={(e) =>
                           setPurpose(trip.id, (e.target.value || null) as "BUSINESS" | "PERSONAL" | null)
                         }
-                        style={{ minHeight: 36, fontSize: 13, padding: "0 8px" }}
+                        style={{ minHeight: 36, height: 36, fontSize: 13, padding: "0 28px 0 8px" }}
                       >
                         <option value="">{t("tripPurposeUnset")}</option>
                         <option value="BUSINESS">{t("tripPurposeBusiness")}</option>
