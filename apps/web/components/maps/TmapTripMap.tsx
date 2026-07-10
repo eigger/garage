@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { LatLon } from "../../lib/maps/polyline";
+import { circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadTmapSdk } from "../../lib/maps/loadSdk";
 
 export function TmapTripMap({ points, appKey }: { points: LatLon[]; appKey: string }) {
@@ -35,6 +36,10 @@ export function TmapTripMap({ points, appKey }: { points: LatLon[]; appKey: stri
           map,
         });
 
+        // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
+        new Tmapv2.Marker({ position: path[0], icon: circleMarkerDataUri("#10b981"), map });
+        new Tmapv2.Marker({ position: path[path.length - 1], icon: circleMarkerDataUri("#ef4444"), map });
+
         const bounds = new Tmapv2.LatLngBounds();
         for (const ll of path) bounds.extend(ll);
         map.fitBounds(bounds);
@@ -65,4 +70,5 @@ type TmapApi = {
   LatLngBounds: new () => { extend: (ll: object) => void };
   Map: new (el: HTMLElement, opts: Record<string, unknown>) => { fitBounds: (b: object) => void };
   Polyline: new (opts: Record<string, unknown>) => object;
+  Marker: new (opts: Record<string, unknown>) => object;
 };

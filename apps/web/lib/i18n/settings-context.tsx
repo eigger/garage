@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { translations, type Locale, type TranslationKey } from "./translations";
-import { formatDistanceVal, formatCurrencyVal } from "./format";
+import { formatDistanceVal, formatCurrencyVal, formatDateTimeVal } from "./format";
 
 export type DistanceUnit = "km" | "mi";
 export type CurrencyCode = "KRW" | "USD";
@@ -25,6 +25,7 @@ interface SettingsContextValue {
   t: (key: TranslationKey, params?: Record<string, string | number>) => string;
   formatDistance: (km: number) => string;
   formatCurrency: (amountInKrw: number) => string;
+  formatDateTime: (iso: string) => string;
 }
 
 const SettingsContext = createContext<SettingsContextValue | null>(null);
@@ -82,6 +83,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return formatCurrencyVal(amountInKrw, currency);
   }
 
+  // 서버가 내려주는 UTC ISO 문자열을 브라우저의 로컬 시간대로 변환해서 표시한다.
+  function formatDateTime(iso: string): string {
+    return formatDateTimeVal(iso, locale);
+  }
+
   return (
     <SettingsContext.Provider
       value={{
@@ -94,6 +100,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         t,
         formatDistance,
         formatCurrency,
+        formatDateTime,
       }}
     >
       {children}
