@@ -31,7 +31,7 @@ type FuelEfficiency = {
 export default function HistoryPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
-  const { t, formatDistance, formatCurrency } = useSettings();
+  const { t, formatDistance, formatCurrency, formatDateTime } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
 
@@ -183,7 +183,7 @@ export default function HistoryPage() {
       </div>
 
       {subTab === "trips" && (
-        <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} />
+        <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} formatDateTime={formatDateTime} />
       )}
 
       {subTab === "fuel" && (
@@ -710,10 +710,12 @@ function TripSection({
   vehicleId,
   t,
   formatDistance,
+  formatDateTime,
 }: {
   vehicleId: string;
   t: Translator;
   formatDistance: (km: number) => string;
+  formatDateTime: (iso: string) => string;
 }) {
   const CHUNK_SIZE = 5;
   const [period, setPeriod] = useState<"week" | "month">("week");
@@ -828,7 +830,7 @@ function TripSection({
                     }}
                   >
                     <span>
-                      {trip.startTime.slice(0, 16).replace("T", " ")} ·{" "}
+                      {formatDateTime(trip.startTime)} ·{" "}
                       {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
                     </span>
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>

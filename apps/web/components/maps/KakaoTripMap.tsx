@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { LatLon } from "../../lib/maps/polyline";
+import { circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadKakaoMaps } from "../../lib/maps/loadSdk";
 
 export function KakaoTripMap({ points, appKey }: { points: LatLon[]; appKey: string }) {
@@ -29,6 +30,16 @@ export function KakaoTripMap({ points, appKey }: { points: LatLon[]; appKey: str
           path,
           strokeWeight: 4,
           strokeColor: "#18523f",
+        }).setMap(map);
+
+        // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
+        new kakao.Marker({
+          position: path[0],
+          image: new kakao.MarkerImage(circleMarkerDataUri("#10b981"), new kakao.Size(20, 20)),
+        }).setMap(map);
+        new kakao.Marker({
+          position: path[path.length - 1],
+          image: new kakao.MarkerImage(circleMarkerDataUri("#ef4444"), new kakao.Size(20, 20)),
         }).setMap(map);
 
         const bounds = new kakao.LatLngBounds();
@@ -63,4 +74,7 @@ type KakaoMapsApi = {
   Polyline: new (opts: { path: object[]; strokeWeight: number; strokeColor: string }) => {
     setMap: (map: object) => void;
   };
+  Marker: new (opts: { position: object; image?: object }) => { setMap: (map: object) => void };
+  MarkerImage: new (src: string, size: object) => object;
+  Size: new (width: number, height: number) => object;
 };

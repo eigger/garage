@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
@@ -20,10 +20,21 @@ function today(): string {
 }
 
 export default function QuickLogPage() {
+  return (
+    <Suspense fallback={null}>
+      <QuickLogPageInner />
+    </Suspense>
+  );
+}
+
+function QuickLogPageInner() {
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const vehicleId = params.id;
   const { t } = useSettings();
-  const [tab, setTab] = useState<Tab>("fuel");
+  const initialTab = searchParams.get("tab") === "maintenance" ? "maintenance" : "fuel";
+  const initialType = searchParams.get("type");
+  const [tab, setTab] = useState<Tab>(initialTab);
 
   const tabs: { key: Tab; label: string }[] = [
     { key: "fuel", label: t("quickLogFuel") },
@@ -51,7 +62,7 @@ export default function QuickLogPage() {
       </div>
 
       {tab === "fuel" && <QuickFuelForm vehicleId={vehicleId} t={t} />}
-      {tab === "maintenance" && <QuickMaintenanceForm vehicleId={vehicleId} t={t} />}
+      {tab === "maintenance" && <QuickMaintenanceForm vehicleId={vehicleId} t={t} initialType={initialType} />}
     </section>
   );
 }
@@ -408,18 +419,18 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         </span>
       </div>
 
-      <div style={{ display: "flex", gap: 6, marginTop: 4, marginBottom: 12, overflowX: "auto", whiteSpace: "nowrap", paddingBottom: 4 }} className="no-scrollbar">
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${presets.length + 1}, 1fr)`, gap: 6, marginTop: 4, marginBottom: 12 }}>
         {presets.map((p) => (
           <button
             key={p.label}
             type="button"
             onClick={() => handleAddPreset(p.value)}
             style={{
-              padding: "4px 10px",
+              width: "100%",
+              padding: "4px 6px",
               fontSize: 12,
               minHeight: 32,
               height: 32,
-              flexShrink: 0,
               background: "#e8f0ec",
               color: "#18523f",
               border: "1px solid #cddcd4",
@@ -434,11 +445,11 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           type="button"
           onClick={handleClearCost}
           style={{
-            padding: "4px 10px",
+            width: "100%",
+            padding: "4px 6px",
             fontSize: 12,
             minHeight: 32,
             height: 32,
-            flexShrink: 0,
             background: "#fdf2f2",
             color: "#a12a24",
             border: "1px solid #fde2e2",
@@ -497,7 +508,15 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   );
 }
 
-function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
+function QuickMaintenanceForm({
+  vehicleId,
+  t,
+  initialType,
+}: {
+  vehicleId: string;
+  t: Translator;
+  initialType?: string | null;
+}) {
   const { currency, distanceUnit } = useSettings();
   const currencyUnit = currency === "KRW" ? "원" : "$";
   const [odometer, setOdometer] = useState("");
@@ -535,8 +554,18 @@ function QuickMaintenanceForm({ vehicleId, t }: { vehicleId: string; t: Translat
     // Load consumable parts list (schedule tasks)
     apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
       .then((res) => (res.ok ? res.json() : []))
-      .then(setParts);
-  }, [vehicleId]);
+      .then((data: ConsumablePart[]) => {
+        setParts(data);
+        // 정비 알림에서 "빠른 입력"으로 넘어온 경우, 해당 정비 항목을 자동으로 선택한다.
+        if (initialType) {
+          const part = data.find((p) => p.partType === initialType);
+          if (part) {
+            setCategory(part.category);
+            setSelectedPartType(part.partType);
+          }
+        }
+      });
+  }, [vehicleId, initialType]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

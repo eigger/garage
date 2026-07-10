@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { LatLon } from "../../lib/maps/polyline";
+import { circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadNaverMaps } from "../../lib/maps/loadSdk";
 
 export function NaverTripMap({ points, clientId }: { points: LatLon[]; clientId: string }) {
@@ -31,6 +32,10 @@ export function NaverTripMap({ points, clientId }: { points: LatLon[]; clientId:
           strokeColor: "#18523f",
           strokeWeight: 4,
         });
+
+        // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
+        new naver.Marker({ map, position: path[0], icon: { url: circleMarkerDataUri("#10b981"), size: new naver.Size(20, 20) } });
+        new naver.Marker({ map, position: path[path.length - 1], icon: { url: circleMarkerDataUri("#ef4444"), size: new naver.Size(20, 20) } });
 
         const bounds = new naver.LatLngBounds(path[0], path[path.length - 1]);
         for (const ll of path) {
@@ -64,4 +69,6 @@ type NaverMapsApi = {
   LatLng: new (lat: number, lon: number) => object;
   LatLngBounds: new (a: object, b: object) => { extend: (ll: object) => void };
   Polyline: new (opts: { map: object; path: object[]; strokeColor: string; strokeWeight: number }) => object;
+  Marker: new (opts: { map: object; position: object; icon: { url: string; size: object } }) => object;
+  Size: new (width: number, height: number) => object;
 };

@@ -11,7 +11,7 @@ import { SettingsBar } from "../settings-bar";
 import { PushNotificationSettings } from "../../components/PushNotificationSettings";
 
 export default function ProfilePage() {
-  const { user, requireAuth, isAdmin } = useAuth();
+  const { user, requireAuth } = useAuth();
   const { locale, setLocale, distanceUnit, setDistanceUnit, currency, setCurrency, t } = useSettings();
   const { showToast } = useToast();
   const router = useRouter();
@@ -179,22 +179,6 @@ export default function ProfilePage() {
           </select>
         </div>
       </div>
-
-      {isAdmin && (
-        <>
-          <h3 style={{ marginTop: 28, marginBottom: 12, fontSize: 15, borderBottom: "1px solid #eee", paddingBottom: 6 }}>
-            🛠️ {t("adminMenuHeading")}
-          </h3>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, maxWidth: 400, marginBottom: 24 }}>
-            <Link href="/vehicles" className="nav-btn-premium" style={{ height: 44, display: "flex", alignItems: "center" }}>
-              {t("manageVehicles")}
-            </Link>
-            <Link href="/integrations" className="nav-btn-premium" style={{ height: 44, display: "flex", alignItems: "center" }}>
-              {t("navIntegrations")}
-            </Link>
-          </div>
-        </>
-      )}
 
       <PushNotificationSettings />
     </main>

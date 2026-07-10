@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
@@ -19,6 +19,19 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   const { t } = useSettings();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!settingsMenuOpen) return;
+    function handleOutsideClick(e: MouseEvent) {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(e.target as Node)) {
+        setSettingsMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [settingsMenuOpen]);
 
   useEffect(() => {
     requireAuth();
@@ -87,6 +100,59 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                 </option>
               ))}
             </select>
+          )}
+          {isAdmin && (
+            <div ref={settingsMenuRef} style={{ position: "relative", flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setSettingsMenuOpen((v) => !v)}
+                aria-label={t("vehicleManagementHeading")}
+                style={{
+                  width: 36,
+                  height: 36,
+                  minHeight: 36,
+                  padding: 0,
+                  fontSize: 16,
+                  background: settingsMenuOpen ? "#18523f" : "#eee",
+                  color: settingsMenuOpen ? "#fff" : "#333",
+                  borderRadius: 8,
+                  border: "none",
+                }}
+              >
+                ⚙️
+              </button>
+              {settingsMenuOpen && (
+                <div
+                  style={{
+                    position: "absolute",
+                    top: "calc(100% + 4px)",
+                    right: 0,
+                    zIndex: 10,
+                    background: "#fff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: 8,
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                    minWidth: 160,
+                    overflow: "hidden",
+                  }}
+                >
+                  <Link
+                    href={`${basePath}/access`}
+                    onClick={() => setSettingsMenuOpen(false)}
+                    style={{ display: "block", padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none" }}
+                  >
+                    🔒 {t("navAccess")}
+                  </Link>
+                  <Link
+                    href={`${basePath}/integration`}
+                    onClick={() => setSettingsMenuOpen(false)}
+                    style={{ display: "block", padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none", borderTop: "1px solid #f0f0f0" }}
+                  >
+                    🔌 {t("navIntegration")}
+                  </Link>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}

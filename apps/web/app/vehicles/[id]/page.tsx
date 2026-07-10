@@ -319,7 +319,10 @@ export default function VehicleOverviewPage() {
                     <Link href={`/vehicles/${vehicleId}/schedule`} style={{ fontSize: 12, fontWeight: "500", textDecoration: "underline", color: textColor }}>
                       {t("reminderGoSchedule")}
                     </Link>
-                    <Link href={`/vehicles/${vehicleId}/quick-log`} style={{ fontSize: 12, fontWeight: "500", textDecoration: "underline", color: textColor }}>
+                    <Link
+                      href={`/vehicles/${vehicleId}/quick-log?tab=maintenance&type=${encodeURIComponent(r.type)}`}
+                      style={{ fontSize: 12, fontWeight: "500", textDecoration: "underline", color: textColor }}
+                    >
                       {t("reminderGoQuickLog")}
                     </Link>
                   </div>
@@ -357,7 +360,7 @@ export default function VehicleOverviewPage() {
 
       <section className="card" style={{ marginTop: 20 }}>
         <h2 style={{ margin: "0 0 8px", fontSize: 16 }}>{t("monthlyCostSummary")}</h2>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(140px, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
           <div>
             <div style={{ fontSize: 12, color: "#666" }}>{t("monthlyFuelCost")}</div>
             <strong>{formatCurrency(monthFuelCost)}</strong>

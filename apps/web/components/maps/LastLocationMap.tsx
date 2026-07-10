@@ -27,7 +27,7 @@ function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
       center={[lat, lon]}
       zoom={16}
       style={{ height: "100%", width: "100%", zIndex: 1 }}
-      scrollWheelZoom={false}
+      scrollWheelZoom={true}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
