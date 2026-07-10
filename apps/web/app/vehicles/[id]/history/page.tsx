@@ -15,9 +15,16 @@ import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
 import { CategoryBadge } from "../../../../components/CategoryBadge";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
-import { pickDefaultProvider } from "../../../../lib/maps/types";
+import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/maps/types";
 import type { SpeedPoint } from "../../../../lib/maps/polyline";
 import { decodeRoute } from "../../../../lib/maps/polyline";
+import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon } from "../../../../components/icons";
+import dynamic from "next/dynamic";
+
+const LastLocationMap = dynamic(
+  () => import("../../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
+  { ssr: false },
+);
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type FuelEfficiency = {
@@ -32,6 +39,7 @@ export default function HistoryPage() {
   const { t, formatDistance, formatCurrency, formatDateTime } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
+  const mapConfig = useMapProviders();
 
   const CHUNK_SIZE = 5;
 
@@ -181,7 +189,7 @@ export default function HistoryPage() {
       </div>
 
       {subTab === "trips" && (
-        <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} formatDateTime={formatDateTime} />
+        <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} formatDateTime={formatDateTime} mapConfig={mapConfig} />
       )}
 
       {subTab === "fuel" && (
@@ -203,6 +211,7 @@ export default function HistoryPage() {
                     formatCurrency={formatCurrency}
                     showToast={showToast}
                     confirm={confirm}
+                    mapConfig={mapConfig}
                   />
                 ))}
               </ul>
@@ -332,6 +341,7 @@ function FuelLogRow({
   formatCurrency,
   showToast,
   confirm,
+  mapConfig,
 }: {
   vehicleId: string;
   log: FuelLog;
@@ -341,6 +351,7 @@ function FuelLogRow({
   formatCurrency: (amount: number) => string;
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
+  mapConfig: MapProvidersConfig;
 }) {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(log.date.slice(0, 10));
@@ -350,6 +361,8 @@ function FuelLogRow({
   const [fullTank, setFullTank] = useState(log.fullTank);
   const [location, setLocation] = useState(log.location || "");
   const [submitting, setSubmitting] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+  const mapProvider = pickDefaultProvider(mapConfig);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -451,10 +464,10 @@ function FuelLogRow({
           {log.location && <span style={{ fontSize: 13, color: "#666", marginLeft: 8 }}>({log.location})</span>}
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button type="button" onClick={() => setEditing(true)}>
+          <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
             {t("edit")}
           </button>
-          <button type="button" onClick={handleDelete}>
+          <button type="button" className="btn-danger" onClick={handleDelete}>
             {t("delete")}
           </button>
         </span>
@@ -464,6 +477,7 @@ function FuelLogRow({
           <span style={{
             display: "inline-flex",
             alignItems: "center",
+            gap: 4,
             padding: "3px 6px",
             fontSize: 11,
             fontWeight: "600",
@@ -472,11 +486,12 @@ function FuelLogRow({
             border: "1px solid #bbf7d0",
             borderRadius: 6,
           }}>
-            🌱 {t("fuelEfficiencyKmPerLiter", { value: efficiency.kmPerLiter.toFixed(1) })}
+            <LeafIcon /> {t("fuelEfficiencyKmPerLiter", { value: efficiency.kmPerLiter.toFixed(1) })}
           </span>
           <span style={{
             display: "inline-flex",
             alignItems: "center",
+            gap: 4,
             padding: "3px 6px",
             fontSize: 11,
             fontWeight: "500",
@@ -485,11 +500,12 @@ function FuelLogRow({
             border: "1px solid #e5e7eb",
             borderRadius: 6,
           }}>
-            📊 {efficiency.litersPer100Km.toFixed(1)} L/100km
+            <BarChartIcon /> {efficiency.litersPer100Km.toFixed(1)} L/100km
           </span>
           <span style={{
             display: "inline-flex",
             alignItems: "center",
+            gap: 4,
             padding: "3px 6px",
             fontSize: 11,
             fontWeight: "500",
@@ -498,21 +514,55 @@ function FuelLogRow({
             border: "1px solid #bfdbfe",
             borderRadius: 6,
           }}>
-            🛣️ {efficiency.distanceKm.toFixed(0)}km {t("historyTabTrips")}
+            <RouteIcon /> {efficiency.distanceKm.toFixed(0)}km {t("historyTabTrips")}
           </span>
         </div>
       )}
       {log.address && <div style={{ fontSize: 12, color: "#666" }}>{log.address}</div>}
       {log.latitude !== null && log.longitude !== null && log.location && (
-        <NavLaunchButtons
-          destination={{ lat: log.latitude, lon: log.longitude, name: log.location }}
-          heading={t("navLaunchHeading")}
-          labels={{
-            tmap: t("navLaunchTmap"),
-            kakao: t("navLaunchKakao"),
-            naver: t("navLaunchNaver"),
-          }}
-        />
+        <>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <NavLaunchButtons
+              destination={{ lat: log.latitude, lon: log.longitude, name: log.location }}
+              heading={t("navLaunchHeading")}
+              labels={{
+                tmap: t("navLaunchTmap"),
+                kakao: t("navLaunchKakao"),
+                naver: t("navLaunchNaver"),
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              style={{
+                minHeight: 36,
+                fontSize: 13,
+                padding: "0 10px",
+                background: showMap ? "#18523f" : "#fff",
+                color: showMap ? "#fff" : "#18523f",
+                border: "1px solid #e2e8f0",
+                borderRadius: 8,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              <MapPinIcon size={14} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+            </button>
+          </div>
+          {showMap && (
+            <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
+              <LastLocationMap
+                lat={log.latitude}
+                lon={log.longitude}
+                provider={mapProvider}
+                kakaoAppKey={mapConfig.kakaoAppKey}
+                naverClientId={mapConfig.naverClientId}
+                tmapAppKey={mapConfig.tmapAppKey}
+              />
+            </div>
+          )}
+        </>
       )}
       <AttachmentList attachments={log.attachments} />
     </li>
@@ -554,8 +604,8 @@ function AttachmentList({ attachments }: { attachments: { id: string; filePath: 
                 style={{ width: 60, height: 60, objectFit: "cover" }}
               />
             ) : (
-              <span style={{ fontSize: 11, color: "#666", padding: "8px 12px" }}>
-                📄 PDF
+              <span style={{ fontSize: 11, color: "#666", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <FileTextIcon /> PDF
               </span>
             )}
           </a>
@@ -769,10 +819,10 @@ function MaintenanceRow({
           </span>
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button type="button" onClick={() => setEditing(true)}>
+          <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
             {t("edit")}
           </button>
-          <button type="button" onClick={handleDelete}>
+          <button type="button" className="btn-danger" onClick={handleDelete}>
             {t("delete")}
           </button>
         </span>
@@ -794,11 +844,13 @@ function TripSection({
   t,
   formatDistance,
   formatDateTime,
+  mapConfig,
 }: {
   vehicleId: string;
   t: Translator;
   formatDistance: (km: number) => string;
   formatDateTime: (iso: string) => string;
+  mapConfig: MapProvidersConfig;
 }) {
   const CHUNK_SIZE = 5;
   const [period, setPeriod] = useState<"week" | "month">("week");
@@ -808,7 +860,6 @@ function TripSection({
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [tripPointsCache, setTripPointsCache] = useState<Record<string, SpeedPoint[]>>({});
-  const mapConfig = useMapProviders();
   const [mapProvider, setMapProvider] = useState<MapProvider>("osm");
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
 

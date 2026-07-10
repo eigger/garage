@@ -10,6 +10,15 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#ffffff",
     theme_color: "#18523f",
     orientation: "portrait",
+    shortcuts: [
+      {
+        name: "빠른 입력",
+        short_name: "빠른 입력",
+        description: "주유/정비 빠른 입력으로 바로 이동",
+        url: "/?shortcut=quick-log",
+        icons: [{ src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+      },
+    ],
     icons: [
       {
         src: "/icons/icon-192.png",

@@ -8,6 +8,8 @@ import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { SettingsBar } from "../../settings-bar";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
+import { setLastVehicleId } from "../../../lib/lastVehicle";
+import { SettingsGearIcon, LockIcon, LinkIcon } from "../../../components/icons";
 import type { Vehicle } from "../../../lib/types";
 
 export default function VehicleLayout({ children }: { children: ReactNode }) {
@@ -36,6 +38,12 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     requireAuth();
   }, [authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // PWA 홈 화면 숏컷("빠른 입력")이 어느 차량으로 이동할지 알 수 있도록 마지막으로
+  // 둘러본 차량을 기억해둔다.
+  useEffect(() => {
+    if (vehicleId) setLastVehicleId(vehicleId);
+  }, [vehicleId]);
 
   useEffect(() => {
     if (!user) return;
@@ -112,14 +120,16 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                   height: 36,
                   minHeight: 36,
                   padding: 0,
-                  fontSize: 16,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                   background: settingsMenuOpen ? "#18523f" : "#eee",
                   color: settingsMenuOpen ? "#fff" : "#333",
                   borderRadius: 8,
                   border: "none",
                 }}
               >
-                ⚙️
+                <SettingsGearIcon />
               </button>
               {settingsMenuOpen && (
                 <div
@@ -139,16 +149,16 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                   <Link
                     href={`${basePath}/access`}
                     onClick={() => setSettingsMenuOpen(false)}
-                    style={{ display: "block", padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none" }}
                   >
-                    🔒 {t("navAccess")}
+                    <LockIcon /> {t("navAccess")}
                   </Link>
                   <Link
                     href={`${basePath}/integration`}
                     onClick={() => setSettingsMenuOpen(false)}
-                    style={{ display: "block", padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none", borderTop: "1px solid #f0f0f0" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none", borderTop: "1px solid #f0f0f0" }}
                   >
-                    🔌 {t("navIntegration")}
+                    <LinkIcon /> {t("navIntegration")}
                   </Link>
                 </div>
               )}

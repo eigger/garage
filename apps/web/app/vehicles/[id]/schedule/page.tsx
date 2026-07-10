@@ -10,40 +10,13 @@ import type { ConsumablePart, RecordCategory } from "../../../../lib/types";
 import { CategoryBadge } from "../../../../components/CategoryBadge";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
+import { resolveCatalogKey } from "@garage/shared";
+import { computeScheduleStatus, type ScheduleStatus } from "../../../../lib/scheduleStatus";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
-type Status = "due" | "upcoming" | "ok";
-
-function addMonths(date: Date, months: number): Date {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + months);
-  return d;
-}
-
-function computeStatus(
-  part: ConsumablePart,
-  currentOdometer: number,
-): { status: Status; remainingKm: number | null; dueDate: Date | null } {
-  const dueOdometer = part.expectedLifeKm ? part.installedOdometer + part.expectedLifeKm : null;
-  const dueDate = part.expectedLifeMonths
-    ? addMonths(new Date(part.installedDate), part.expectedLifeMonths)
-    : null;
-
-  const remainingKm = dueOdometer !== null ? dueOdometer - currentOdometer : null;
-  const remainingDays = dueDate !== null ? (dueDate.getTime() - Date.now()) / 86400000 : null;
-
-  const isDue = (remainingKm !== null && remainingKm <= 0) || (remainingDays !== null && remainingDays <= 0);
-  const isUpcoming =
-    !isDue &&
-    ((remainingKm !== null && remainingKm <= 1000) || (remainingDays !== null && remainingDays <= 30));
-
-  return {
-    status: isDue ? "due" : isUpcoming ? "upcoming" : "ok",
-    remainingKm,
-    dueDate,
-  };
-}
+type Status = ScheduleStatus;
+const computeStatus = computeScheduleStatus;
 
 function StatusBadge({ status, t }: { status: Status; t: Translator }) {
   const styles: Record<Status, { bg: string; color: string; label: TranslationKey }> = {
@@ -208,6 +181,7 @@ function ScheduleRow({
   const [completionCost, setCompletionCost] = useState("");
   const [completionShop, setCompletionShop] = useState("");
   const [completionNotes, setCompletionNotes] = useState("");
+  const isCatalog = resolveCatalogKey(part.partType) !== null;
 
   const { status, dueDate } = computeStatus(part, odometer);
 
@@ -265,7 +239,7 @@ function ScheduleRow({
       const res = await apiFetch(`/api/consumable-parts/${part.id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          partType,
+          ...(isCatalog ? {} : { partType }),
           installedDate,
           installedOdometer: Number(installedOdometer),
           expectedLifeKm: expectedLifeKm ? Number(expectedLifeKm) : undefined,
@@ -347,12 +321,16 @@ function ScheduleRow({
     return (
       <li className="list-item">
         <form onSubmit={handleSave} className="form">
-          <input
-            placeholder={t("itemName")}
-            value={partType}
-            onChange={(e) => setPartType(e.target.value)}
-            required
-          />
+          {isCatalog ? (
+            <p style={{ margin: 0, fontWeight: 600 }}>{formatItemLabel(t, part.partType)}</p>
+          ) : (
+            <input
+              placeholder={t("itemName")}
+              value={partType}
+              onChange={(e) => setPartType(e.target.value)}
+              required
+            />
+          )}
           <input
             type="number"
             placeholder={t("intervalKm")}
@@ -500,10 +478,10 @@ function ScheduleRow({
             {t("markDone")}
           </button>
         )}
-        <button type="button" onClick={() => setEditing(true)}>
+        <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
           {t("edit")}
         </button>
-        <button type="button" onClick={handleDelete}>
+        <button type="button" className="btn-danger" onClick={handleDelete}>
           {t("delete")}
         </button>
       </div>

@@ -8,6 +8,7 @@ import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
 import type { Vehicle } from "../../../../lib/types";
+import { SmartphoneIcon, HomeIcon } from "../../../../components/icons";
 
 export default function VehicleIntegrationPage() {
   const params = useParams<{ id: string }>();
@@ -98,7 +99,9 @@ export default function VehicleIntegrationPage() {
         </div>
 
         <div style={{ borderTop: "1px solid #eee", paddingTop: 12 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#18523f" }}>🚗 Torque Pro 앱 연동 방법</h3>
+          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#18523f", display: "flex", alignItems: "center", gap: 6 }}>
+            <SmartphoneIcon /> Torque Pro 앱 연동 방법
+          </h3>
           <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: "1.6", color: "#444" }}>
             <li>Torque Pro 앱 설정 &gt; <code>Web Queue / OBD Web Server</code> 메뉴로 이동합니다.</li>
             <li><code>Send data to web server</code>를 활성화합니다.</li>
@@ -111,7 +114,9 @@ export default function VehicleIntegrationPage() {
         </div>
 
         <div style={{ borderTop: "1px solid #eee", paddingTop: 12 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#18523f" }}>🏡 Home Assistant (HA) / 범용 REST API 연동</h3>
+          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#18523f", display: "flex", alignItems: "center", gap: 6 }}>
+            <HomeIcon /> Home Assistant (HA) / 범용 REST API 연동
+          </h3>
           <p style={{ margin: "0 0 8px", fontSize: 13, color: "#444" }}>
             아래의 HTTP POST 규격으로 차량 주행 텔레메트리 정보를 실시간으로 인제스트할 수 있습니다:
           </p>

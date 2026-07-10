@@ -5,6 +5,55 @@ import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { MapProvider } from "@garage/shared";
 import { loadKakaoMaps, loadNaverMaps, loadTmapSdk } from "../../lib/maps/loadSdk";
+import { useSettings } from "../../lib/i18n/settings-context";
+
+const DEFAULT_ZOOM = 16;
+
+function RecenterIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  );
+}
+
+function RecenterButton({ onClick }: { onClick: () => void }) {
+  const { t } = useSettings();
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={t("recenterMap")}
+      aria-label={t("recenterMap")}
+      style={{
+        position: "absolute",
+        top: 10,
+        right: 10,
+        zIndex: 1000,
+        width: 36,
+        height: 36,
+        minHeight: 36,
+        padding: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "#fff",
+        color: "#18523f",
+        border: "1px solid #d0d0d0",
+        borderRadius: 8,
+        boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
+      }}
+    >
+      <RecenterIcon />
+    </button>
+  );
+}
+
+function LeafletRecenterControl({ lat, lon }: { lat: number; lon: number }) {
+  const map = useMap();
+  return <RecenterButton onClick={() => map.setView([lat, lon], DEFAULT_ZOOM)} />;
+}
 
 function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
   const [markerIcon, setMarkerIcon] = useState<any>(null);
@@ -35,7 +84,7 @@ function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
   return (
     <MapContainer
       center={[lat, lon]}
-      zoom={16}
+      zoom={DEFAULT_ZOOM}
       style={{ height: "100%", width: "100%", zIndex: 1 }}
       scrollWheelZoom={true}
     >
@@ -46,13 +95,16 @@ function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
       {markerIcon && (
         <Marker position={[lat, lon]} icon={markerIcon} />
       )}
+      <LeafletRecenterControl lat={lat} lon={lon} />
     </MapContainer>
   );
 }
 
 function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -71,11 +123,13 @@ function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appK
           center: position,
           level: 3,
         });
+        mapRef.current = map;
 
         const marker = new kakao.Marker({
           position,
         });
         marker.setMap(map);
+        setReady(true);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -86,13 +140,27 @@ function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appK
     };
   }, [appKey, lat, lon]);
 
+  function handleRecenter() {
+    const kakao = (window as any).kakao?.maps;
+    if (!kakao || !mapRef.current) return;
+    mapRef.current.setCenter(new kakao.LatLng(lat, lon));
+    mapRef.current.setLevel(3);
+  }
+
   if (error) return <p style={{ fontSize: 13, color: "#a12a24", margin: 8 }}>{error}</p>;
-  return <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />;
+  return (
+    <div style={{ position: "relative", height: "100%", width: "100%" }}>
+      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />
+      {ready && <RecenterButton onClick={handleRecenter} />}
+    </div>
+  );
 }
 
 function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; clientId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -109,13 +177,15 @@ function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; cl
         const position = new naver.LatLng(lat, lon);
         const map = new naver.Map(el, {
           center: position,
-          zoom: 16,
+          zoom: DEFAULT_ZOOM,
         });
+        mapRef.current = map;
 
         new naver.Marker({
           position,
           map,
         });
+        setReady(true);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -126,13 +196,27 @@ function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; cl
     };
   }, [clientId, lat, lon]);
 
+  function handleRecenter() {
+    const naver = (window as any).naver?.maps;
+    if (!naver || !mapRef.current) return;
+    mapRef.current.setCenter(new naver.LatLng(lat, lon));
+    mapRef.current.setZoom(DEFAULT_ZOOM);
+  }
+
   if (error) return <p style={{ fontSize: 13, color: "#a12a24", margin: 8 }}>{error}</p>;
-  return <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />;
+  return (
+    <div style={{ position: "relative", height: "100%", width: "100%" }}>
+      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />
+      {ready && <RecenterButton onClick={handleRecenter} />}
+    </div>
+  );
 }
 
 function TmapLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -151,13 +235,15 @@ function TmapLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKe
           center: position,
           width: "100%",
           height: "100%",
-          zoom: 16,
+          zoom: DEFAULT_ZOOM,
         });
+        mapRef.current = map;
 
         new Tmapv2.Marker({
           position,
           map,
         });
+        setReady(true);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -168,8 +254,20 @@ function TmapLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKe
     };
   }, [appKey, lat, lon]);
 
+  function handleRecenter() {
+    const Tmapv2 = (window as any).Tmapv2;
+    if (!Tmapv2 || !mapRef.current) return;
+    mapRef.current.setCenter(new Tmapv2.LatLng(lat, lon));
+    mapRef.current.setZoom(DEFAULT_ZOOM);
+  }
+
   if (error) return <p style={{ fontSize: 13, color: "#a12a24", margin: 8 }}>{error}</p>;
-  return <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />;
+  return (
+    <div style={{ position: "relative", height: "100%", width: "100%" }}>
+      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />
+      {ready && <RecenterButton onClick={handleRecenter} />}
+    </div>
+  );
 }
 
 type LastLocationMapProps = {

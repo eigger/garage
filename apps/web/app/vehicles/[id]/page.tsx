@@ -14,18 +14,14 @@ import { formatItemLabel } from "../../../lib/i18n/itemLabel";
 import { FUEL_TYPES } from "@garage/shared";
 import { useMapProviders } from "../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../lib/maps/types";
+import { countScheduleStatuses } from "../../../lib/scheduleStatus";
+import { AlertIcon, PaperclipIcon, MapPinIcon } from "../../../components/icons";
 import dynamic from "next/dynamic";
 
 const LastLocationMap = dynamic(
   () => import("../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
   { ssr: false }
 );
-
-function addMonths(date: Date, months: number): Date {
-  const d = new Date(date);
-  d.setMonth(d.getMonth() + months);
-  return d;
-}
 
 function formatRelativeTime(dateStr: string, t: any): string {
   const now = new Date();
@@ -128,22 +124,7 @@ export default function VehicleOverviewPage() {
     if (partsRes.ok && odoRes.ok) {
       const parts: ConsumablePart[] = await partsRes.json();
       const odometer = (await odoRes.json()).odometer as number;
-      let due = 0;
-      let upcoming = 0;
-      for (const part of parts) {
-        const dueOdometer = part.expectedLifeKm ? part.installedOdometer + part.expectedLifeKm : null;
-        const dueDate = part.expectedLifeMonths
-          ? addMonths(new Date(part.installedDate), part.expectedLifeMonths)
-          : null;
-        const remainingKm = dueOdometer !== null ? dueOdometer - odometer : null;
-        const remainingDays = dueDate !== null ? (dueDate.getTime() - Date.now()) / 86400000 : null;
-        const isDue = (remainingKm !== null && remainingKm <= 0) || (remainingDays !== null && remainingDays <= 0);
-        const isUpcoming =
-          !isDue &&
-          ((remainingKm !== null && remainingKm <= 1000) || (remainingDays !== null && remainingDays <= 30));
-        if (isDue) due++;
-        else if (isUpcoming) upcoming++;
-      }
+      const { due, upcoming } = countScheduleStatuses(parts, odometer);
       setDueCount(due);
       setUpcomingCount(upcoming);
     }
@@ -259,8 +240,8 @@ export default function VehicleOverviewPage() {
 
       {reminders.length > 0 && (
         <section style={{ marginBottom: 16 }}>
-          <strong style={{ fontSize: 15, color: "#1f2937", display: "block", marginBottom: 8 }}>
-            🚨 {t("reminderBannerTitle", { count: reminders.length })}
+          <strong style={{ fontSize: 15, color: "#1f2937", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <AlertIcon size={16} filled /> {t("reminderBannerTitle", { count: reminders.length })}
           </strong>
           <ul className="list" style={{ marginTop: 8 }}>
             {reminders.map((r) => {
@@ -285,7 +266,7 @@ export default function VehicleOverviewPage() {
                   }}
                 >
                   <span style={{ fontWeight: "600", display: "flex", alignItems: "flex-start", gap: 6, lineHeight: "1.4" }}>
-                    <span style={{ flexShrink: 0 }}>{r.isDue ? "🚨" : "⚠️"}</span>
+                    <span style={{ flexShrink: 0 }}><AlertIcon size={16} filled={r.isDue} /></span>
                     <span style={{ wordBreak: "break-all" }}>
                       {formatItemLabel(t, r.type)}
                       {r.dueOdometer !== null && (
@@ -534,9 +515,9 @@ export default function VehicleOverviewPage() {
                     href={`${API_URL}/api/attachments/file/${regCertificate.filePath}${getToken() ? `?token=${getToken()}` : ""}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#18523f", textDecoration: "underline", fontWeight: "600" }}
+                    style={{ color: "#18523f", textDecoration: "underline", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: 4 }}
                   >
-                    📎 {t("registrationCertificate")} ({regCertificate.mimeType.split("/")[1]?.toUpperCase() || "FILE"})
+                    <PaperclipIcon /> {t("registrationCertificate")} ({regCertificate.mimeType.split("/")[1]?.toUpperCase() || "FILE"})
                   </a>
                 ) : (
                   <span style={{ color: "#999" }}>미등록 (Not registered)</span>
@@ -550,7 +531,7 @@ export default function VehicleOverviewPage() {
       {vehicle && vehicle.latitude !== null && vehicle.latitude !== undefined && vehicle.longitude !== null && vehicle.longitude !== undefined && (
         <section className="card" style={{ marginTop: 16 }}>
           <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span>📍 {t("lastKnownLocation")}</span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><MapPinIcon /> {t("lastKnownLocation")}</span>
             {vehicle.locationUpdatedAt && (
               <span style={{ fontSize: 12, fontWeight: "normal", color: "#666" }}>
                 {t("locationUpdatedAtLabel", {

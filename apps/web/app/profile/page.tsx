@@ -11,6 +11,7 @@ import { SettingsBar } from "../settings-bar";
 import { PushNotificationSettings } from "../../components/PushNotificationSettings";
 import { useMapProviders } from "../../lib/maps/useMapProviders";
 import { isMapProvider, MAP_PROVIDER_STORAGE_KEY } from "../../lib/maps/types";
+import { SettingsGearIcon, CheckIcon, XIcon } from "../../components/icons";
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
@@ -151,16 +152,24 @@ export default function ProfilePage() {
           />
         </div>
 
-        {message && <p style={{ color: "green", fontSize: 14, margin: "12px 0 0" }}>✓ {message}</p>}
-        {error && <p style={{ color: "red", fontSize: 14, margin: "12px 0 0" }}>✗ {error}</p>}
+        {message && (
+          <p style={{ color: "green", fontSize: 14, margin: "12px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+            <CheckIcon /> {message}
+          </p>
+        )}
+        {error && (
+          <p style={{ color: "red", fontSize: 14, margin: "12px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+            <XIcon /> {error}
+          </p>
+        )}
 
         <button type="submit" disabled={submitting} style={{ marginTop: 20 }}>
           {submitting ? t("saving") : t("save")}
         </button>
       </form>
 
-      <h3 style={{ marginTop: 28, marginBottom: 12, fontSize: 15, borderBottom: "1px solid #eee", paddingBottom: 6 }}>
-        ⚙️ {t("preferences")}
+      <h3 style={{ marginTop: 28, marginBottom: 12, fontSize: 15, borderBottom: "1px solid #eee", paddingBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+        <SettingsGearIcon /> {t("preferences")}
       </h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 400, marginBottom: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>

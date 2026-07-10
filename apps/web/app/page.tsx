@@ -1,23 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "../lib/api";
 import { useSettings } from "../lib/i18n/settings-context";
 import { useAuth } from "../lib/auth-context";
 import { SettingsBar } from "./settings-bar";
 import { formatItemLabel } from "../lib/i18n/itemLabel";
-import type { FuelLog, Reminder, TripSummary, Vehicle } from "../lib/types";
+import { getLastVehicleId } from "../lib/lastVehicle";
+import { countScheduleStatuses } from "../lib/scheduleStatus";
+import { AlertIcon } from "../components/icons";
+import type { ConsumablePart, FuelLog, Reminder, TripSummary, Vehicle } from "../lib/types";
 
 type VehicleCardSummary = {
   odometer: number | null;
   weeklyDistanceKm: number | null;
   lastFuelCost: number | null;
+  dueCount: number;
+  upcomingCount: number;
 };
 
 export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeInner />
+    </Suspense>
+  );
+}
+
+function HomeInner() {
   const { user, loading: authLoading, requireAuth, logout } = useAuth();
   const { t, formatDistance, formatCurrency } = useSettings();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [vehicleSummary, setVehicleSummary] = useState<Record<string, VehicleCardSummary>>({});
@@ -37,20 +53,35 @@ export default function Home() {
       ]);
       const loadedVehicles = (await vehiclesRes.json()) as Vehicle[];
       const loadedReminders = (await remindersRes.json()) as Reminder[];
+
+      // PWA 홈 화면 숏컷("빠른 입력")으로 들어온 경우, 마지막으로 둘러본 차량(없으면 첫 차량)의
+      // 빠른 입력 화면으로 바로 이동시킨다.
+      if (searchParams.get("shortcut") === "quick-log" && loadedVehicles.length > 0) {
+        const lastId = getLastVehicleId();
+        const target = loadedVehicles.find((v) => v.id === lastId) ?? loadedVehicles[0];
+        router.replace(`/vehicles/${target.id}/quick-log`);
+        return;
+      }
+
       setVehicles(loadedVehicles);
       setReminders(loadedReminders);
 
       const summaries = await Promise.all(
         loadedVehicles.map(async (vehicle) => {
-          const [odometerRes, tripSummaryRes, fuelRes] = await Promise.all([
+          const [odometerRes, tripSummaryRes, fuelRes, partsRes] = await Promise.all([
             apiFetch(`/api/vehicles/${vehicle.id}/odometer`),
             apiFetch(`/api/trips/summary?vehicleId=${vehicle.id}&period=week`),
             apiFetch(`/api/vehicles/${vehicle.id}/fuel-logs?limit=1`),
+            apiFetch(`/api/consumable-parts?vehicleId=${vehicle.id}`),
           ]);
 
           const odometer = odometerRes.ok ? ((await odometerRes.json()) as { odometer: number }).odometer : null;
           const tripSummary = tripSummaryRes.ok ? ((await tripSummaryRes.json()) as TripSummary) : null;
           const fuelLogs = fuelRes.ok ? ((await fuelRes.json()) as FuelLog[]) : [];
+          const parts = partsRes.ok ? ((await partsRes.json()) as ConsumablePart[]) : [];
+          // 정비 스케줄 화면과 동일한 기준(1000km/30일 이내=임박)으로 계산해야
+          // 대시보드와 스케줄 화면의 지남/임박 건수가 항상 일치한다.
+          const { due, upcoming } = countScheduleStatuses(parts, odometer ?? 0);
 
           return [
             vehicle.id,
@@ -58,6 +89,8 @@ export default function Home() {
               odometer,
               weeklyDistanceKm: tripSummary?.totalDistanceKm ?? null,
               lastFuelCost: fuelLogs[0]?.cost ?? null,
+              dueCount: due,
+              upcomingCount: upcoming,
             },
           ] as const;
         }),
@@ -100,8 +133,8 @@ export default function Home() {
 
       {dueReminders.length > 0 && (
         <section style={{ marginBottom: 16 }}>
-          <strong style={{ fontSize: 15, color: "#1f2937", display: "block", marginBottom: 8 }}>
-            🚨 {t("reminderBannerTitle", { count: dueReminders.length })}
+          <strong style={{ fontSize: 15, color: "#1f2937", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+            <AlertIcon size={16} filled /> {t("reminderBannerTitle", { count: dueReminders.length })}
           </strong>
           <ul className="list" style={{ marginTop: 8 }}>
             {dueReminders.map((r) => {
@@ -127,7 +160,7 @@ export default function Home() {
                   }}
                 >
                   <span style={{ fontWeight: "500", display: "flex", alignItems: "center", gap: 6 }}>
-                    <span>{r.isDue ? "🚨" : "⚠️"}</span>
+                    <AlertIcon size={16} filled={r.isDue} />
                     <span>
                       {t("reminderItemDue", { vehicle: r.vehicleName, type: formatItemLabel(t, r.type) })}
                       {r.dueOdometer !== null && (
@@ -193,8 +226,8 @@ export default function Home() {
             <li key={v.id} className="list-item">
               {(() => {
                 const stats = vehicleSummary[v.id];
-                const dueCount = reminders.filter((r) => r.vehicleId === v.id && r.isDue).length;
-                const upcomingCount = reminders.filter((r) => r.vehicleId === v.id && !r.isDue).length;
+                const dueCount = stats?.dueCount ?? 0;
+                const upcomingCount = stats?.upcomingCount ?? 0;
                 return (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 <Link href={`/vehicles/${v.id}`}>
@@ -221,13 +254,13 @@ export default function Home() {
                       : "-"}
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: "#a12a24", display: "flex", gap: 8 }}>
-                  <span>
+                <div style={{ fontSize: 12, display: "flex", gap: 8 }}>
+                  <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#a12a24" }}>
                     {t("dashboardDueCount", { count: dueCount })}
-                  </span>
-                  <span style={{ color: "#8b6d1e" }}>
+                  </Link>
+                  <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#8b6d1e" }}>
                     {t("dashboardUpcomingCount", { count: upcomingCount })}
-                  </span>
+                  </Link>
                 </div>
               </div>
                 );

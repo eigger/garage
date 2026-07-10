@@ -274,10 +274,10 @@ function PresetRow({
         {preset.intervalMonths ? ` · ${preset.intervalMonths}${t("months")}` : ""}
       </span>
       <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-        <button type="button" onClick={() => setEditing(true)}>
+        <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
           {t("edit")}
         </button>
-        <button type="button" onClick={handleDelete}>
+        <button type="button" className="btn-danger" onClick={handleDelete}>
           {t("delete")}
         </button>
       </span>

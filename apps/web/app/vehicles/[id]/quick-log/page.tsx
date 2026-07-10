@@ -10,6 +10,7 @@ import type { RecordCategory } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
+import { AlertIcon, TrashIcon } from "../../../../components/icons";
 import type { OpinetStationSummary } from "@garage/shared";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
@@ -77,11 +78,10 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const [cost, setCost] = useState("");
   const [showMore, setShowMore] = useState(false);
   const [date, setDate] = useState(today());
-  const [fullTank, setFullTank] = useState(false);
+  const [fullTank, setFullTank] = useState(true);
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [baseOdometer, setBaseOdometer] = useState<number>(0);
@@ -248,7 +248,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       return;
     }
     setSubmitting(true);
-    setSaved(false);
     try {
       const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs`, {
         method: "POST",
@@ -287,7 +286,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         setFullTank(true);
         setFile(null);
         setFileKey(Date.now());
-        setSaved(true);
         showToast(t("toastSaved"), "success");
       } else {
         showToast(t("toastError"), "error");
@@ -313,8 +311,8 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         </span>
       </div>
       {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
-        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500" }}>
-          ⚠️ {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
+        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
+          <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
         </p>
       )}
 
@@ -455,9 +453,13 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             border: "1px solid #fde2e2",
             borderRadius: 4,
             cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 4,
           }}
         >
-          🗑️ {isKo ? "지우기" : "Clear"}
+          <TrashIcon size={13} /> {isKo ? "지우기" : "Clear"}
         </button>
       </div>
 
@@ -503,7 +505,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         {submitting ? t("saving") : t("save")}
       </button>
       {error && <p className="field-error">{error}</p>}
-      {saved && <p>{t("saved")}</p>}
     </form>
   );
 }
@@ -528,7 +529,6 @@ function QuickMaintenanceForm({
   const [file, setFile] = useState<File | null>(null);
   const [fileKey, setFileKey] = useState(Date.now());
   const [submitting, setSubmitting] = useState(false);
-  const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [baseOdometer, setBaseOdometer] = useState<number>(0);
@@ -580,7 +580,6 @@ function QuickMaintenanceForm({
     }
 
     setSubmitting(true);
-    setSaved(false);
 
     try {
       const res = await apiFetch(`/api/vehicles/${vehicleId}/maintenance-records`, {
@@ -616,7 +615,6 @@ function QuickMaintenanceForm({
         setNotes("");
         setFile(null);
         setFileKey(Date.now());
-        setSaved(true);
         showToast(t("toastSaved"), "success");
 
         // Reload consumable parts to update their schedule indicators
@@ -647,8 +645,8 @@ function QuickMaintenanceForm({
         </span>
       </div>
       {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
-        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500" }}>
-          ⚠️ {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
+        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
+          <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
         </p>
       )}
 
@@ -760,7 +758,6 @@ function QuickMaintenanceForm({
         {submitting ? t("saving") : t("save")}
       </button>
       {error && <p className="field-error">{error}</p>}
-      {saved && <p>{t("saved")}</p>}
     </form>
   );
 }
