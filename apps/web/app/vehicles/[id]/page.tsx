@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetch, uploadFileWithProgress, API_URL } from "../../../lib/api";
+import { apiFetch, uploadFileWithProgress, API_URL, getToken } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { useToast } from "../../../lib/toast-context";
@@ -531,7 +531,7 @@ export default function VehicleOverviewPage() {
                 <strong>{t("registrationCertificate")}:</strong>{" "}
                 {regCertificate ? (
                   <a
-                    href={`${API_URL}/api/attachments/file/${regCertificate.filePath}`}
+                    href={`${API_URL}/api/attachments/file/${regCertificate.filePath}${getToken() ? `?token=${getToken()}` : ""}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ color: "#18523f", textDecoration: "underline", fontWeight: "600" }}
