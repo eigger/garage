@@ -9,12 +9,15 @@ import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
 import { SettingsBar } from "../settings-bar";
 import { PushNotificationSettings } from "../../components/PushNotificationSettings";
+import { useMapProviders } from "../../lib/maps/useMapProviders";
+import { isMapProvider, MAP_PROVIDER_STORAGE_KEY } from "../../lib/maps/types";
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
   const { locale, setLocale, distanceUnit, setDistanceUnit, currency, setCurrency, t } = useSettings();
   const { showToast } = useToast();
   const router = useRouter();
+  const mapConfig = useMapProviders();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,10 +26,25 @@ export default function ProfilePage() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [mapProviderPref, setMapProviderPref] = useState("auto");
 
   useEffect(() => {
     requireAuth();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const saved = localStorage.getItem(MAP_PROVIDER_STORAGE_KEY);
+    setMapProviderPref(saved && isMapProvider(saved) ? saved : "auto");
+  }, []);
+
+  function handleMapProviderChange(value: string) {
+    setMapProviderPref(value);
+    if (value === "auto") {
+      localStorage.removeItem(MAP_PROVIDER_STORAGE_KEY);
+    } else {
+      localStorage.setItem(MAP_PROVIDER_STORAGE_KEY, value);
+    }
+  }
 
   useEffect(() => {
     if (user) {
@@ -176,6 +194,20 @@ export default function ProfilePage() {
           >
             <option value="KRW">₩ KRW</option>
             <option value="USD">$ USD</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("mapProviderLabel")}</label>
+          <select
+            value={mapProviderPref}
+            onChange={(e) => handleMapProviderChange(e.target.value)}
+            style={{ width: "100%", height: 48, minHeight: 48 }}
+          >
+            <option value="auto">{t("mapProviderAuto")}</option>
+            <option value="osm">{t("mapProviderOsm")}</option>
+            {mapConfig.providers.includes("kakao") && <option value="kakao">{t("mapProviderKakao")}</option>}
+            {mapConfig.providers.includes("naver") && <option value="naver">{t("mapProviderNaver")}</option>}
+            {mapConfig.providers.includes("tmap") && <option value="tmap">{t("mapProviderTmap")}</option>}
           </select>
         </div>
       </div>

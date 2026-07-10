@@ -145,7 +145,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       .then((data) => setOpinetConfigured(!!data.configured));
   }, [vehicleId]);
 
-  // 오피넷은 sort=1(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
+  // 오피넷은 sort=2(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
   async function applyStation(station: OpinetStationSummary) {
     setSelectedStationId(station.id);
     setLocation(station.name);

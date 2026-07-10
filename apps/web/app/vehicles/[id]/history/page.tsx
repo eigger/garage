@@ -15,11 +15,7 @@ import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
 import { CategoryBadge } from "../../../../components/CategoryBadge";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
-import {
-  isMapProvider,
-  MAP_PROVIDER_STORAGE_KEY,
-  pickDefaultProvider,
-} from "../../../../lib/maps/types";
+import { pickDefaultProvider } from "../../../../lib/maps/types";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type FuelEfficiency = {
@@ -731,19 +727,6 @@ function TripSection({
     setMapProvider(pickDefaultProvider(mapConfig));
   }, [mapConfig.providers.join(",")]);
 
-  function handleMapProviderChange(value: string) {
-    if (!isMapProvider(value) || !mapConfig.providers.includes(value)) return;
-    setMapProvider(value);
-    localStorage.setItem(MAP_PROVIDER_STORAGE_KEY, value);
-  }
-
-  function mapProviderLabel(provider: MapProvider): string {
-    if (provider === "kakao") return t("mapProviderKakao");
-    if (provider === "naver") return t("mapProviderNaver");
-    if (provider === "tmap") return t("mapProviderTmap");
-    return t("mapProviderOsm");
-  }
-
   async function loadTrips(reset = false) {
     const currentOffset = reset ? 0 : tripOffset;
     const res = await apiFetch(`/api/trips?vehicleId=${vehicleId}&limit=${CHUNK_SIZE}&offset=${currentOffset}`);
@@ -864,24 +847,6 @@ function TripSection({
                   </div>
                   {isSelected && (
                     <div style={{ marginTop: 12 }}>
-                      {mapConfig.providers.length > 1 && (
-                        <div style={{ marginBottom: 8 }}>
-                          <label style={{ fontSize: 12, color: "#666", marginRight: 8 }}>
-                            {t("mapProviderLabel")}
-                          </label>
-                          <select
-                            value={mapProvider}
-                            onChange={(e) => handleMapProviderChange(e.target.value)}
-                            style={{ minHeight: 32, fontSize: 13, padding: "0 8px" }}
-                          >
-                            {mapConfig.providers.map((p) => (
-                              <option key={p} value={p}>
-                                {mapProviderLabel(p)}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
                       {trip.routePolyline ? (
                         <TripRouteMap
                           routePolyline={trip.routePolyline}

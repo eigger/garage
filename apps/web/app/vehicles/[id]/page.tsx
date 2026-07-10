@@ -15,7 +15,6 @@ import { FUEL_TYPES } from "@garage/shared";
 import { useMapProviders } from "../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../lib/maps/types";
 import dynamic from "next/dynamic";
-import { NavLaunchButtons } from "../../../components/NavLaunchButtons";
 
 const LastLocationMap = dynamic(
   () => import("../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
@@ -593,7 +592,7 @@ export default function VehicleOverviewPage() {
             `}</style>
           </div>
 
-          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginBottom: 12 }}>
+          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }}>
             <LastLocationMap
               lat={vehicle.latitude}
               lon={vehicle.longitude}
@@ -603,15 +602,6 @@ export default function VehicleOverviewPage() {
               tmapAppKey={mapConfig.tmapAppKey}
             />
           </div>
-          <NavLaunchButtons
-            destination={{ lat: vehicle.latitude, lon: vehicle.longitude, name: t("lastKnownLocation") }}
-            heading={t("navLaunchHeading")}
-            labels={{
-              tmap: t("navLaunchTmap"),
-              kakao: t("navLaunchKakao"),
-              naver: t("navLaunchNaver"),
-            }}
-          />
         </section>
       )}
     </>
