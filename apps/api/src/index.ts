@@ -7,6 +7,7 @@ import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
 import multipart from "@fastify/multipart";
 import websocket from "@fastify/websocket";
+import rateLimit from "@fastify/rate-limit";
 import { prisma } from "./lib/prisma.js";
 import { authRoutes } from "./routes/auth.js";
 import { vehicleRoutes } from "./routes/vehicles.js";
@@ -65,6 +66,8 @@ await app.register(cors, { origin: true });
 await app.register(jwt, { secret: process.env.JWT_SECRET ?? "dev-secret-change-me" });
 await app.register(multipart, { limits: { fileSize: 20 * 1024 * 1024 } }); // 20MB
 await app.register(websocket);
+// 기본은 전역 미적용 — 무차별 대입 방어가 필요한 로그인 라우트에서만 개별적으로 설정한다.
+await app.register(rateLimit, { global: false });
 
 app.decorate("authenticate", async (request, reply) => {
   try {

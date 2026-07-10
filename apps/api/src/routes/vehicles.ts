@@ -6,12 +6,44 @@ import {
   vehicleAccessSchema,
   fuelLogSchema,
   maintenanceRecordSchema,
+  MAINTENANCE_ITEMS,
+  ADMIN_ITEMS,
+  maintenanceItemLabel,
+  adminItemLabel,
 } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 import { syncReminders } from "../jobs/reminders.js";
+
+const MAX_LIMIT = 1000;
+
+// record.type은 카탈로그 항목(예: "engineOilFilter")이거나 사용자가 직접 입력한 텍스트다.
+// 검색창에는 화면에 보이는 번역된 라벨("엔진오일 교체")을 입력하므로, 저장된 원본 키만
+// contains로 비교하면 카탈로그 항목은 전혀 검색되지 않는다 — ko/en 라벨에 검색어가
+// 포함되는 카탈로그 키를 찾아서 함께 매칭해야 한다.
+function findMatchingCatalogKeys(search: string): string[] {
+  const lower = search.toLowerCase();
+  const keys: string[] = [];
+  for (const key of Object.keys(MAINTENANCE_ITEMS) as (keyof typeof MAINTENANCE_ITEMS)[]) {
+    if (
+      maintenanceItemLabel(key, "ko").toLowerCase().includes(lower) ||
+      maintenanceItemLabel(key, "en").toLowerCase().includes(lower)
+    ) {
+      keys.push(key);
+    }
+  }
+  for (const key of Object.keys(ADMIN_ITEMS) as (keyof typeof ADMIN_ITEMS)[]) {
+    if (
+      adminItemLabel(key, "ko").toLowerCase().includes(lower) ||
+      adminItemLabel(key, "en").toLowerCase().includes(lower)
+    ) {
+      keys.push(key);
+    }
+  }
+  return keys;
+}
 
 // 차량 등록 시 연료타입에 맞는 정비 마스터 프리셋을 그 차량의 관리 항목(ConsumablePart)으로
 // 복사한다. 마지막 시행일/주행거리는 정확히 알 수 없으니 "지금 시점 · 현재 주행거리"로 시작하고
@@ -208,7 +240,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
     const { limit, offset } = request.query as { limit?: string; offset?: string };
-    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const parsedLimit = Math.min(limit ? parseInt(limit, 10) : MAX_LIMIT, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
     return prisma.fuelLog.findMany({
       where: { vehicleId: id },
@@ -322,7 +354,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
       search?: string;
       category?: string;
     };
-    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+    const parsedLimit = Math.min(limit ? parseInt(limit, 10) : MAX_LIMIT, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
     const whereClause: {
       vehicleId: string;
@@ -333,10 +365,12 @@ export async function vehicleRoutes(app: FastifyInstance) {
       whereClause.category = category;
     }
     if (search) {
+      const matchingKeys = findMatchingCatalogKeys(search);
       whereClause.OR = [
         { type: { contains: search, mode: "insensitive" } },
         { shop: { contains: search, mode: "insensitive" } },
         { notes: { contains: search, mode: "insensitive" } },
+        ...(matchingKeys.length > 0 ? [{ type: { in: matchingKeys } }] : []),
       ];
     }
     return prisma.maintenanceRecord.findMany({

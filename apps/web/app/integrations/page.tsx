@@ -22,7 +22,7 @@ type SettingEntry = {
 // 새 연동을 추가할 때는 백엔드 settingKeySchema와 여기 라벨/설명/발급 URL 매핑만 늘리면 된다.
 const SETTING_META: Record<
   string,
-  { labelKey: TranslationKey; helpKey: TranslationKey; signupUrl: string; signupLabelKey: TranslationKey }
+  { labelKey: TranslationKey; helpKey: TranslationKey; signupUrl?: string; signupLabelKey?: TranslationKey }
 > = {
   OPINET_API_KEY: {
     labelKey: "opinetApiKeyLabel",
@@ -48,7 +48,14 @@ const SETTING_META: Record<
     signupUrl: "https://openapi.sk.com/",
     signupLabelKey: "integrationLinkTmap",
   },
+  VAPID_SUBJECT: {
+    labelKey: "vapidSubjectLabel",
+    helpKey: "vapidSubjectHelp",
+  },
 };
+
+// 공개키/개인키는 한 쌍으로 발급돼야 하므로 개별 텍스트 입력이 아니라 전용 카드에서 처리한다.
+const VAPID_KEY_PAIR_KEYS = new Set(["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"]);
 
 export default function IntegrationsPage() {
   const router = useRouter();
@@ -95,17 +102,75 @@ export default function IntegrationsPage() {
       <h1>{t("integrationsHeading")}</h1>
       <p>{t("integrationsIntro")}</p>
 
-      {settings.map((entry) => (
-        <SettingRow
-          key={entry.key}
-          entry={entry}
-          onChanged={load}
-          t={t}
-          showToast={showToast}
-          confirm={confirm}
-        />
-      ))}
+      <VapidKeyCard settings={settings} onChanged={load} t={t} showToast={showToast} confirm={confirm} />
+
+      {settings
+        .filter((entry) => !VAPID_KEY_PAIR_KEYS.has(entry.key))
+        .map((entry) => (
+          <SettingRow
+            key={entry.key}
+            entry={entry}
+            onChanged={load}
+            t={t}
+            showToast={showToast}
+            confirm={confirm}
+          />
+        ))}
     </main>
+  );
+}
+
+function VapidKeyCard({
+  settings,
+  onChanged,
+  t,
+  showToast,
+  confirm,
+}: {
+  settings: SettingEntry[];
+  onChanged: () => void;
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
+  showToast: (message: string, type?: "success" | "error") => void;
+  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
+}) {
+  const [generating, setGenerating] = useState(false);
+  const publicKeyEntry = settings.find((entry) => entry.key === "VAPID_PUBLIC_KEY");
+  const configured = publicKeyEntry?.configured ?? false;
+
+  async function handleGenerate() {
+    if (configured && !(await confirm(t("vapidRegenerateConfirm")))) return;
+    setGenerating(true);
+    try {
+      const res = await apiFetch("/api/push/vapid/generate", { method: "POST" });
+      if (res.ok) {
+        showToast(t("vapidGenerated"), "success");
+        onChanged();
+      } else {
+        showToast(t("toastError"), "error");
+      }
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  return (
+    <section className="card" style={{ marginTop: 16 }}>
+      <strong>{t("vapidHeading")}</strong>
+      <p style={{ fontSize: 13, color: "#666", margin: "4px 0 8px" }}>{t("vapidHelp")}</p>
+      <p
+        style={{
+          fontSize: 13,
+          fontWeight: 600,
+          color: configured ? "#18523f" : "#a12a24",
+          margin: "0 0 12px",
+        }}
+      >
+        {configured ? t("vapidConfigured") : t("vapidNotConfigured")}
+      </p>
+      <button type="button" onClick={handleGenerate} disabled={generating} style={{ width: "auto", padding: "0 16px" }}>
+        {generating ? t("vapidGenerating") : configured ? t("vapidRegenerateButton") : t("vapidGenerateButton")}
+      </button>
+    </section>
   );
 }
 
@@ -169,7 +234,7 @@ function SettingRow({
     <section className="card" style={{ marginTop: 16 }}>
       <strong>{meta ? t(meta.labelKey) : entry.key}</strong>
       {meta && <p style={{ fontSize: 13, color: "#666", margin: "4px 0 8px" }}>{t(meta.helpKey)}</p>}
-      {meta && (
+      {meta?.signupUrl && meta.signupLabelKey && (
         <p style={{ fontSize: 13, margin: "0 0 8px" }}>
           <a href={meta.signupUrl} target="_blank" rel="noopener noreferrer">
             {t(meta.signupLabelKey)}

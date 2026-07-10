@@ -9,6 +9,7 @@ import {
   getPushStatus,
   isPushSupported,
   registerPushSubscription,
+  sendTestPush,
   subscribeToPush,
   unsubscribeFromPush,
 } from "../lib/push";
@@ -65,6 +66,18 @@ export function PushNotificationSettings() {
     }
   }
 
+  async function handleTest() {
+    setBusy(true);
+    try {
+      await sendTestPush();
+      showToast(t("pushTestSent"), "success");
+    } catch {
+      showToast(t("toastError"), "error");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleDisable() {
     setBusy(true);
     try {
@@ -103,9 +116,14 @@ export function PushNotificationSettings() {
               {busy ? t("saving") : t("pushEnableButton")}
             </button>
           ) : (
-            <button type="button" onClick={handleDisable} disabled={busy}>
-              {busy ? t("saving") : t("pushDisableButton")}
-            </button>
+            <>
+              <button type="button" className="btn-secondary" onClick={handleTest} disabled={busy}>
+                {busy ? t("saving") : t("pushTestButton")}
+              </button>
+              <button type="button" className="btn-danger" onClick={handleDisable} disabled={busy}>
+                {busy ? t("saving") : t("pushDisableButton")}
+              </button>
+            </>
           )}
         </div>
       )}

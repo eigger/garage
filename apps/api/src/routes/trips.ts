@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
-import { tripUpdateSchema } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
+
+const MAX_LIMIT = 100;
 
 export async function tripRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
@@ -19,7 +20,7 @@ export async function tripRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    const parsedLimit = limit ? parseInt(limit, 10) : 20;
+    const parsedLimit = Math.min(limit ? parseInt(limit, 10) : 20, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
 
     const trips = await prisma.trip.findMany({
@@ -108,39 +109,5 @@ export async function tripRoutes(app: FastifyInstance) {
       orderBy: { time: "asc" },
       select: { lat: true, lon: true, speed: true },
     });
-  });
-
-  // 업무용/개인용 태깅. 가족 구성원 유류비 정산 리포트의 기준이 된다.
-  app.patch("/:id", async (request, reply) => {
-    const { id } = request.params as { id: string };
-    const parsed = tripUpdateSchema.safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
-
-    const existing = await prisma.trip.findUnique({ where: { id } });
-    if (!existing) return reply.code(404).send({ error: "trip not found" });
-
-    const { sub, role } = request.user;
-    if (!(await canAccessVehicle(sub, role, existing.vehicleId))) {
-      return reply.code(403).send({ error: "forbidden" });
-    }
-
-    const trip = await prisma.trip.update({ where: { id }, data: parsed.data });
-
-    const firstPoint = await prisma.telemetryRaw.findFirst({
-      where: { tripId: trip.id, fuelLevel: { not: null } },
-      orderBy: { time: "asc" },
-      select: { fuelLevel: true },
-    });
-    const lastPoint = await prisma.telemetryRaw.findFirst({
-      where: { tripId: trip.id, fuelLevel: { not: null } },
-      orderBy: { time: "desc" },
-      select: { fuelLevel: true },
-    });
-
-    return {
-      ...trip,
-      startFuelLevel: firstPoint?.fuelLevel ?? null,
-      endFuelLevel: lastPoint?.fuelLevel ?? null,
-    };
   });
 }

@@ -100,7 +100,6 @@ export type Trip = {
   distanceKm: number | null;
   avgSpeed: number | null;
   idleTimeSec: number | null;
-  purpose: "BUSINESS" | "PERSONAL" | null;
   routePolyline: string | null;
   startFuelLevel?: number | null;
   endFuelLevel?: number | null;

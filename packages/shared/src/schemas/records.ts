@@ -34,11 +34,6 @@ export const maintenanceRecordUpdateSchema = maintenanceRecordSchema
   .partial();
 export type MaintenanceRecordUpdateInput = z.infer<typeof maintenanceRecordUpdateSchema>;
 
-export const tripUpdateSchema = z.object({
-  purpose: z.enum(["BUSINESS", "PERSONAL"]).nullable(),
-});
-export type TripUpdateInput = z.infer<typeof tripUpdateSchema>;
-
 export const consumablePartSchema = z.object({
   vehicleId: z.string(),
   partType: z.string().min(1),
