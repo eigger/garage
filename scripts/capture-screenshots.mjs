@@ -1,6 +1,7 @@
 import { chromium } from "playwright";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs/promises";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const BASE = "http://localhost:3000";
@@ -27,8 +28,8 @@ async function shot(page, filePath) {
 }
 
 async function captureLocale(locale) {
-  const dir = locale === "ko" ? OUT : path.join(OUT, locale);
-  await import("fs").then((fs) => fs.promises.mkdir(dir, { recursive: true }));
+  const dir = path.join(OUT, locale);
+  await fs.mkdir(dir, { recursive: true });
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -60,7 +61,6 @@ async function captureLocale(locale) {
     console.log(`[${locale}] still on login:`, (await page.innerText("body")).slice(0, 200));
   }
 
-  // Ensure locale stuck after auth navigation
   await page.evaluate((loc) => localStorage.setItem("garage_locale", loc), locale);
   await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
   await shot(page, path.join(dir, "01-dashboard.png"));
