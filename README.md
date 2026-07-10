@@ -7,143 +7,165 @@
 [![Self-hosted](https://img.shields.io/badge/hosting-self--hosted-2563EB)](proxmox/ct/garage.sh)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io%2Feigger%2Fgarage-2496ED?logo=docker&logoColor=white)](https://github.com/eigger/garage/pkgs/container/garage-api)
 
-An all-in-one self-hosted car management server for families and home labs — maintenance & consumables, fuel logging, reminders, OBD/GPS trip tracking, and optional Home Assistant-friendly MQTT.
+Self-hosted family car management — maintenance schedules, fuel logs, reminders, OBD/GPS trips, and optional Home Assistant integrations.
 
-Detailed architecture design: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · API integrations: [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · Progress notes: [`docs/PROGRESS.md`](./docs/PROGRESS.md)
+> Current release: **v0.2.12**
 
-> Current release prep: **v0.2.0-beta** (`release/v0.2.0-beta`)
+Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · [`docs/PROGRESS.md`](./docs/PROGRESS.md)
 
-## Project Structure
+---
 
-```
-garage/
-  apps/
-    api/      # Fastify + Prisma (JWT auth, ingest, jobs, Opinet, backup)
-    web/      # Next.js App Router (PWA, ko/en i18n)
-  packages/
-    shared/   # Shared Zod schemas between API and Web
-  docker-compose.yml       # Local build stack (postgres + api + web + caddy)
-  docker-compose.prod.yml  # Production stack (pulls prebuilt GHCR images)
-  Caddyfile                # Reverse proxy (/api → api, else → web)
-  mosquitto/               # MQTT broker config (optional; enable when needed)
-  proxmox/                 # Proxmox VE LXC one-click install scripts
-```
+## Screenshots
+
+### English
+
+| Dashboard | Vehicle overview | Quick log |
+|---|---|---|
+| ![Dashboard](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/01-dashboard.png) | ![Vehicle](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle.png) | ![Quick log](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/03-quick-log.png) |
+
+| Schedule | History / trips | API integrations |
+|---|---|---|
+| ![Schedule](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/04-schedule.png) | ![History](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/05-history.png) | ![Integrations](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/06-integrations.png) |
+
+### Korean
+
+| Dashboard | Vehicle overview | Quick log |
+|---|---|---|
+| ![Dashboard](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/01-dashboard.png) | ![Vehicle](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/02-vehicle.png) | ![Quick log](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/03-quick-log.png) |
+
+| Schedule | History / trips | API integrations |
+|---|---|---|
+| ![Schedule](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/04-schedule.png) | ![History](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/05-history.png) | ![Integrations](https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/06-integrations.png) |
+
+---
 
 ## Features
 
-**Available now**
-- Vehicles, users, and per-vehicle access ACL (admin / general; optional live-location permission)
-- Maintenance records, consumable/schedule items, distance + time dual-basis reminders
-- Fuel-type maintenance preset templates (copied onto new vehicles)
-- Fuel logging with receipt attachments; Opinet nearby-station lookup (optional API key)
-- OBD app webhook ingest (Torque Pro Upload URL) and JSON telemetry ingest; auto trip segmentation
-- Trip reports (weekly/monthly) with business/personal purpose tagging
-- Dashboard due-reminder badges; admin backup/restore (`.tar.gz`)
-- Reminder quick actions to jump into Schedule/Quick Log
-- Dashboard vehicle summary cards (odometer, weekly distance, latest fuel cost, due/upcoming counts)
-- History fuel efficiency between full-tank logs (`km/L`, `L/100km`)
-- Monthly cost summary card on vehicle overview (fuel / maintenance+admin / total)
-- Settings UI for integration keys (e.g. Opinet, Kakao/Naver maps); PWA; language / distance / currency display prefs
-- Trip route map (OpenStreetMap default; Kakao/Naver when API keys configured)
-- Admin preset tool to apply preset interval changes to existing vehicles
-- Vehicle details including tire size and battery capacity
-
-**Optional / upcoming**
-- Mosquitto MQTT publish for Home Assistant (code ready; enable broker + `MQTT_URL`)
-- Cloudflare Tunnel for remote access
-- Traccar hardware gateway, driving-habit scores
-- Redis + BullMQ worker split; Grafana cost/economy dashboards; family fuel-cost settlement
+- Vehicles, users, and per-vehicle access ACL (admin / general)
+- Maintenance + administrative schedules with distance/time dual reminders
+- Fuel-type maintenance presets and global admin/legal presets
+- Fuel logging with receipt attachments; Opinet nearby stations (optional)
+- OBD ingest (Torque Pro) and REST/WebSocket telemetry; auto trip segmentation
+- Trip reports, route maps (OSM / Kakao / Naver / T map)
+- Dashboard reminder badges and vehicle summary cards
+- Admin backup/restore, PWA, ko/en i18n
+- First-run admin bootstrap when the user table is empty
 
 ---
 
-## Local Development Setup
+## Quick start (usage)
 
-### Prerequisites
-- Node.js >= 20
-- Docker (for PostgreSQL)
+### 1. Install
 
-### Installation
-1. Clone the repository and install workspace dependencies:
-   ```sh
-   npm install
-   ```
-2. Copy the environment template and set secrets:
-   ```sh
-   cp .env.example .env
-   ```
-   > [!IMPORTANT]
-   > Set strong values for `POSTGRES_PASSWORD` and `JWT_SECRET`.
-   >
-   > For host-side Prisma/seed (outside Compose), also set:
-   > `DATABASE_URL=postgresql://garage:<password>@localhost:5432/garage`
-   > (Compose services use hostname `postgres`; the host machine must use `localhost`.)
-
-3. Start PostgreSQL:
-   ```sh
-   docker compose up -d postgres
-   ```
-
-4. Run migrations:
-   ```sh
-   npm run prisma:migrate
-   ```
-
-5. Seed the initial admin (public sign-up is disabled):
-   ```sh
-   npm run seed -w apps/api
-   ```
-   Default credentials come from `.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).
-
-6. Start API and Web:
-   ```sh
-   npm run dev:api   # http://localhost:8080
-   npm run dev:web   # http://localhost:3000
-   ```
-
-7. Open `http://localhost:3000/login` and sign in with the admin account.
-
-Useful scripts: `npm run build`, `npm run test`, `npm run prisma:generate`.
-
----
-
-## Production Deployment (Docker Compose)
-
-Pull prebuilt images and run the full stack:
-
-```sh
-docker compose -f docker-compose.prod.yml up -d
-```
-
-Configure `/opt/garage/.env` (or the compose working directory `.env`) before starting:
-- `POSTGRES_PASSWORD` — database password
-- `JWT_SECRET` — JWT signing secret
-- `OPINET_API_KEY` — Opinet open API key (optional; can also be set in the admin **API Integrations** UI)
-- `GH_REPOSITORY_OWNER` — GHCR image owner (defaults to `eigger`)
-
-Stack: PostgreSQL 16 + API + Web + Caddy on port 80. Mosquitto, cloudflared, Redis, and Traccar are commented out in `docker-compose.yml` until needed.
-
----
-
-## Proxmox VE LXC One-Click Installation
-
-Bootstrap an isolated Debian 13 LXC with Docker, pull production images, generate credentials, and start the stack from the **Proxmox VE shell**:
+**Proxmox (recommended)**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/eigger/garage/master/proxmox/ct/garage.sh)"
 ```
 
-When finished, open `http://<LXC_IP>` in a browser.
+Open `http://<LXC_IP>` when finished.
+
+**Docker Compose**
+
+```sh
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Set `POSTGRES_PASSWORD` and `JWT_SECRET` in `.env` first.
+
+### 2. Create the first admin
+
+On a fresh install, `/login` shows **Create first admin** when no users exist.
+
+1. Open `/login`
+2. Enter name, email, password
+3. Submit — you are signed in as `ADMIN`
+
+Public sign-up is disabled. Later accounts are created only by an admin under **Users**.
+
+### 3. Register a vehicle
+
+1. Dashboard → **Vehicles** (or **차량 관리**)
+2. Fill name, plate, make/model/year, **fuel type**
+3. Save
+
+Garage copies:
+
+- maintenance presets for that fuel type
+- administrative/legal schedule items (inspection, insurance, tax, …)
+
+Manage defaults under **Maintenance presets** (정비 / 행정·법정 tabs).
+
+### 4. Day-to-day use
+
+| Task | Where |
+|---|---|
+| Log fuel / maintenance | Vehicle → **Quick Log** |
+| Edit schedule intervals | Vehicle → **Schedule** |
+| History, efficiency, trips | Vehicle → **History** |
+| OBD / Torque / REST token | Vehicle → **OBD & GPS** |
+| Family accounts | Dashboard → **Users** |
+| Opinet / map API keys | Dashboard → **API Integrations** |
+| Backup / restore | Settings bar → Backup |
+
+### 5. OBD / Home Assistant (short)
+
+- **Telemetry** (vehicle `apiToken`, not login JWT):
+
+```http
+POST /api/ingest/telemetry/<vehicleId>
+Authorization: Bearer <apiToken>
+Content-Type: application/json
+
+{ "speed": 65, "lat": 37.56, "lon": 126.97, "odometer": 45230, "inVehicle": true }
+```
+
+- **Fuel / maintenance records** (login JWT): see [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md)
+
+Copy the ingest URL and token from **Vehicles → OBD & GPS** (token has a **Copy** button).
 
 ---
 
-## API Integrations
+## Project structure
 
-External services, OBD/GPS ingest, and integration key management are documented in [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md).
+```
+garage/
+  apps/
+    api/      # Fastify + Prisma
+    web/      # Next.js App Router (PWA, ko/en)
+  packages/
+    shared/   # Shared Zod schemas / catalogs
+  docker-compose.yml / docker-compose.prod.yml
+  Caddyfile
+  proxmox/    # LXC one-click install
+```
 
-Quick reference:
-- **Opinet** (fuel prices): set `OPINET_API_KEY` in **API Integrations** (`/integrations`)
-- **Torque Pro / REST / WebSocket**: per-vehicle `apiToken` on **Vehicles → OBD & GPS**
-- **MQTT** (optional): set `MQTT_URL` and enable Mosquitto in Compose
+---
+
+## Local development
+
+```sh
+npm install
+cp .env.example .env   # set POSTGRES_PASSWORD, JWT_SECRET
+docker compose up -d postgres
+npm run prisma:migrate
+npm run seed -w apps/api   # optional if you prefer seed admin over bootstrap UI
+npm run dev:api            # :8080
+npm run dev:web            # :3000
+```
+
+Open `http://localhost:3000/login`.
+
+Useful scripts: `npm run build`, `npm run test`, `npm run prisma:generate`.
+
+---
+
+## Production notes
+
+- Stack: PostgreSQL 16 + API + Web + Caddy (`:80`)
+- API runs `prisma migrate deploy` on startup (prod compose)
+- Images: `ghcr.io/<owner>/garage-api` / `garage-web` (`latest` + semver tags)
+- Update LXC: `update` in the container (pulls compose images)
 
 ---
 
@@ -151,15 +173,11 @@ Quick reference:
 
 | Workflow | Trigger | Purpose |
 |---|---|---|
-| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | Push / PR to `master` | Install, Prisma generate, build, test |
-| [`.github/workflows/docker-release.yml`](./.github/workflows/docker-release.yml) | GitHub Release (or manual) | Build & push `garage-api` / `garage-web` to GHCR |
+| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | Push / PR to `master` | Install, build, test |
+| [`.github/workflows/docker-release.yml`](./.github/workflows/docker-release.yml) | GitHub Release | Push images to GHCR |
 
-Images: `ghcr.io/<owner>/garage-api:latest` and `ghcr.io/<owner>/garage-web:latest` (also semver tags on release).
-
-```yaml
-# Forks: Repository Settings → Actions → General → Workflow permissions → Read and write
-```
+---
 
 ## License
 
-MIT License. See [LICENSE](./LICENSE) for details.
+MIT. See [LICENSE](./LICENSE).
