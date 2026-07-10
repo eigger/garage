@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { LatLon } from "../../lib/maps/polyline";
-import { circleMarkerDataUri } from "../../lib/maps/polyline";
+import type { SpeedPoint } from "../../lib/maps/polyline";
+import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadTmapSdk } from "../../lib/maps/loadSdk";
 
-export function TmapTripMap({ points, appKey }: { points: LatLon[]; appKey: string }) {
+export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,12 +29,14 @@ export function TmapTripMap({ points, appKey }: { points: LatLon[]; appKey: stri
           zoom: 15,
         });
 
-        new Tmapv2.Polyline({
-          path,
-          strokeColor: "#18523f",
-          strokeWeight: 4,
-          map,
-        });
+        for (const seg of buildSpeedSegments(points)) {
+          new Tmapv2.Polyline({
+            path: seg.path.map((p) => new Tmapv2.LatLng(p.lat, p.lon)),
+            strokeColor: seg.color,
+            strokeWeight: 4,
+            map,
+          });
+        }
 
         // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
         new Tmapv2.Marker({ position: path[0], icon: circleMarkerDataUri("#10b981"), map });

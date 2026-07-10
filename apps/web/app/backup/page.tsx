@@ -57,7 +57,8 @@ export default function BackupPage() {
         window.URL.revokeObjectURL(url);
         showToast(t("toastSaved"), "success");
       } else {
-        showToast(t("toastError"), "error");
+        const err = await res.json().catch(() => null);
+        showToast(err?.error || t("toastError"), "error");
       }
     } catch (err) {
       console.error(err);

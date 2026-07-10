@@ -306,7 +306,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           placeholder={t("odometer")}
           value={odometer}
           onChange={(e) => setOdometer(e.target.value)}
-          autoFocus
           style={{ width: "100%", paddingRight: 40 }}
         />
         <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
@@ -412,6 +411,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           placeholder={t("cost")}
           value={cost}
           onChange={(e) => handleCostChange(e.target.value)}
+          autoFocus
           style={{ width: "100%", paddingRight: 40 }}
         />
         <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
@@ -640,7 +640,6 @@ function QuickMaintenanceForm({
           placeholder={t("odometer")}
           value={odometer}
           onChange={(e) => setOdometer(e.target.value)}
-          autoFocus
           style={{ width: "100%", paddingRight: 40 }}
         />
         <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
@@ -711,6 +710,21 @@ function QuickMaintenanceForm({
         />
       )}
 
+      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+        <input
+          type="number"
+          inputMode="numeric"
+          placeholder={t("cost")}
+          value={cost}
+          onChange={(e) => setCost(e.target.value)}
+          autoFocus
+          style={{ width: "100%", paddingRight: 40 }}
+        />
+        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+          {currencyUnit}
+        </span>
+      </div>
+
       <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "8px 0" }}>
         <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("attachmentLabel")}</label>
         <input
@@ -737,19 +751,6 @@ function QuickMaintenanceForm({
       {showMore && (
         <>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
-            <input
-              type="number"
-              inputMode="numeric"
-              placeholder={t("cost")}
-              value={cost}
-              onChange={(e) => setCost(e.target.value)}
-              style={{ width: "100%", paddingRight: 40 }}
-            />
-            <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
-              {currencyUnit}
-            </span>
-          </div>
           <input placeholder={t("shop")} value={shop} onChange={(e) => setShop(e.target.value)} />
           <input placeholder={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </>

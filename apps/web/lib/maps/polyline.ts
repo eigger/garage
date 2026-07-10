@@ -1,10 +1,49 @@
 import polyline from "@mapbox/polyline";
 
 export type LatLon = { lat: number; lon: number };
+export type SpeedPoint = LatLon & { speed: number | null };
 
 export function decodeRoute(encoded: string): LatLon[] {
   if (!encoded) return [];
   return polyline.decode(encoded).map(([lat, lon]) => ({ lat, lon }));
+}
+
+// km/h 구간별 색상 — 정체/저속(빨강), 보통(주황), 원활/고속(초록). 속도 데이터가 없으면
+// 기본 색상(경로 단색 표시와 동일)으로 폴백한다.
+export function speedColor(kmh: number | null): string {
+  if (kmh === null) return "#18523f";
+  if (kmh < 20) return "#ef4444";
+  if (kmh < 60) return "#f59e0b";
+  return "#10b981";
+}
+
+// 연속된 구간을 속도 색상별로 묶어서, 색이 바뀌는 지점마다 폴리라인을 새로 그리지 않고
+// 최소 개수의 세그먼트로 병합한다 (경계에서 끊기지 않도록 마지막 점을 다음 세그먼트와 공유).
+export function buildSpeedSegments(points: SpeedPoint[]): { color: string; path: LatLon[] }[] {
+  if (points.length < 2) return [];
+
+  const segmentColors: string[] = [];
+  for (let i = 0; i < points.length - 1; i++) {
+    const s1 = points[i].speed;
+    const s2 = points[i + 1].speed;
+    const avg = s1 !== null && s2 !== null ? (s1 + s2) / 2 : s1 ?? s2 ?? null;
+    segmentColors.push(speedColor(avg));
+  }
+
+  const result: { color: string; path: LatLon[] }[] = [];
+  let currentColor = segmentColors[0];
+  let currentPath: LatLon[] = [points[0], points[1]];
+  for (let i = 1; i < segmentColors.length; i++) {
+    if (segmentColors[i] === currentColor) {
+      currentPath.push(points[i + 1]);
+    } else {
+      result.push({ color: currentColor, path: currentPath });
+      currentColor = segmentColors[i];
+      currentPath = [points[i], points[i + 1]];
+    }
+  }
+  result.push({ color: currentColor, path: currentPath });
+  return result;
 }
 
 // a에서 b를 바라보는 방위각(도, 0=북쪽 기준 시계방향) — 경로에 진행 방향 화살표를 표시하기 위함.
