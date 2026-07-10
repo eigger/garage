@@ -6,22 +6,32 @@ import "leaflet/dist/leaflet.css";
 import type { MapProvider } from "@garage/shared";
 import { loadKakaoMaps, loadNaverMaps, loadTmapSdk } from "../../lib/maps/loadSdk";
 
-function LeafletMarkerSetup() {
-  const map = useMap();
-  useEffect(() => {
-    import("leaflet").then((L) => {
-      delete (L.Icon.Default.prototype as any)._getIconUrl;
-      L.Icon.Default.mergeOptions({
-        iconUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon.png",
-        iconRetinaUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-icon-2x.png",
-        shadowUrl: "https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png",
-      });
-    });
-  }, [map]);
-  return null;
-}
-
 function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
+  const [markerIcon, setMarkerIcon] = useState<any>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    import("leaflet").then((L) => {
+      if (cancelled) return;
+      const icon = L.divIcon({
+        className: "",
+        html: `
+          <div style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;">
+            <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="#18523f" stroke="#ffffff" stroke-width="1.5"/>
+            </svg>
+          </div>
+        `,
+        iconSize: [30, 30],
+        iconAnchor: [15, 30],
+      });
+      setMarkerIcon(icon);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <MapContainer
       center={[lat, lon]}
@@ -33,9 +43,9 @@ function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      <Marker position={[lat, lon]}>
-        <LeafletMarkerSetup />
-      </Marker>
+      {markerIcon && (
+        <Marker position={[lat, lon]} icon={markerIcon} />
+      )}
     </MapContainer>
   );
 }
