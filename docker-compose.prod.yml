@@ -31,6 +31,9 @@ services:
       NODE_ENV: production
       PORT: "8080"
       OPINET_API_KEY: ${OPINET_API_KEY:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
 
   web:
     image: ghcr.io/${GH_REPOSITORY_OWNER:-eigger}/garage-web:latest

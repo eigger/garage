@@ -537,7 +537,7 @@ function QuickMaintenanceForm({
   // Linked schedule selection states
   const [parts, setParts] = useState<ConsumablePart[]>([]);
   const [category, setCategory] = useState<RecordCategory>("MAINTENANCE");
-  const [selectedPartType, setSelectedPartType] = useState("");
+  const [selectedPartTypes, setSelectedPartTypes] = useState<string[]>([]);
   const [customType, setCustomType] = useState("");
 
   useEffect(() => {
@@ -561,7 +561,7 @@ function QuickMaintenanceForm({
           const part = data.find((p) => p.partType === initialType);
           if (part) {
             setCategory(part.category);
-            setSelectedPartType(part.partType);
+            setSelectedPartTypes([part.partType]);
           }
         }
       });
@@ -571,10 +571,15 @@ function QuickMaintenanceForm({
     e.preventDefault();
     setError("");
 
-    const finalType = selectedPartType === "CUSTOM" || !selectedPartType ? customType : selectedPartType;
-    const matchedPart = parts.find((p) => p.partType === finalType);
-    const recordCategory = matchedPart?.category ?? category;
-    if (!odometer || !finalType.trim()) {
+    const typesToSave: string[] = [];
+    if (selectedPartTypes.length > 0) {
+      typesToSave.push(...selectedPartTypes);
+    }
+    if (customType.trim()) {
+      typesToSave.push(customType.trim());
+    }
+
+    if (!odometer || typesToSave.length === 0) {
       setError(t("requiredField"));
       return;
     }
@@ -582,48 +587,59 @@ function QuickMaintenanceForm({
     setSubmitting(true);
 
     try {
-      const res = await apiFetch(`/api/vehicles/${vehicleId}/maintenance-records`, {
-        method: "POST",
-        body: JSON.stringify({
-          date,
-          odometer: Number(odometer),
-          type: finalType,
-          category: recordCategory,
-          cost: cost ? Number(cost) : undefined,
-          shop: shop || undefined,
-          notes: notes || undefined,
-        }),
-      });
-      if (res.ok) {
-        const record = await res.json();
-        if (file) {
-          const formData = new FormData();
-          formData.append("file", file);
-          setUploadProgress(0);
-          await uploadFileWithProgress(
-            `/api/attachments?maintenanceRecordId=${record.id}`,
-            formData,
-            setUploadProgress,
-          );
-          setUploadProgress(null);
-        }
-        setSelectedPartType("");
-        setCustomType("");
-        setDate(today());
-        setCost("");
-        setShop("");
-        setNotes("");
-        setFile(null);
-        setFileKey(Date.now());
-        showToast(t("toastSaved"), "success");
+      let lastRecord: { id: string } | null = null;
 
-        // Reload consumable parts to update their schedule indicators
-        apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
-          .then((res) => (res.ok ? res.json() : []))
-          .then(setParts);
-      } else {
-        showToast(t("toastError"), "error");
+      for (const finalType of typesToSave) {
+        const matchedPart = parts.find((p) => p.partType === finalType);
+        const recordCategory = matchedPart?.category ?? category;
+
+        const res = await apiFetch(`/api/vehicles/${vehicleId}/maintenance-records`, {
+          method: "POST",
+          body: JSON.stringify({
+            date,
+            odometer: Number(odometer),
+            type: finalType,
+            category: recordCategory,
+            cost: cost ? Number(cost) : undefined,
+            shop: shop || undefined,
+            notes: notes || undefined,
+          }),
+        });
+        if (res.ok) {
+          lastRecord = await res.json();
+        } else {
+          showToast(t("toastError"), "error");
+          setSubmitting(false);
+          return;
+        }
       }
+
+      if (file && lastRecord) {
+        const formData = new FormData();
+        formData.append("file", file);
+        setUploadProgress(0);
+        await uploadFileWithProgress(
+          `/api/attachments?maintenanceRecordId=${lastRecord.id}`,
+          formData,
+          setUploadProgress,
+        );
+        setUploadProgress(null);
+      }
+
+      setSelectedPartTypes([]);
+      setCustomType("");
+      setDate(today());
+      setCost("");
+      setShop("");
+      setNotes("");
+      setFile(null);
+      setFileKey(Date.now());
+      showToast(t("toastSaved"), "success");
+
+      // Reload consumable parts to update their schedule indicators
+      apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then(setParts);
     } finally {
       setSubmitting(false);
     }
@@ -662,7 +678,7 @@ function QuickMaintenanceForm({
             type="button"
             onClick={() => {
               setCategory(value);
-              setSelectedPartType("");
+              setSelectedPartTypes([]);
               setCustomType("");
             }}
             style={{
@@ -678,35 +694,57 @@ function QuickMaintenanceForm({
         ))}
       </div>
 
-      <select
-        value={selectedPartType}
-        onChange={(e) => {
-          setSelectedPartType(e.target.value);
-          if (e.target.value !== "CUSTOM") {
-            setCustomType("");
-            const part = parts.find((p) => p.partType === e.target.value);
-            if (part) setCategory(part.category);
-          }
-        }}
-      >
-        <option value="" disabled>{t("selectMaintenanceTask")}</option>
-        {parts
-          .filter((p) => p.category === category)
-          .map((p) => (
-            <option key={p.id} value={p.partType}>
-              {formatItemLabel(t, p.partType)}
-            </option>
-          ))}
-        <option value="CUSTOM">{t("customInput")}</option>
-      </select>
-
-      {(selectedPartType === "CUSTOM" || !selectedPartType) && (
-        <input
-          placeholder={t("maintenanceType")}
-          value={customType}
-          onChange={(e) => setCustomType(e.target.value)}
-        />
+      {/* 다중 선택 체크박스 그리드 */}
+      {parts.filter((p) => p.category === category).length > 0 && (
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+          {parts
+            .filter((p) => p.category === category)
+            .map((p) => {
+              const checked = selectedPartTypes.includes(p.partType);
+              return (
+                <label
+                  key={p.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    border: `1px solid ${checked ? "#18523f" : "#e2e8f0"}`,
+                    background: checked ? "#f0f7f4" : "#fff",
+                    cursor: "pointer",
+                    fontSize: 13,
+                    fontWeight: checked ? "600" : "400",
+                    color: checked ? "#18523f" : "#333",
+                    minHeight: "auto",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        setSelectedPartTypes((prev) => [...prev, p.partType]);
+                      } else {
+                        setSelectedPartTypes((prev) => prev.filter((t) => t !== p.partType));
+                      }
+                    }}
+                    style={{ minHeight: "auto", width: "auto", accentColor: "#18523f" }}
+                  />
+                  {formatItemLabel(t, p.partType)}
+                </label>
+              );
+            })}
+        </div>
       )}
+
+      {/* 직접 입력 */}
+      <input
+        placeholder={t("maintenanceType")}
+        value={customType}
+        onChange={(e) => setCustomType(e.target.value)}
+      />
+
 
       <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
         <input

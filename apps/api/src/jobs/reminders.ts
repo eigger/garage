@@ -44,8 +44,9 @@ export async function syncReminders(vehicleId?: string): Promise<void> {
         dueDate,
         dueOdometer,
         type: part.partType,
-        status: "PENDING",
-        ...(dueChanged ? { pushNotifiedAt: null } : {}),
+        // dueDate/dueOdometer가 바뀐 경우에만 PENDING으로 되돌린다.
+        // 그렇지 않으면 사용자가 DISMISSED한 상태를 유지한다.
+        ...(dueChanged ? { status: "PENDING", pushNotifiedAt: null } : {}),
       },
       create: {
         vehicleId: part.vehicleId,

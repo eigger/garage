@@ -10,7 +10,7 @@ import { SettingsBar } from "./settings-bar";
 import { formatItemLabel } from "../lib/i18n/itemLabel";
 import { getLastVehicleId } from "../lib/lastVehicle";
 import { countScheduleStatuses } from "../lib/scheduleStatus";
-import { AlertIcon } from "../components/icons";
+import { AlertIcon, CarIcon, UsersIcon, WrenchIcon, PlugIcon } from "../components/icons";
 import type { ConsumablePart, FuelLog, Reminder, TripSummary, Vehicle } from "../lib/types";
 
 type VehicleCardSummary = {
@@ -79,8 +79,6 @@ function HomeInner() {
           const tripSummary = tripSummaryRes.ok ? ((await tripSummaryRes.json()) as TripSummary) : null;
           const fuelLogs = fuelRes.ok ? ((await fuelRes.json()) as FuelLog[]) : [];
           const parts = partsRes.ok ? ((await partsRes.json()) as ConsumablePart[]) : [];
-          // 정비 스케줄 화면과 동일한 기준(1000km/30일 이내=임박)으로 계산해야
-          // 대시보드와 스케줄 화면의 지남/임박 건수가 항상 일치한다.
           const { due, upcoming } = countScheduleStatuses(parts, odometer ?? 0);
 
           return [
@@ -119,6 +117,8 @@ function HomeInner() {
 
   if (!user) return null;
 
+
+
   return (
     <main className="container">
       <SettingsBar />
@@ -129,8 +129,28 @@ function HomeInner() {
           {t("logout")}
         </button>
       </div>
-      <p>{t("appTagline")}</p>
+      <p style={{ marginTop: 0, marginBottom: 16 }}>{t("appTagline")}</p>
 
+      {/* 관리자 메뉴 — 상단 그리드 카드 */}
+      {user.role === "ADMIN" && (
+        <ul className="list" style={{ marginBottom: 24 }}>
+          {([
+            { href: "/vehicles", Icon: CarIcon, label: t("manageVehicles") },
+            { href: "/users", Icon: UsersIcon, label: t("manageUsers") },
+            { href: "/maintenance-presets", Icon: WrenchIcon, label: t("presetsHeading") },
+            { href: "/integrations", Icon: PlugIcon, label: t("navIntegrations") },
+          ] as const).map(({ href, Icon, label }) => (
+            <li key={href} className="list-item">
+              <Link href={href} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <Icon size={16} />
+                {label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {/* 정비 알림 배너 */}
       {dueReminders.length > 0 && (
         <section style={{ marginBottom: 16 }}>
           <strong style={{ fontSize: 15, color: "#1f2937", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
@@ -206,17 +226,7 @@ function HomeInner() {
         </section>
       )}
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: "24px 0 8px" }}>{t("vehiclesHeading")}</h2>
-        {user.role === "ADMIN" && (
-          <span style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-            <Link href="/vehicles">{t("manageVehicles")}</Link>
-            <Link href="/users">{t("manageUsers")}</Link>
-            <Link href="/maintenance-presets">{t("presetsHeading")}</Link>
-            <Link href="/integrations">{t("navIntegrations")}</Link>
-          </span>
-        )}
-      </div>
+      <h2 style={{ margin: "0 0 8px" }}>{t("vehiclesHeading")}</h2>
 
       {vehicles.length === 0 ? (
         <p>{t("noVehicles")}</p>
@@ -229,40 +239,39 @@ function HomeInner() {
                 const dueCount = stats?.dueCount ?? 0;
                 const upcomingCount = stats?.upcomingCount ?? 0;
                 return (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <Link href={`/vehicles/${v.id}`}>
-                  {v.name} {v.plate ? `(${v.plate})` : ""}
-                </Link>
-                <div style={{ fontSize: 13, color: "#666", display: "flex", flexWrap: "wrap", gap: 12 }}>
-                  <span>
-                    {t("dashboardOdometer")}:{" "}
-                    {stats?.odometer !== null && stats?.odometer !== undefined
-                      ? formatDistance(stats.odometer)
-                      : "-"}
-                  </span>
-                  <span>
-                    {t("dashboardWeeklyDistance")}:{" "}
-                    {stats?.weeklyDistanceKm !== null &&
-                    stats?.weeklyDistanceKm !== undefined
-                      ? formatDistance(stats.weeklyDistanceKm)
-                      : "-"}
-                  </span>
-                  <span>
-                    {t("dashboardLastFuelCost")}:{" "}
-                    {stats?.lastFuelCost !== null && stats?.lastFuelCost !== undefined
-                      ? formatCurrency(stats.lastFuelCost)
-                      : "-"}
-                  </span>
-                </div>
-                <div style={{ fontSize: 12, display: "flex", gap: 8 }}>
-                  <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#a12a24" }}>
-                    {t("dashboardDueCount", { count: dueCount })}
-                  </Link>
-                  <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#8b6d1e" }}>
-                    {t("dashboardUpcomingCount", { count: upcomingCount })}
-                  </Link>
-                </div>
-              </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <Link href={`/vehicles/${v.id}`}>
+                      {v.name} {v.plate ? `(${v.plate})` : ""}
+                    </Link>
+                    <div style={{ fontSize: 13, color: "#666", display: "flex", flexWrap: "wrap", gap: 12 }}>
+                      <span>
+                        {t("dashboardOdometer")}:{" "}
+                        {stats?.odometer !== null && stats?.odometer !== undefined
+                          ? formatDistance(stats.odometer)
+                          : "-"}
+                      </span>
+                      <span>
+                        {t("dashboardWeeklyDistance")}:{" "}
+                        {stats?.weeklyDistanceKm !== null && stats?.weeklyDistanceKm !== undefined
+                          ? formatDistance(stats.weeklyDistanceKm)
+                          : "-"}
+                      </span>
+                      <span>
+                        {t("dashboardLastFuelCost")}:{" "}
+                        {stats?.lastFuelCost !== null && stats?.lastFuelCost !== undefined
+                          ? formatCurrency(stats.lastFuelCost)
+                          : "-"}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 12, display: "flex", gap: 8 }}>
+                      <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#a12a24" }}>
+                        {t("dashboardDueCount", { count: dueCount })}
+                      </Link>
+                      <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#8b6d1e" }}>
+                        {t("dashboardUpcomingCount", { count: upcomingCount })}
+                      </Link>
+                    </div>
+                  </div>
                 );
               })()}
             </li>

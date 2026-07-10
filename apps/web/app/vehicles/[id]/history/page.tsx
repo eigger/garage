@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, API_URL, getToken } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
@@ -11,7 +11,6 @@ import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
 import { TripRouteMap } from "../../../../components/maps/TripRouteMap";
-import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
 import { CategoryBadge } from "../../../../components/CategoryBadge";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
@@ -57,10 +56,8 @@ export default function HistoryPage() {
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | RecordCategory>("all");
 
-  const [loading, setLoading] = useState(false);
-  // state 대신 ref를 쓴다 — 검색 이펙트가 예약된 시점이 아니라 "실행되는 시점"의 값을
-  // 봐야 초기 로딩 도중 검색어가 바뀌는 경우에도 그 검색이 씹히지 않는다.
-  const initialLoadDone = useRef(false);
+  const [fuelLoading, setFuelLoading] = useState(false);
+  const [maintenanceLoading, setMaintenanceLoading] = useState(false);
 
   async function loadFuelLogs(reset = false) {
     const currentOffset = reset ? 0 : fuelOffset;
@@ -79,12 +76,14 @@ export default function HistoryPage() {
     }
   }
 
-  async function loadMaintenanceRecords(reset = false) {
+  async function loadMaintenanceRecords(reset = false, searchOverride?: string, categoryOverride?: "all" | RecordCategory) {
     const currentOffset = reset ? 0 : maintenanceOffset;
-    const categoryParam = categoryFilter === "all" ? "" : `&category=${categoryFilter}`;
+    const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
+    const effectiveCategory = categoryOverride !== undefined ? categoryOverride : categoryFilter;
+    const categoryParam = effectiveCategory === "all" ? "" : `&category=${effectiveCategory}`;
     const res = await apiFetch(
       `/api/vehicles/${vehicleId}/maintenance-records?limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(
-        debouncedSearch,
+        effectiveSearch,
       )}${categoryParam}`,
     );
     if (res.ok) {
@@ -124,20 +123,18 @@ export default function HistoryPage() {
   // Load fuel logs when active tab is fuel
   useEffect(() => {
     if (subTab === "fuel") {
-      setLoading(true);
-      loadFuelLogs(true).then(() => setLoading(false));
+      setFuelLoading(true);
+      loadFuelLogs(true).then(() => setFuelLoading(false));
     }
   }, [vehicleId, subTab]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load maintenance records when active tab is maintenance
   useEffect(() => {
     if (subTab === "maintenance") {
-      setLoading(true);
-      loadMaintenanceRecords(true).then(() => setLoading(false));
+      setMaintenanceLoading(true);
+      loadMaintenanceRecords(true, debouncedSearch, categoryFilter).then(() => setMaintenanceLoading(false));
     }
   }, [vehicleId, subTab, debouncedSearch, categoryFilter]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  if (loading) return <p>{t("loading")}</p>;
 
   const fuelEfficiencyById: Record<string, FuelEfficiency> = {};
   const ascFuelLogs = [...fuelLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -195,7 +192,9 @@ export default function HistoryPage() {
       {subTab === "fuel" && (
         <section>
           <h2>{t("fuelLogsHeading")}</h2>
-          {fuelLogs.length === 0 ? (
+          {fuelLoading ? (
+            <p>{t("loading")}</p>
+          ) : fuelLogs.length === 0 ? (
             <p>{t("noFuelLogs")}</p>
           ) : (
             <>
@@ -285,7 +284,9 @@ export default function HistoryPage() {
               }}
             />
           </div>
-          {maintenanceRecords.length === 0 ? (
+          {maintenanceLoading ? (
+            <p>{t("loading")}</p>
+          ) : maintenanceRecords.length === 0 ? (
             <p>{t("noMaintenanceRecords")}</p>
           ) : (
             <>
@@ -447,7 +448,7 @@ function FuelLogRow({
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}
             </button>
-            <button type="button" onClick={() => setEditing(false)}>
+            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
               {t("cancel")}
             </button>
           </div>
@@ -519,37 +520,27 @@ function FuelLogRow({
         </div>
       )}
       {log.address && <div style={{ fontSize: 12, color: "#666" }}>{log.address}</div>}
-      {log.latitude !== null && log.longitude !== null && log.location && (
+      {log.latitude !== null && log.longitude !== null && (
         <>
-          <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <NavLaunchButtons
-              destination={{ lat: log.latitude, lon: log.longitude, name: log.location }}
-              heading={t("navLaunchHeading")}
-              labels={{
-                tmap: t("navLaunchTmap"),
-                kakao: t("navLaunchKakao"),
-                naver: t("navLaunchNaver"),
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => setShowMap((v) => !v)}
-              style={{
-                minHeight: 36,
-                fontSize: 13,
-                padding: "0 10px",
-                background: showMap ? "#18523f" : "#fff",
-                color: showMap ? "#fff" : "#18523f",
-                border: "1px solid #e2e8f0",
-                borderRadius: 8,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <MapPinIcon size={14} /> {showMap ? t("hideTripMap") : t("showTripMap")}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setShowMap((v) => !v)}
+            style={{
+              minHeight: 32,
+              fontSize: 13,
+              padding: "0 10px",
+              background: showMap ? "#18523f" : "#fff",
+              color: showMap ? "#fff" : "#18523f",
+              border: "1px solid #e2e8f0",
+              borderRadius: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 6,
+              marginTop: 4,
+            }}
+          >
+            <MapPinIcon size={14} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+          </button>
           {showMap && (
             <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
               <LastLocationMap
@@ -799,7 +790,7 @@ function MaintenanceRow({
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}
             </button>
-            <button type="button" onClick={() => setEditing(false)}>
+            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
               {t("cancel")}
             </button>
           </div>
@@ -922,16 +913,6 @@ function TripSection({
       .then(setSummary);
   }, [vehicleId, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function setPurpose(tripId: string, purpose: "BUSINESS" | "PERSONAL" | null) {
-    const res = await apiFetch(`/api/trips/${tripId}`, {
-      method: "PATCH",
-      body: JSON.stringify({ purpose }),
-    });
-    if (res.ok) {
-      const updated = await res.json();
-      setTrips((prev) => prev.map((t) => (t.id === tripId ? updated : t)));
-    }
-  }
 
   return (
     <section>
@@ -1042,17 +1023,7 @@ function TripSection({
                       >
                         {isSelected ? t("hideTripMap") : t("showTripMap")}
                       </button>
-                      <select
-                        value={trip.purpose ?? ""}
-                        onChange={(e) =>
-                          setPurpose(trip.id, (e.target.value || null) as "BUSINESS" | "PERSONAL" | null)
-                        }
-                        style={{ minHeight: 36, height: 36, fontSize: 13, padding: "0 28px 0 8px" }}
-                      >
-                        <option value="">{t("tripPurposeUnset")}</option>
-                        <option value="BUSINESS">{t("tripPurposeBusiness")}</option>
-                        <option value="PERSONAL">{t("tripPurposePersonal")}</option>
-                      </select>
+
                     </div>
                   </div>
                   {isSelected && (
