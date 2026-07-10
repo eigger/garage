@@ -1,14 +1,21 @@
 import { randomUUID } from "node:crypto";
-import { createWriteStream, existsSync, createReadStream } from "node:fs";
-import { mkdir } from "node:fs/promises";
+import { existsSync, createReadStream } from "node:fs";
+import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { pipeline } from "node:stream/promises";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
+import { processImageForStorage } from "../lib/imageProcessing.js";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), "uploads");
-const ALLOWED_MIME = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const ALLOWED_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+]);
 
 export async function attachmentRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
@@ -52,16 +59,28 @@ export async function attachmentRoutes(app: FastifyInstance) {
     }
 
     await mkdir(UPLOAD_DIR, { recursive: true });
-    const ext = path.extname(file.filename) || "";
+
+    let fileBuffer = await file.toBuffer();
+    let mimeType = file.mimetype;
+    let ext = path.extname(file.filename) || "";
+
+    // 이미지(HEIC 포함)는 저장 전에 JPEG로 변환·축소한다 — 원본(수 MB, 일부는 브라우저가
+    // 미리보기조차 못 하는 HEIC) 그대로 저장하지 않는다. PDF는 그대로 둔다.
+    if (mimeType.startsWith("image/")) {
+      const processed = await processImageForStorage(fileBuffer, mimeType);
+      fileBuffer = processed.buffer;
+      mimeType = processed.mimeType;
+      ext = processed.ext;
+    }
+
     const storedName = `${randomUUID()}${ext}`;
     const filePath = path.join(UPLOAD_DIR, storedName);
-
-    await pipeline(file.file, createWriteStream(filePath));
+    await writeFile(filePath, fileBuffer);
 
     const attachment = await prisma.attachment.create({
       data: {
         filePath: storedName,
-        mimeType: file.mimetype,
+        mimeType,
         fuelLogId: fuelLogId ?? null,
         maintenanceRecordId: maintenanceRecordId ?? null,
         vehicleId: qVehicleId ?? null,
