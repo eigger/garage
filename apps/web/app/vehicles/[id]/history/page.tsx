@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch, API_URL } from "../../../../lib/api";
+import { apiFetch, API_URL, getToken } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
@@ -525,7 +525,8 @@ function AttachmentList({ attachments }: { attachments: { id: string; filePath: 
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
       {attachments.map((att) => {
-        const fileUrl = `${API_URL}/api/attachments/file/${att.filePath}`;
+        const token = getToken();
+        const fileUrl = `${API_URL}/api/attachments/file/${att.filePath}${token ? `?token=${token}` : ""}`;
         const isImage = att.mimeType.startsWith("image/");
 
         return (

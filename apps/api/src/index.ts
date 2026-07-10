@@ -69,7 +69,18 @@ await app.register(websocket);
 app.decorate("authenticate", async (request, reply) => {
   try {
     await request.jwtVerify();
-  } catch {
+  } catch (err) {
+    const query = request.query as Record<string, any>;
+    const token = typeof query?.token === "string" ? query.token : undefined;
+    if (token) {
+      try {
+        const decoded = app.jwt.verify<{ sub: string; role: "ADMIN" | "GENERAL" }>(token);
+        request.user = decoded;
+        return;
+      } catch (innerErr) {
+        // Fall through to 401
+      }
+    }
     reply.code(401).send({ error: "unauthorized" });
   }
 });
