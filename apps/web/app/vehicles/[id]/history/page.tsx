@@ -6,7 +6,7 @@ import { apiFetch, API_URL, getToken } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
-import type { FuelLog, MaintenanceRecord, Trip, TripSummary } from "../../../../lib/types";
+import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, TripSummary } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
@@ -585,15 +585,45 @@ function MaintenanceRow({
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(record.date.slice(0, 10));
   const [odometer, setOdometer] = useState(String(record.odometer));
-  const [type, setType] = useState(record.type);
-  const [category, setCategory] = useState(record.category);
+  const [category, setCategory] = useState<RecordCategory>(record.category);
+  const [selectedPartType, setSelectedPartType] = useState("");
+  const [customType, setCustomType] = useState("");
   const [cost, setCost] = useState(record.cost !== null ? String(record.cost) : "");
   const [shop, setShop] = useState(record.shop ?? "");
   const [notes, setNotes] = useState(record.notes ?? "");
   const [submitting, setSubmitting] = useState(false);
 
+  const [parts, setParts] = useState<ConsumablePart[]>([]);
+
+  useEffect(() => {
+    if (!editing) return;
+
+    apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data: ConsumablePart[]) => {
+        setParts(data);
+        const isPreset = data.some((p) => p.category === record.category && p.partType === record.type);
+        if (isPreset) {
+          setSelectedPartType(record.type);
+          setCustomType("");
+        } else {
+          setSelectedPartType("CUSTOM");
+          setCustomType(record.type);
+        }
+      });
+  }, [editing, vehicleId, record.type, record.category]);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    const finalType = selectedPartType === "CUSTOM" || !selectedPartType ? customType : selectedPartType;
+    const matchedPart = parts.find((p) => p.partType === finalType);
+    const recordCategory = matchedPart?.category ?? category;
+
+    if (!finalType.trim()) {
+      showToast(t("requiredField"), "error");
+      return;
+    }
+
     setSubmitting(true);
     try {
       const res = await apiFetch(`/api/vehicles/${vehicleId}/maintenance-records/${record.id}`, {
@@ -601,8 +631,8 @@ function MaintenanceRow({
         body: JSON.stringify({
           date,
           odometer: Number(odometer),
-          type,
-          category,
+          type: finalType,
+          category: recordCategory,
           cost: cost ? Number(cost) : undefined,
           shop: shop || undefined,
           notes: notes || undefined,
@@ -643,12 +673,66 @@ function MaintenanceRow({
             onChange={(e) => setOdometer(e.target.value)}
             required
           />
-          <input
-            placeholder={t("maintenanceType")}
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            required
-          />
+
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+            {(
+              [
+                ["MAINTENANCE", "recordCategoryMaintenance"],
+                ["ADMINISTRATIVE", "recordCategoryAdministrative"],
+              ] as const
+            ).map(([value, labelKey]) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => {
+                  setCategory(value);
+                  setSelectedPartType("");
+                  setCustomType("");
+                }}
+                style={{
+                  flex: 1,
+                  fontSize: 13,
+                  minHeight: 36,
+                  background: category === value ? "#18523f" : "#eee",
+                  color: category === value ? "#fff" : "#333",
+                }}
+              >
+                {t(labelKey)}
+              </button>
+            ))}
+          </div>
+
+          <select
+            value={selectedPartType}
+            onChange={(e) => {
+              setSelectedPartType(e.target.value);
+              if (e.target.value !== "CUSTOM") {
+                setCustomType("");
+                const part = parts.find((p) => p.partType === e.target.value);
+                if (part) setCategory(part.category);
+              }
+            }}
+          >
+            <option value="" disabled>{t("selectMaintenanceTask")}</option>
+            {parts
+              .filter((p) => p.category === category)
+              .map((p) => (
+                <option key={p.id} value={p.partType}>
+                  {formatItemLabel(t, p.partType)}
+                </option>
+              ))}
+            <option value="CUSTOM">{t("customInput")}</option>
+          </select>
+
+          {(selectedPartType === "CUSTOM" || !selectedPartType) && (
+            <input
+              placeholder={t("maintenanceType")}
+              value={customType}
+              onChange={(e) => setCustomType(e.target.value)}
+              required
+            />
+          )}
+
           <input
             type="number"
             placeholder={t("cost")}
