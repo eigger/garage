@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, API_URL, getToken } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
@@ -18,6 +18,8 @@ import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/ma
 import type { SpeedPoint } from "../../../../lib/maps/polyline";
 import { decodeRoute } from "../../../../lib/maps/polyline";
 import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon } from "../../../../components/icons";
+import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
+import type { FuelType } from "../../../../lib/types";
 import dynamic from "next/dynamic";
 
 const LastLocationMap = dynamic(
@@ -45,6 +47,7 @@ export default function HistoryPage() {
   type SubTab = "trips" | "fuel" | "maintenance";
   const [subTab, setSubTab] = useState<SubTab>("trips");
 
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [fuelOffset, setFuelOffset] = useState(0);
   const [hasMoreFuel, setHasMoreFuel] = useState(true);
@@ -58,6 +61,10 @@ export default function HistoryPage() {
 
   const [fuelLoading, setFuelLoading] = useState(false);
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
+  // 더보기 요청과 검색/필터 변경 요청이 겹치면, 먼저 보낸 요청이 나중에 응답이 와서 최신
+  // 상태를 덮어쓸 수 있다 (예: 더보기 응답이 검색 결과보다 늦게 도착해 필터 안 걸린 데이터가
+  // 뒤에 붙어버림). 요청마다 순번을 매겨서 이후에 더 최신 요청이 있었으면 그 응답은 버린다.
+  const maintenanceRequestSeq = useRef(0);
 
   async function loadFuelLogs(reset = false) {
     const currentOffset = reset ? 0 : fuelOffset;
@@ -81,6 +88,7 @@ export default function HistoryPage() {
     const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
     const effectiveCategory = categoryOverride !== undefined ? categoryOverride : categoryFilter;
     const categoryParam = effectiveCategory === "all" ? "" : `&category=${effectiveCategory}`;
+    const requestId = ++maintenanceRequestSeq.current;
     const res = await apiFetch(
       `/api/vehicles/${vehicleId}/maintenance-records?limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(
         effectiveSearch,
@@ -88,6 +96,8 @@ export default function HistoryPage() {
     );
     if (res.ok) {
       const data: MaintenanceRecord[] = await res.json();
+      // 이 요청을 보낸 뒤에 더 최신 요청(검색어 변경 등)이 이미 발생했다면 이 응답은 버린다.
+      if (requestId !== maintenanceRequestSeq.current) return;
       if (reset) {
         setMaintenanceRecords(data);
         setMaintenanceOffset(data.length);
@@ -120,6 +130,12 @@ export default function HistoryPage() {
     setCategoryFilter("all");
   }, [vehicleId]);
 
+  useEffect(() => {
+    apiFetch(`/api/vehicles/${vehicleId}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setVehicle);
+  }, [vehicleId]);
+
   // Load fuel logs when active tab is fuel
   useEffect(() => {
     if (subTab === "fuel") {
@@ -137,19 +153,12 @@ export default function HistoryPage() {
   }, [vehicleId, subTab, debouncedSearch, categoryFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fuelEfficiencyById: Record<string, FuelEfficiency> = {};
-  const ascFuelLogs = [...fuelLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  let prevFullTank: FuelLog | null = null;
-  for (const log of ascFuelLogs) {
-    if (!log.fullTank) continue;
-    if (prevFullTank && log.odometer > prevFullTank.odometer && log.liters > 0) {
-      const distanceKm = log.odometer - prevFullTank.odometer;
-      fuelEfficiencyById[log.id] = {
-        distanceKm,
-        kmPerLiter: distanceKm / log.liters,
-        litersPer100Km: (log.liters / distanceKm) * 100,
-      };
-    }
-    prevFullTank = log;
+  for (const point of computeFuelEfficiencyPoints(fuelLogs)) {
+    fuelEfficiencyById[point.logId] = {
+      distanceKm: point.distanceKm,
+      kmPerLiter: point.kmPerLiter,
+      litersPer100Km: point.litersPer100Km,
+    };
   }
 
   const tabs: { key: SubTab; label: string }[] = [
@@ -205,6 +214,7 @@ export default function HistoryPage() {
                     vehicleId={vehicleId}
                     log={f}
                     efficiency={fuelEfficiencyById[f.id] ?? null}
+                    fuelType={vehicle?.fuelType ?? null}
                     onChanged={() => loadFuelLogs(true)}
                     t={t}
                     formatCurrency={formatCurrency}
@@ -337,6 +347,7 @@ function FuelLogRow({
   vehicleId,
   log,
   efficiency,
+  fuelType,
   onChanged,
   t,
   formatCurrency,
@@ -347,6 +358,7 @@ function FuelLogRow({
   vehicleId: string;
   log: FuelLog;
   efficiency: FuelEfficiency | null;
+  fuelType: FuelType | null;
   onChanged: () => void;
   t: Translator;
   formatCurrency: (amount: number) => string;
@@ -354,6 +366,8 @@ function FuelLogRow({
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
   mapConfig: MapProvidersConfig;
 }) {
+  const units = efficiencyUnitLabels(fuelType);
+  const volumeUnit = fuelVolumeUnit(fuelType);
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(log.date.slice(0, 10));
   const [odometer, setOdometer] = useState(String(log.odometer));
@@ -418,7 +432,7 @@ function FuelLogRow({
           <input
             type="number"
             step="0.01"
-            placeholder={t("liters")}
+            placeholder={fuelType === "ELECTRIC" ? t("chargeAmount") : t("liters")}
             value={liters}
             onChange={(e) => setLiters(e.target.value)}
             required
@@ -461,7 +475,7 @@ function FuelLogRow({
     <li className="list-item" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span>
-          {log.date.slice(0, 10)} · {log.liters}L · {formatCurrency(log.cost)}
+          {log.date.slice(0, 10)} · {log.liters}{volumeUnit} · {formatCurrency(log.cost)}
           {log.location && <span style={{ fontSize: 13, color: "#666", marginLeft: 8 }}>({log.location})</span>}
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
@@ -487,7 +501,7 @@ function FuelLogRow({
             border: "1px solid #bbf7d0",
             borderRadius: 6,
           }}>
-            <LeafIcon /> {t("fuelEfficiencyKmPerLiter", { value: efficiency.kmPerLiter.toFixed(1) })}
+            <LeafIcon /> {efficiency.kmPerLiter.toFixed(1)} {units.perUnit}
           </span>
           <span style={{
             display: "inline-flex",
@@ -501,7 +515,7 @@ function FuelLogRow({
             border: "1px solid #e5e7eb",
             borderRadius: 6,
           }}>
-            <BarChartIcon /> {efficiency.litersPer100Km.toFixed(1)} L/100km
+            <BarChartIcon /> {efficiency.litersPer100Km.toFixed(1)} {units.per100}
           </span>
           <span style={{
             display: "inline-flex",

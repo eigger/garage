@@ -66,6 +66,11 @@ export async function registerPushSubscription(
   if (!res.ok) throw new Error("Failed to register push subscription");
 }
 
+export async function sendTestPush(): Promise<void> {
+  const res = await apiFetch("/api/push/test", { method: "POST" });
+  if (!res.ok) throw new Error("Failed to send test push");
+}
+
 export async function unsubscribeFromPush(): Promise<void> {
   const reg = await navigator.serviceWorker.ready;
   const subscription = await reg.pushManager.getSubscription();

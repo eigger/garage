@@ -81,6 +81,7 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
     { href: `${basePath}/quick-log`, label: t("navQuickLog") },
     { href: `${basePath}/schedule`, label: t("navSchedule") },
     { href: `${basePath}/history`, label: t("navHistory") },
+    { href: `${basePath}/analytics`, label: t("navAnalytics") },
   ];
 
   return (

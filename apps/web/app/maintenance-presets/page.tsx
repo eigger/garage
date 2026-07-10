@@ -254,7 +254,7 @@ function PresetRow({
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}
             </button>
-            <button type="button" onClick={() => setEditing(false)}>
+            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
               {t("cancel")}
             </button>
           </div>

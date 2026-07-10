@@ -41,6 +41,7 @@ export async function backupRoutes(app: FastifyInstance) {
         telemetry,
         attachments,
         presets,
+        pushSubscriptions,
       ] = await Promise.all([
         prisma.user.findMany(),
         prisma.vehicle.findMany(),
@@ -53,6 +54,7 @@ export async function backupRoutes(app: FastifyInstance) {
         prisma.telemetryRaw.findMany(),
         prisma.attachment.findMany(),
         prisma.maintenancePresetTemplate.findMany(),
+        prisma.pushSubscription.findMany(),
       ]);
 
       const dbData = {
@@ -67,6 +69,7 @@ export async function backupRoutes(app: FastifyInstance) {
         telemetry,
         attachments,
         presets,
+        pushSubscriptions,
       };
 
       // 2. Create temp backup directory structure
@@ -154,6 +157,7 @@ export async function backupRoutes(app: FastifyInstance) {
       // We clear tables in reverse dependency order, and insert in correct order
       await prisma.$transaction(async (tx) => {
         // Clear all existing data
+        await tx.pushSubscription.deleteMany();
         await tx.telemetryRaw.deleteMany();
         await tx.reminder.deleteMany();
         await tx.consumablePart.deleteMany();
@@ -172,6 +176,9 @@ export async function backupRoutes(app: FastifyInstance) {
         }
         if (dbData.presets?.length) {
           await tx.maintenancePresetTemplate.createMany({ data: dbData.presets });
+        }
+        if (dbData.pushSubscriptions?.length) {
+          await tx.pushSubscription.createMany({ data: dbData.pushSubscriptions });
         }
         if (dbData.vehicles?.length) {
           await tx.vehicle.createMany({ data: dbData.vehicles });

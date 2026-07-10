@@ -5,12 +5,13 @@ import { useParams, useSearchParams } from "next/navigation";
 import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
-import type { ConsumablePart } from "../../../../lib/types";
+import type { ConsumablePart, Vehicle } from "../../../../lib/types";
 import type { RecordCategory } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
 import { AlertIcon, TrashIcon } from "../../../../components/icons";
+import { fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
 import type { OpinetStationSummary } from "@garage/shared";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
@@ -112,7 +113,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   }
 
   // Opinet convenience states
-  const [vehicle, setVehicle] = useState<any>(null);
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [opinetConfigured, setOpinetConfigured] = useState(false);
   const [stations, setStations] = useState<OpinetStationSummary[]>([]);
   const [selectedStationId, setSelectedStationId] = useState("");
@@ -392,13 +393,13 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           type="number"
           inputMode="decimal"
           step="0.01"
-          placeholder={t("liters")}
+          placeholder={vehicle?.fuelType === "ELECTRIC" ? t("chargeAmount") : t("liters")}
           value={liters}
           onChange={(e) => handleLitersChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
         />
         <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
-          L
+          {fuelVolumeUnit(vehicle?.fuelType ?? null)}
         </span>
       </div>
 

@@ -33,24 +33,28 @@ export async function authRoutes(app: FastifyInstance) {
       .send({ id: user.id, name: user.name, email: user.email, role: user.role });
   });
 
-  app.post("/login", async (request, reply) => {
-    const parsed = loginSchema.safeParse(request.body);
-    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+  app.post(
+    "/login",
+    // 무차별 대입 방어: IP당 15분에 10회로 제한 (일반 로그인 실수 빈도보다 넉넉하게).
+    { config: { rateLimit: { max: 10, timeWindow: "15 minutes" } } },
+    async (request, reply) => {
+      const parsed = loginSchema.safeParse(request.body);
+      if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const { email, password } = parsed.data;
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return reply.code(401).send({ error: "invalid credentials" });
+      const { email, password } = parsed.data;
+      const user = await prisma.user.findUnique({ where: { email } });
+      if (!user) return reply.code(401).send({ error: "invalid credentials" });
 
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) return reply.code(401).send({ error: "invalid credentials" });
+      const valid = await bcrypt.compare(password, user.passwordHash);
+      if (!valid) return reply.code(401).send({ error: "invalid credentials" });
 
-    // 만료를 두지 않아 재발급 전까지 토큰이 유지된다.
-    const token = app.jwt.sign({ sub: user.id, role: user.role });
-    return {
-      token,
-      user: { id: user.id, name: user.name, email: user.email, role: user.role },
-    };
-  });
+      const token = app.jwt.sign({ sub: user.id, role: user.role }, { expiresIn: "90d" });
+      return {
+        token,
+        user: { id: user.id, name: user.name, email: user.email, role: user.role },
+      };
+    },
+  );
 
   app.get("/me", { preHandler: [app.authenticate] }, async (request) => {
     const user = await prisma.user.findUnique({ where: { id: request.user.sub } });

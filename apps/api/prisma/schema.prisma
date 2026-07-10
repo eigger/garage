@@ -12,11 +12,6 @@ enum UserRole {
   GENERAL
 }
 
-enum TripPurpose {
-  BUSINESS
-  PERSONAL
-}
-
 enum ReminderStatus {
   PENDING
   DONE
@@ -116,7 +111,6 @@ model Trip {
   distanceKm    Float?
   avgSpeed      Float?
   idleTimeSec   Int?
-  purpose       TripPurpose?
   routePolyline String?
 
   vehicle   Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
