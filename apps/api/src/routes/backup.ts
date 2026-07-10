@@ -73,7 +73,9 @@ export async function backupRoutes(app: FastifyInstance) {
       await mkdir(filesDir, { recursive: true });
 
       // 3. Write db.json
-      await writeFile(path.join(tempDir, "db.json"), JSON.stringify(dbData, null, 2), "utf8");
+      // TelemetryRaw.id는 BigInt라 JSON.stringify가 기본적으로 직렬화하지 못한다 — 문자열로 변환.
+      const jsonReplacer = (_key: string, value: unknown) => (typeof value === "bigint" ? value.toString() : value);
+      await writeFile(path.join(tempDir, "db.json"), JSON.stringify(dbData, jsonReplacer, 2), "utf8");
 
       // 4. Copy all existing uploaded files in UPLOAD_DIR into filesDir
       if (existsSync(UPLOAD_DIR)) {
@@ -102,7 +104,7 @@ export async function backupRoutes(app: FastifyInstance) {
         .send(fileBuffer);
     } catch (err: any) {
       app.log.error(err, "Backup export failed");
-      return reply.code(500).send({ error: "Failed to generate backup file" });
+      return reply.code(500).send({ error: `Backup export failed: ${err.message || err}` });
     } finally {
       // Clean up temp folders and files asynchronously
       rm(tempDir, { recursive: true, force: true }).catch(() => {});
@@ -137,6 +139,14 @@ export async function backupRoutes(app: FastifyInstance) {
       }
 
       const dbData = JSON.parse(await readFile(dbJsonPath, "utf8"));
+
+      // 내보내기에서 TelemetryRaw.id(BigInt)를 문자열로 직렬화했으므로, 복원 시 다시 BigInt로 되돌린다.
+      if (Array.isArray(dbData.telemetry)) {
+        dbData.telemetry = dbData.telemetry.map((t: Record<string, unknown>) => ({
+          ...t,
+          id: BigInt(t.id as string | number),
+        }));
+      }
 
       // 4. Run DB transaction to restore data
       // We clear tables in reverse dependency order, and insert in correct order

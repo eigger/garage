@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { LatLon } from "../../lib/maps/polyline";
-import { circleMarkerDataUri } from "../../lib/maps/polyline";
+import type { SpeedPoint } from "../../lib/maps/polyline";
+import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadNaverMaps } from "../../lib/maps/loadSdk";
 
-export function NaverTripMap({ points, clientId }: { points: LatLon[]; clientId: string }) {
+export function NaverTripMap({ points, clientId }: { points: SpeedPoint[]; clientId: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,12 +26,15 @@ export function NaverTripMap({ points, clientId }: { points: LatLon[]; clientId:
           center: path[0],
           zoom: 12,
         });
-        new naver.Polyline({
-          map,
-          path,
-          strokeColor: "#18523f",
-          strokeWeight: 4,
-        });
+
+        for (const seg of buildSpeedSegments(points)) {
+          new naver.Polyline({
+            map,
+            path: seg.path.map((p) => new naver.LatLng(p.lat, p.lon)),
+            strokeColor: seg.color,
+            strokeWeight: 4,
+          });
+        }
 
         // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
         new naver.Marker({ map, position: path[0], icon: { url: circleMarkerDataUri("#10b981"), size: new naver.Size(20, 20) } });

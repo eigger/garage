@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { LatLon } from "../../lib/maps/polyline";
-import { circleMarkerDataUri } from "../../lib/maps/polyline";
+import type { SpeedPoint } from "../../lib/maps/polyline";
+import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadKakaoMaps } from "../../lib/maps/loadSdk";
 
-export function KakaoTripMap({ points, appKey }: { points: LatLon[]; appKey: string }) {
+export function KakaoTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,11 +26,14 @@ export function KakaoTripMap({ points, appKey }: { points: LatLon[]; appKey: str
           center: path[0],
           level: 5,
         });
-        new kakao.Polyline({
-          path,
-          strokeWeight: 4,
-          strokeColor: "#18523f",
-        }).setMap(map);
+
+        for (const seg of buildSpeedSegments(points)) {
+          new kakao.Polyline({
+            path: seg.path.map((p) => new kakao.LatLng(p.lat, p.lon)),
+            strokeWeight: 4,
+            strokeColor: seg.color,
+          }).setMap(map);
+        }
 
         // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
         new kakao.Marker({

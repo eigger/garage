@@ -2,7 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { MapProvider } from "@garage/shared";
-import { decodeRoute } from "../../lib/maps/polyline";
+import type { SpeedPoint } from "../../lib/maps/polyline";
 import { KakaoTripMap } from "./KakaoTripMap";
 import { NaverTripMap } from "./NaverTripMap";
 import { TmapTripMap } from "./TmapTripMap";
@@ -28,7 +28,7 @@ const OsmTripMap = dynamic(() => import("./OsmTripMap").then((m) => ({ default: 
 });
 
 type TripRouteMapProps = {
-  routePolyline: string;
+  points: SpeedPoint[];
   provider: MapProvider;
   kakaoAppKey: string | null;
   naverClientId: string | null;
@@ -37,15 +37,13 @@ type TripRouteMapProps = {
 };
 
 export function TripRouteMap({
-  routePolyline,
+  points,
   provider,
   kakaoAppKey,
   naverClientId,
   tmapAppKey,
   noRouteLabel,
 }: TripRouteMapProps) {
-  const points = decodeRoute(routePolyline);
-
   if (points.length === 0) {
     return <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{noRouteLabel}</p>;
   }

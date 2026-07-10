@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import type { LatLon } from "../../lib/maps/polyline";
-import { sampleForArrows } from "../../lib/maps/polyline";
+import type { LatLon, SpeedPoint } from "../../lib/maps/polyline";
+import { buildSpeedSegments, sampleForArrows } from "../../lib/maps/polyline";
 
 function FitBounds({ points }: { points: LatLon[] }) {
   const map = useMap();
@@ -54,11 +54,11 @@ function ArrowMarkers({ points }: { points: LatLon[] }) {
   );
 }
 
-export function OsmTripMap({ points }: { points: LatLon[] }) {
+export function OsmTripMap({ points }: { points: SpeedPoint[] }) {
   const center = points[0] ?? { lat: 37.5665, lon: 126.978 };
-  const positions = points.map((p) => [p.lat, p.lon] as [number, number]);
   const start = points[0];
   const end = points[points.length - 1];
+  const segments = buildSpeedSegments(points);
 
   return (
     <MapContainer
@@ -71,9 +71,15 @@ export function OsmTripMap({ points }: { points: LatLon[] }) {
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {positions.length > 0 && (
+      {points.length > 0 && (
         <>
-          <Polyline positions={positions} pathOptions={{ color: "#18523f", weight: 4 }} />
+          {segments.map((seg, i) => (
+            <Polyline
+              key={i}
+              positions={seg.path.map((p) => [p.lat, p.lon] as [number, number])}
+              pathOptions={{ color: seg.color, weight: 4 }}
+            />
+          ))}
           <ArrowMarkers points={points} />
           <CircleMarker center={[start.lat, start.lon]} radius={6} pathOptions={{ color: "#fff", weight: 2, fillColor: "#10b981", fillOpacity: 1 }} />
           <CircleMarker center={[end.lat, end.lon]} radius={6} pathOptions={{ color: "#fff", weight: 2, fillColor: "#ef4444", fillOpacity: 1 }} />

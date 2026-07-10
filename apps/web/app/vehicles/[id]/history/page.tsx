@@ -16,6 +16,8 @@ import { CategoryBadge } from "../../../../components/CategoryBadge";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../../lib/maps/types";
+import type { SpeedPoint } from "../../../../lib/maps/polyline";
+import { decodeRoute } from "../../../../lib/maps/polyline";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type FuelEfficiency = {
@@ -720,12 +722,35 @@ function TripSection({
   const [hasMoreTrips, setHasMoreTrips] = useState(true);
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
+  const [tripPointsCache, setTripPointsCache] = useState<Record<string, SpeedPoint[]>>({});
   const mapConfig = useMapProviders();
   const [mapProvider, setMapProvider] = useState<MapProvider>("osm");
 
   useEffect(() => {
     setMapProvider(pickDefaultProvider(mapConfig));
   }, [mapConfig.providers.join(",")]);
+
+  // 트립의 원시 텔레메트리(위경도+속도)를 가져와 경로에 속도별 색상을 입힌다.
+  // 보존 기간이 지나 텔레메트리가 삭제된 오래된 트립은 routePolyline 기반 단색 표시로 폴백한다.
+  async function loadTripPoints(trip: Trip) {
+    if (tripPointsCache[trip.id]) return;
+    let points: SpeedPoint[] = [];
+    try {
+      const res = await apiFetch(`/api/trips/${trip.id}/points`);
+      const data: { lat: number | null; lon: number | null; speed: number | null }[] = res.ok
+        ? await res.json()
+        : [];
+      points = data
+        .filter((p): p is { lat: number; lon: number; speed: number | null } => p.lat !== null && p.lon !== null)
+        .map((p) => ({ lat: p.lat, lon: p.lon, speed: p.speed }));
+    } catch {
+      points = [];
+    }
+    if (points.length === 0 && trip.routePolyline) {
+      points = decodeRoute(trip.routePolyline).map((p) => ({ ...p, speed: null }));
+    }
+    setTripPointsCache((prev) => ({ ...prev, [trip.id]: points }));
+  }
 
   async function loadTrips(reset = false) {
     const currentOffset = reset ? 0 : tripOffset;
@@ -819,7 +844,11 @@ function TripSection({
                     <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                       <button
                         type="button"
-                        onClick={() => setSelectedTripId(isSelected ? null : trip.id)}
+                        onClick={() => {
+                          const next = isSelected ? null : trip.id;
+                          setSelectedTripId(next);
+                          if (next) loadTripPoints(trip);
+                        }}
                         style={{
                           minHeight: 36,
                           fontSize: 13,
@@ -847,17 +876,19 @@ function TripSection({
                   </div>
                   {isSelected && (
                     <div style={{ marginTop: 12 }}>
-                      {trip.routePolyline ? (
+                      {!trip.routePolyline ? (
+                        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{t("noRouteData")}</p>
+                      ) : tripPointsCache[trip.id] === undefined ? (
+                        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{t("loading")}</p>
+                      ) : (
                         <TripRouteMap
-                          routePolyline={trip.routePolyline}
+                          points={tripPointsCache[trip.id]}
                           provider={mapProvider}
                           kakaoAppKey={mapConfig.kakaoAppKey}
                           naverClientId={mapConfig.naverClientId}
                           tmapAppKey={mapConfig.tmapAppKey}
                           noRouteLabel={t("noRouteData")}
                         />
-                      ) : (
-                        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{t("noRouteData")}</p>
                       )}
                     </div>
                   )}
