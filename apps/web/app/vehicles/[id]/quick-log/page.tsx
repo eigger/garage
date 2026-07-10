@@ -333,7 +333,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             <select
               value={selectedStationId}
               onChange={(e) => handleStationSelect(e.target.value)}
-              style={{ width: "100%", minHeight: 44, fontSize: 14, padding: "0 8px" }}
+              style={{ width: "100%", minHeight: 44, fontSize: 14, padding: "0 28px 0 8px" }}
             >
               <option value="" disabled>{t("selectStation")}</option>
               {stations.map((s) => (
