@@ -156,12 +156,12 @@ function VapidKeyCard({
   return (
     <section className="card" style={{ marginTop: 16 }}>
       <strong>{t("vapidHeading")}</strong>
-      <p style={{ fontSize: 13, color: "#666", margin: "4px 0 8px" }}>{t("vapidHelp")}</p>
+      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "4px 0 8px" }}>{t("vapidHelp")}</p>
       <p
         style={{
           fontSize: 13,
           fontWeight: 600,
-          color: configured ? "#18523f" : "#a12a24",
+          color: configured ? "var(--color-success)" : "var(--color-danger)",
           margin: "0 0 12px",
         }}
       >
@@ -233,7 +233,7 @@ function SettingRow({
   return (
     <section className="card" style={{ marginTop: 16 }}>
       <strong>{meta ? t(meta.labelKey) : entry.key}</strong>
-      {meta && <p style={{ fontSize: 13, color: "#666", margin: "4px 0 8px" }}>{t(meta.helpKey)}</p>}
+      {meta && <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "4px 0 8px" }}>{t(meta.helpKey)}</p>}
       {meta?.signupUrl && meta.signupLabelKey && (
         <p style={{ fontSize: 13, margin: "0 0 8px" }}>
           <a href={meta.signupUrl} target="_blank" rel="noopener noreferrer">
@@ -245,7 +245,7 @@ function SettingRow({
         style={{
           fontSize: 13,
           fontWeight: 600,
-          color: entry.configured ? "#18523f" : "#a12a24",
+          color: entry.configured ? "var(--color-success)" : "var(--color-danger)",
           margin: "0 0 12px",
         }}
       >
@@ -266,7 +266,7 @@ function SettingRow({
           <button
             type="button"
             onClick={handleClear}
-            style={{ flexShrink: 0, width: "auto", padding: "0 16px", background: "#a12a24", color: "#fff" }}
+            style={{ flexShrink: 0, width: "auto", padding: "0 16px", background: "var(--color-danger)", color: "#fff" }}
           >
             {t("settingClear")}
           </button>

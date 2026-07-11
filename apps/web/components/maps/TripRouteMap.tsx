@@ -16,10 +16,10 @@ const OsmTripMap = dynamic(() => import("./OsmTripMap").then((m) => ({ default: 
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#f1f5f9",
+        background: "var(--color-surface-secondary)",
         borderRadius: 8,
         fontSize: 13,
-        color: "#666",
+        color: "var(--color-text-muted)",
       }}
     >
       …
@@ -45,7 +45,7 @@ export function TripRouteMap({
   noRouteLabel,
 }: TripRouteMapProps) {
   if (points.length === 0) {
-    return <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{noRouteLabel}</p>;
+    return <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{noRouteLabel}</p>;
   }
 
   if (provider === "kakao" && kakaoAppKey) {

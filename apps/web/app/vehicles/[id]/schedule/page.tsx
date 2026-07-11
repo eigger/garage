@@ -20,9 +20,9 @@ const computeStatus = computeScheduleStatus;
 
 function StatusBadge({ status, t }: { status: Status; t: Translator }) {
   const styles: Record<Status, { bg: string; color: string; label: TranslationKey }> = {
-    due: { bg: "#fde2e1", color: "#a12a24", label: "scheduleDueBadge" },
-    upcoming: { bg: "#fff3cd", color: "#8a6400", label: "scheduleUpcomingBadge" },
-    ok: { bg: "#e3f1e9", color: "#18523f", label: "scheduleOkBadge" },
+    due: { bg: "var(--status-due-bg)", color: "var(--color-danger)", label: "scheduleDueBadge" },
+    upcoming: { bg: "var(--status-upcoming-bg)", color: "var(--status-upcoming-text)", label: "scheduleUpcomingBadge" },
+    ok: { bg: "var(--status-ok-bg)", color: "var(--color-success)", label: "scheduleOkBadge" },
   };
   const s = styles[status];
   return (
@@ -106,8 +106,8 @@ export default function SchedulePage() {
                 fontSize: 12,
                 padding: "4px 10px",
                 minHeight: "auto",
-                background: categoryFilter === value ? "#18523f" : "#eee",
-                color: categoryFilter === value ? "#fff" : "#333",
+                background: categoryFilter === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
+                color: categoryFilter === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
               }}
             >
               {t(labelKey)}
@@ -120,8 +120,8 @@ export default function SchedulePage() {
               fontSize: 12,
               padding: "4px 10px",
               minHeight: "auto",
-              background: filter === "due" ? "#18523f" : "#eee",
-              color: filter === "due" ? "#fff" : "#333",
+              background: filter === "due" ? "var(--color-primary)" : "var(--color-surface-secondary)",
+              color: filter === "due" ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
             }}
           >
             {t("scheduleFilterDueOnly")}
@@ -193,9 +193,9 @@ function ScheduleRow({
     const percent = Math.min(100, (traveledKm / limitKm) * 100);
     const remaining = limitKm - traveledKm;
     
-    let color = "#18523f"; // green
-    if (percent >= 100 || remaining <= 0) color = "#dc2626"; // red
-    else if (percent >= 80) color = "#d97706"; // orange
+    let color = "var(--color-success)"; // green
+    if (percent >= 100 || remaining <= 0) color = "var(--badge-red-accent)"; // red
+    else if (percent >= 80) color = "var(--badge-amber-accent)"; // orange
 
     const remainingText = remaining <= 0 
       ? t("scheduleDueBadge") 
@@ -217,9 +217,9 @@ function ScheduleRow({
     const percent = Math.min(100, (elapsedMonths / limitMonths) * 100);
     const remainingMonths = limitMonths - elapsedMonths;
 
-    let color = "#18523f"; // green
-    if (percent >= 100 || remainingMonths <= 0) color = "#dc2626"; // red
-    else if (percent >= 80) color = "#d97706"; // orange
+    let color = "var(--color-success)"; // green
+    if (percent >= 100 || remainingMonths <= 0) color = "var(--badge-red-accent)"; // red
+    else if (percent >= 80) color = "var(--badge-amber-accent)"; // orange
 
     const remainingText = remainingMonths <= 0 
       ? t("scheduleDueBadge") 
@@ -378,7 +378,7 @@ function ScheduleRow({
         </div>
         <StatusBadge status={status} t={t} />
       </div>
-      <div style={{ fontSize: 13, color: "#666", margin: "4px 0 8px" }}>
+      <div style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "4px 0 8px" }}>
         {t("lastDoneAt", {
           distance: formatDistance(part.installedOdometer),
           date: part.installedDate.slice(0, 10),
@@ -403,10 +403,10 @@ function ScheduleRow({
         <div style={{ display: "flex", flexDirection: "column", gap: 8, margin: "12px 0 16px" }}>
           {distanceProgress && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#555" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--color-text-muted)" }}>
                 <span>{distanceProgress.label}</span>
               </div>
-              <div style={{ width: "100%", height: 8, backgroundColor: "#e5e7eb", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ width: "100%", height: 8, backgroundColor: "var(--color-track-bg)", borderRadius: 4, overflow: "hidden" }}>
                 <div
                   style={{
                     width: `${distanceProgress.percent}%`,
@@ -422,10 +422,10 @@ function ScheduleRow({
 
           {timeProgress && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "#555" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--color-text-muted)" }}>
                 <span>{timeProgress.label}</span>
               </div>
-              <div style={{ width: "100%", height: 8, backgroundColor: "#e5e7eb", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{ width: "100%", height: 8, backgroundColor: "var(--color-track-bg)", borderRadius: 4, overflow: "hidden" }}>
                 <div
                   style={{
                     width: `${timeProgress.percent}%`,
@@ -444,7 +444,7 @@ function ScheduleRow({
       {completing && (
         <form onSubmit={handleConfirmCompletion} className="form" style={{ marginTop: 12 }}>
           <p style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 600 }}>{t("completeWithCostTitle")}</p>
-          <p style={{ margin: "0 0 8px", fontSize: 12, color: "#666" }}>{t("completeWithCostHint")}</p>
+          <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--color-text-muted)" }}>{t("completeWithCostHint")}</p>
           <input
             type="number"
             placeholder={t("cost")}

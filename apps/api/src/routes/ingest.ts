@@ -9,6 +9,7 @@ import { prisma } from "../lib/prisma.js";
 import { publish } from "../lib/mqtt.js";
 import { telemetryEmitter } from "../lib/telemetryEmitter.js";
 import { syncReminders } from "../jobs/reminders.js";
+import { isReminderDue } from "../jobs/pushReminders.js";
 
 // apiToken은 차량마다 유일(@unique)하므로 토큰 하나만으로 차량을 특정할 수 있다.
 // URL에 vehicleId를 별도로 받을 필요가 없다 — 토큰이 곧 신원이자 인증 수단이다.
@@ -205,7 +206,58 @@ export async function ingestRoutes(app: FastifyInstance) {
     return reply.code(201).send(record);
   });
 
-  // 5. 웹 브라우저 대시보드 / 실시간 상태 연동용 WebSocket 스트림
+  // 5. HA 등 외부 서비스가 이 차량의 현재 상태(주행거리/연료·배터리/위치)를 폴링할 때 쓰는
+  // 조회 API. GET /api/vehicles/:id(로그인 세션용)와 동일한 응답 모양을 쓰되, apiToken 하나로
+  // 인증하므로 사람이 로그인할 필요가 없다 — HA REST 센서가 이 엔드포인트를 그대로 쓸 수 있다.
+  app.get("/status", async (request, reply) => {
+    const vehicle = await getVehicleFromRequest(request);
+    if (!vehicle) return reply.code(401).send({ error: "unauthorized" });
+
+    const [full, latestTelemetry, latestLocation] = await Promise.all([
+      prisma.vehicle.findUnique({ where: { id: vehicle.id } }),
+      prisma.telemetryRaw.findFirst({
+        where: { vehicleId: vehicle.id, fuelLevel: { not: null } },
+        orderBy: { time: "desc" },
+        select: { fuelLevel: true },
+      }),
+      prisma.telemetryRaw.findFirst({
+        where: { vehicleId: vehicle.id, lat: { not: null }, lon: { not: null } },
+        orderBy: { time: "desc" },
+        select: { lat: true, lon: true, speed: true, time: true },
+      }),
+    ]);
+    if (!full) return reply.code(404).send({ error: "vehicle not found" });
+
+    const { apiToken: _apiToken, ...safeVehicle } = full;
+    return {
+      ...safeVehicle,
+      fuelLevel: latestTelemetry?.fuelLevel ?? null,
+      latitude: latestLocation?.lat ?? null,
+      longitude: latestLocation?.lon ?? null,
+      locationUpdatedAt: latestLocation?.time ?? null,
+      speed: latestLocation?.speed ?? null,
+    };
+  });
+
+  // 6. HA 등 외부 서비스가 이 차량의 기한 지남/임박 정비 항목을 폴링할 때 쓰는 조회 API.
+  app.get("/reminders", async (request, reply) => {
+    const vehicle = await getVehicleFromRequest(request);
+    if (!vehicle) return reply.code(401).send({ error: "unauthorized" });
+
+    const reminders = await prisma.reminder.findMany({
+      where: { vehicleId: vehicle.id, status: "PENDING" },
+    });
+    const currentOdometer = vehicle.odometer;
+    const now = new Date();
+
+    return reminders.map((reminder) => ({
+      ...reminder,
+      currentOdometer,
+      isDue: isReminderDue(reminder, currentOdometer, now),
+    }));
+  });
+
+  // 7. 웹 브라우저 대시보드 / 실시간 상태 연동용 WebSocket 스트림
   app.get("/telemetry/ws", { websocket: true }, async (connection, request) => {
     const { token } = request.query as { token?: string };
     const vehicle = await getVehicleByToken(token);

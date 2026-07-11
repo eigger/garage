@@ -9,11 +9,297 @@ html {
   scrollbar-gutter: stable;
 }
 
+/* 라이트 기본값. 프로필에서 "시스템 설정"을 고르면 data-theme이 안 붙어서 아래
+   media query가 OS 설정을 따르고, "라이트"/"다크"를 직접 고르면 [data-theme]이
+   media query보다 우선한다. */
+:root {
+  --color-bg: #fafafa;
+  --color-surface: #ffffff;
+  --color-surface-hover: #f0f7f4;
+  --color-surface-secondary: #eeeeee;
+  --color-text: #1a1a1a;
+  --color-text-secondary: #444444;
+  --color-text-muted: #666666;
+  --color-text-muted-2: #888888;
+  --color-text-on-secondary: #333333;
+  --color-text-on-primary: #ffffff;
+  --color-border: #e5e5e5;
+  --color-border-light: #e2e8f0;
+  --color-input-border: #d0d0d0;
+  --color-primary: #18523f;
+  --color-success: #18523f;
+  --color-danger: #a12a24;
+  --color-error-text: #c0392b;
+  --color-warning-bg: #fff3cd;
+  --color-warning-border: #ffe08a;
+  --color-track-bg: #e5e7eb;
+  --color-modal-overlay: rgba(0, 0, 0, 0.45);
+  --color-shadow: rgba(0, 0, 0, 0.25);
+  --color-toast-bg: #1a1a1a;
+
+  /* 배지(뱃지) 색상 세트 — 연비/구간/상태 등 작은 상태 표시에 재사용 */
+  --badge-green-text: #166534;
+  --badge-green-bg: #dcfce7;
+  --badge-green-border: #bbf7d0;
+  --badge-blue-text: #1e3a8a;
+  --badge-blue-bg: #dbeafe;
+  --badge-blue-border: #bfdbfe;
+  --badge-admin-text: #1d4ed8;
+  --badge-admin-bg: #e8f0fe;
+  --badge-grey-text: #374151;
+  --badge-grey-bg: #f3f4f6;
+  --badge-grey-border: #e5e7eb;
+  --badge-amber-text: #92400e;
+  --badge-amber-accent: #f59e0b;
+  --badge-amber-bg: #fffbeb;
+  --badge-amber-border: #fef3c7;
+  --badge-red-text: #991b1b;
+  --badge-red-accent: #ef4444;
+  --badge-red-bg: #fef2f2;
+  --badge-red-border: #fee2e2;
+
+  /* 정비 스케줄 상태(지남/임박/정상) 배지 — text는 브랜드 색을 그대로 재사용 */
+  --status-due-bg: #fde2e1;
+  --status-upcoming-bg: #fff3cd;
+  --status-upcoming-text: #8a6400;
+  --status-ok-bg: #e3f1e9;
+  --chart-secondary: #2f6690;
+
+  --code-bg: #f8fafc;
+  --code-bg-alt: #f1f5f9;
+  --code-inline-bg: #e2e8f0;
+  --code-text: #0f172a;
+
+  --live-driving-dot: #10b981;
+  --live-driving-text: #047857;
+  --live-stopped-dot: #3b82f6;
+  --live-stopped-text: #1d4ed8;
+  --live-idle-dot: #6b7280;
+  --live-idle-text: #374151;
+  --color-disabled: #cccccc;
+  --chip-green-bg: #e8f0ec;
+  --chip-green-border: #cddcd4;
+  --chip-red-bg: #fdf2f2;
+  --chip-red-border: #fde2e2;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --color-bg: #121212;
+    --color-surface: #1e1e1e;
+    --color-surface-hover: #163229;
+    --color-surface-secondary: #2a2a2a;
+    --color-text: #f0f0f0;
+    --color-text-secondary: #cfcfcf;
+    --color-text-muted: #a0a0a0;
+    --color-text-muted-2: #8a8a8a;
+    --color-text-on-secondary: #e0e0e0;
+    --color-text-on-primary: #ffffff;
+    --color-border: #333333;
+    --color-border-light: #3a3a3a;
+    --color-input-border: #4a4a4a;
+    --color-primary: #2f8564;
+    --color-success: #2f8564;
+    --color-danger: #d9534f;
+    --color-error-text: #e57373;
+    --color-warning-bg: #3a2f10;
+    --color-warning-border: #5c4a12;
+    --color-track-bg: #333333;
+    --color-modal-overlay: rgba(0, 0, 0, 0.6);
+    --color-shadow: rgba(0, 0, 0, 0.5);
+    --color-toast-bg: #2a2a2a;
+
+    --badge-green-text: #86efac;
+    --badge-green-bg: #14321f;
+    --badge-green-border: #1f4d30;
+    --badge-blue-text: #93c5fd;
+    --badge-blue-bg: #142744;
+    --badge-blue-border: #1e3a63;
+    --badge-admin-text: #93c5fd;
+    --badge-admin-bg: #142744;
+    --badge-grey-text: #d1d5db;
+    --badge-grey-bg: #2a2d33;
+    --badge-grey-border: #3a3e46;
+    --badge-amber-text: #fcd34d;
+    --badge-amber-bg: #3a2f0f;
+    --badge-amber-border: #5c4a17;
+    --badge-red-text: #fca5a5;
+    --badge-red-bg: #3a1414;
+    --badge-red-border: #5c1f1f;
+
+    --status-due-bg: #3a1414;
+    --status-upcoming-bg: #3a2f0f;
+    --status-upcoming-text: #fcd34d;
+    --status-ok-bg: #14321f;
+    --chart-secondary: #5b9bc4;
+    --code-bg: #1a1f26;
+    --code-bg-alt: #22272e;
+    --code-inline-bg: #2d333b;
+    --code-text: #e6edf3;
+    --live-driving-dot: #10b981;
+    --live-driving-text: #34d399;
+    --live-stopped-dot: #3b82f6;
+    --live-stopped-text: #60a5fa;
+    --live-idle-dot: #9ca3af;
+    --live-idle-text: #d1d5db;
+    --color-disabled: #4a4a4a;
+    --chip-green-bg: #163229;
+    --chip-green-border: #1f4d30;
+    --chip-red-bg: #3a1414;
+    --chip-red-border: #5c1f1f;
+  }
+}
+
+:root[data-theme="dark"] {
+  --color-bg: #121212;
+  --color-surface: #1e1e1e;
+  --color-surface-hover: #163229;
+  --color-surface-secondary: #2a2a2a;
+  --color-text: #f0f0f0;
+  --color-text-secondary: #cfcfcf;
+  --color-text-muted: #a0a0a0;
+  --color-text-muted-2: #8a8a8a;
+  --color-text-on-secondary: #e0e0e0;
+  --color-text-on-primary: #ffffff;
+  --color-border: #333333;
+  --color-border-light: #3a3a3a;
+  --color-input-border: #4a4a4a;
+  --color-primary: #2f8564;
+  --color-success: #2f8564;
+  --color-danger: #d9534f;
+  --color-error-text: #e57373;
+  --color-warning-bg: #3a2f10;
+  --color-warning-border: #5c4a12;
+  --color-track-bg: #333333;
+  --color-modal-overlay: rgba(0, 0, 0, 0.6);
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --color-toast-bg: #2a2a2a;
+
+  --badge-green-text: #86efac;
+  --badge-green-bg: #14321f;
+  --badge-green-border: #1f4d30;
+  --badge-blue-text: #93c5fd;
+  --badge-blue-bg: #142744;
+  --badge-blue-border: #1e3a63;
+  --badge-admin-text: #93c5fd;
+  --badge-admin-bg: #142744;
+  --badge-grey-text: #d1d5db;
+  --badge-grey-bg: #2a2d33;
+  --badge-grey-border: #3a3e46;
+  --badge-amber-text: #fcd34d;
+  --badge-amber-bg: #3a2f0f;
+  --badge-amber-border: #5c4a17;
+  --badge-red-text: #fca5a5;
+  --badge-red-bg: #3a1414;
+  --badge-red-border: #5c1f1f;
+
+  --status-due-bg: #3a1414;
+  --status-upcoming-bg: #3a2f0f;
+  --status-upcoming-text: #fcd34d;
+  --status-ok-bg: #14321f;
+  --chart-secondary: #5b9bc4;
+  --code-bg: #1a1f26;
+  --code-bg-alt: #22272e;
+  --code-inline-bg: #2d333b;
+  --code-text: #e6edf3;
+  --live-driving-dot: #10b981;
+  --live-driving-text: #34d399;
+  --live-stopped-dot: #3b82f6;
+  --live-stopped-text: #60a5fa;
+  --live-idle-dot: #9ca3af;
+  --live-idle-text: #d1d5db;
+  --color-disabled: #4a4a4a;
+  --chip-green-bg: #163229;
+  --chip-green-border: #1f4d30;
+  --chip-red-bg: #3a1414;
+  --chip-red-border: #5c1f1f;
+}
+
+/* 테마 색상(accent) 팔레트 — 프로필에서 고르는 브랜드 색. 버튼·활성 탭·링크처럼
+   "강조" 용도에만 쓰이고, 지남/임박/정상 같은 상태 배지 색은 --color-success 등
+   고정 시맨틱 변수를 따로 써서 색상을 바꿔도 의미가 흔들리지 않게 한다. */
+:root[data-accent="blue"] {
+  --color-primary: #1d4ed8;
+  --color-surface-hover: #eff6ff;
+  --chip-green-bg: #eff6ff;
+  --chip-green-border: #bfdbfe;
+}
+:root[data-accent="purple"] {
+  --color-primary: #7c3aed;
+  --color-surface-hover: #f5f3ff;
+  --chip-green-bg: #f5f3ff;
+  --chip-green-border: #ddd6fe;
+}
+:root[data-accent="orange"] {
+  --color-primary: #c2410c;
+  --color-surface-hover: #fff7ed;
+  --chip-green-bg: #fff7ed;
+  --chip-green-border: #fed7aa;
+}
+:root[data-accent="black"] {
+  --color-primary: #18181b;
+  --color-surface-hover: #f4f4f5;
+  --chip-green-bg: #f4f4f5;
+  --chip-green-border: #d4d4d8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-accent="blue"] {
+    --color-primary: #3b82f6;
+    --color-surface-hover: #16213a;
+    --chip-green-bg: #16213a;
+    --chip-green-border: #1e3a63;
+  }
+  :root:not([data-theme="light"])[data-accent="purple"] {
+    --color-primary: #8b5cf6;
+    --color-surface-hover: #241b40;
+    --chip-green-bg: #241b40;
+    --chip-green-border: #3b2a5c;
+  }
+  :root:not([data-theme="light"])[data-accent="orange"] {
+    --color-primary: #ea580c;
+    --color-surface-hover: #3a2415;
+    --chip-green-bg: #3a2415;
+    --chip-green-border: #5c3a1f;
+  }
+  :root:not([data-theme="light"])[data-accent="black"] {
+    --color-primary: #71717a;
+    --color-surface-hover: #27272a;
+    --chip-green-bg: #27272a;
+    --chip-green-border: #3f3f46;
+  }
+}
+
+:root[data-theme="dark"][data-accent="blue"] {
+  --color-primary: #3b82f6;
+  --color-surface-hover: #16213a;
+  --chip-green-bg: #16213a;
+  --chip-green-border: #1e3a63;
+}
+:root[data-theme="dark"][data-accent="purple"] {
+  --color-primary: #8b5cf6;
+  --color-surface-hover: #241b40;
+  --chip-green-bg: #241b40;
+  --chip-green-border: #3b2a5c;
+}
+:root[data-theme="dark"][data-accent="orange"] {
+  --color-primary: #ea580c;
+  --color-surface-hover: #3a2415;
+  --chip-green-bg: #3a2415;
+  --chip-green-border: #5c3a1f;
+}
+:root[data-theme="dark"][data-accent="black"] {
+  --color-primary: #71717a;
+  --color-surface-hover: #27272a;
+  --chip-green-bg: #27272a;
+  --chip-green-border: #3f3f46;
+}
+
 body {
   margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #1a1a1a;
-  background: #fafafa;
+  color: var(--color-text);
+  background: var(--color-bg);
   padding-top: env(safe-area-inset-top);
   padding-bottom: env(safe-area-inset-bottom);
 }
@@ -49,19 +335,19 @@ h2 {
 p {
   font-size: 15px;
   line-height: 1.5;
-  color: #444;
+  color: var(--color-text-secondary);
 }
 
 .card {
   border-radius: 12px;
   padding: 14px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
 }
 
 .reminder-banner {
-  background: #fff3cd;
-  border: 1px solid #ffe08a;
+  background: var(--color-warning-bg);
+  border: 1px solid var(--color-warning-border);
   border-radius: 12px;
   padding: 14px;
   margin-bottom: 16px;
@@ -79,8 +365,8 @@ p {
 .list-item {
   border-radius: 10px;
   padding: 12px 14px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
   font-size: 15px;
 }
 
@@ -103,9 +389,11 @@ button {
   font-size: 16px; /* iOS에서 16px 미만이면 입력 시 자동 확대되는 걸 방지 */
   min-height: 48px; /* 터치 타깃 최소 크기 */
   border-radius: 10px;
-  border: 1px solid #d0d0d0;
+  border: 1px solid var(--color-input-border);
   padding: 12px 14px;
   box-sizing: border-box;
+  color: var(--color-text);
+  background-color: var(--color-surface);
 }
 
 /* native select는 min-height만으로는 입력 필드와 높이가 맞지 않는 경우가 많다 */
@@ -117,7 +405,6 @@ select {
   min-height: 48px;
   padding: 12px 36px 12px 14px;
   line-height: 1.2;
-  background-color: #fff;
   appearance: none;
   -webkit-appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M2.5 4.5 6 8l3.5-3.5'/%3E%3C/svg%3E");
@@ -127,8 +414,8 @@ select {
 
 button {
   padding: 12px 14px;
-  background: #18523f;
-  color: #fff;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
   border: none;
   font-weight: 500;
   cursor: pointer;
@@ -140,12 +427,12 @@ button:disabled {
 }
 
 .error-text {
-  color: #c0392b;
+  color: var(--color-error-text);
   font-size: 14px;
 }
 
 .field-error {
-  color: #c0392b;
+  color: var(--color-error-text);
   font-size: 13px;
   margin: -4px 0 0;
 }
@@ -167,8 +454,8 @@ button:disabled {
 }
 
 .toast {
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--color-toast-bg);
+  color: #ffffff;
   font-size: 14px;
   padding: 10px 16px;
   border-radius: 10px;
@@ -179,11 +466,11 @@ button:disabled {
 }
 
 .toast-success {
-  background: #18523f;
+  background: var(--color-success);
 }
 
 .toast-error {
-  background: #a12a24;
+  background: var(--color-danger);
 }
 
 @keyframes toast-in {
@@ -201,7 +488,7 @@ button:disabled {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--color-modal-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -210,41 +497,42 @@ button:disabled {
 }
 
 .modal-card {
-  background: #fff;
+  background: var(--color-surface);
   border-radius: 14px;
   padding: 20px;
   max-width: 420px;
   width: 100%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 10px 30px var(--color-shadow);
 }
 
 .modal-card p {
-  color: #333;
+  color: var(--color-text-on-secondary);
   font-size: 15px;
   margin: 0;
 }
 
 .btn-secondary {
-  background: #eee;
-  color: #333;
+  background: var(--color-surface-secondary);
+  color: var(--color-text-on-secondary);
 }
 
 .btn-danger {
-  background: #a12a24;
+  background: var(--color-danger);
+  color: var(--color-text-on-primary);
 }
 
 /* Upload progress */
 .upload-progress-track {
   width: 100%;
   height: 6px;
-  background: #e5e7eb;
+  background: var(--color-track-bg);
   border-radius: 3px;
   overflow: hidden;
 }
 
 .upload-progress-fill {
   height: 100%;
-  background: #18523f;
+  background: var(--color-primary);
   transition: width 0.15s ease;
 }
 
@@ -258,19 +546,19 @@ button:disabled {
   padding: 0 14px;
   font-size: 13px;
   font-weight: 500;
-  background: #ffffff;
-  color: #18523f;
+  background: var(--color-surface);
+  color: var(--color-primary);
   text-decoration: none;
   border-radius: 8px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--color-border-light);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   transition: all 0.15s ease;
   cursor: pointer;
 }
 
 .nav-btn-premium:hover {
-  background: #f0f7f4;
-  border-color: #18523f;
+  background: var(--color-surface-hover);
+  border-color: var(--color-primary);
 }
 
 .nav-btn-premium:active {
@@ -278,9 +566,9 @@ button:disabled {
 }
 
 .nav-btn-premium.active {
-  background: #18523f;
-  color: #ffffff;
-  border-color: #18523f;
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border-color: var(--color-primary);
   box-shadow: 0 2px 6px rgba(24, 82, 63, 0.15);
 }
 
@@ -291,4 +579,3 @@ button:disabled {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
-

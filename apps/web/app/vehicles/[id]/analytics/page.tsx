@@ -178,8 +178,8 @@ export default function AnalyticsPage() {
                 fontSize: 12,
                 padding: "4px 10px",
                 minHeight: "auto",
-                background: period === value ? "#18523f" : "#eee",
-                color: period === value ? "#fff" : "#333",
+                background: period === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
+                color: period === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
               }}
             >
               {t(labelKey)}
@@ -191,19 +191,19 @@ export default function AnalyticsPage() {
       <section className="card" style={{ marginTop: 16 }}>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("analyticsAvgEfficiency")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsAvgEfficiency")}</div>
             <strong>{avgEfficiency !== null ? `${avgEfficiency.toFixed(1)} ${units.perUnit}` : "-"}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("analyticsThisMonthCost")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsThisMonthCost")}</div>
             <strong>{formatCurrency(thisMonthCost)}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("analyticsTotalCost")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsTotalCost")}</div>
             <strong>{formatCurrency(totalCostInPeriod)}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("analyticsCostPerDistance")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsCostPerDistance")}</div>
             <strong>{costPerDistance !== null ? `${formatCurrency(costPerDistance)}/${distanceUnit}` : "-"}</strong>
           </div>
         </div>
@@ -219,15 +219,15 @@ export default function AnalyticsPage() {
         ) : (
           <ResponsiveContainer width="100%" height={240}>
             <LineChart data={efficiencyChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#666" }} />
-              <YAxis tick={{ fontSize: 11, fill: "#666" }} width={40} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={40} />
               <Tooltip
                 formatter={(value) => [`${value} ${units.perUnit}`, ""]}
                 labelStyle={{ fontSize: 12 }}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
-              <Line type="monotone" dataKey="value" stroke="#18523f" strokeWidth={2} dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
             </LineChart>
           </ResponsiveContainer>
         )}
@@ -240,17 +240,17 @@ export default function AnalyticsPage() {
         ) : (
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={monthlyCost} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#eee" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#666" }} />
-              <YAxis tick={{ fontSize: 11, fill: "#666" }} width={50} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={50} />
               <Tooltip
                 formatter={(value) => formatCurrency(Number(value))}
                 labelStyle={{ fontSize: 12 }}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="fuel" name={t("analyticsFuelCost")} stackId="cost" fill="#18523f" />
-              <Bar dataKey="maintenance" name={t("analyticsMaintenanceCost")} stackId="cost" fill="#2f6690" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="fuel" name={t("analyticsFuelCost")} stackId="cost" fill="var(--color-primary)" />
+              <Bar dataKey="maintenance" name={t("analyticsMaintenanceCost")} stackId="cost" fill="var(--chart-secondary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -262,8 +262,8 @@ export default function AnalyticsPage() {
 function EmptyState({ title, desc }: { title: string; desc?: string }) {
   return (
     <div style={{ textAlign: "center", padding: "32px 16px" }}>
-      <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: "#666" }}>{title}</p>
-      {desc && <p style={{ margin: 0, fontSize: 13, color: "#888" }}>{desc}</p>}
+      <p style={{ margin: "0 0 4px", fontSize: 14, fontWeight: 600, color: "var(--color-text-muted)" }}>{title}</p>
+      {desc && <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-muted-2)" }}>{desc}</p>}
     </div>
   );
 }

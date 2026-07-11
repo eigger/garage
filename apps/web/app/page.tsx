@@ -10,7 +10,7 @@ import { SettingsBar } from "./settings-bar";
 import { formatItemLabel } from "../lib/i18n/itemLabel";
 import { getLastVehicleId } from "../lib/lastVehicle";
 import { countScheduleStatuses } from "../lib/scheduleStatus";
-import { AlertIcon, CarIcon, UsersIcon, WrenchIcon, PlugIcon } from "../components/icons";
+import { AlertIcon, CarIcon, UsersIcon, WrenchIcon, PlugIcon, TerminalIcon } from "../components/icons";
 import type { ConsumablePart, FuelLog, Reminder, TripSummary, Vehicle } from "../lib/types";
 
 type VehicleCardSummary = {
@@ -125,7 +125,7 @@ function HomeInner() {
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h1>{t("appTitle")}</h1>
-        <button onClick={logout} style={{ background: "transparent", color: "#18523f", minHeight: 32 }}>
+        <button onClick={logout} style={{ background: "transparent", color: "var(--color-primary)", minHeight: 32 }}>
           {t("logout")}
         </button>
       </div>
@@ -139,6 +139,7 @@ function HomeInner() {
             { href: "/users", Icon: UsersIcon, label: t("manageUsers") },
             { href: "/maintenance-presets", Icon: WrenchIcon, label: t("presetsHeading") },
             { href: "/integrations", Icon: PlugIcon, label: t("navIntegrations") },
+            { href: "/api-explorer", Icon: TerminalIcon, label: t("navApiExplorer") },
           ] as const).map(({ href, Icon, label }) => (
             <li key={href} className="list-item">
               <Link href={href} style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -153,15 +154,15 @@ function HomeInner() {
       {/* 정비 알림 배너 */}
       {dueReminders.length > 0 && (
         <section style={{ marginBottom: 16 }}>
-          <strong style={{ fontSize: 15, color: "#1f2937", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <strong style={{ fontSize: 15, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <AlertIcon size={16} filled /> {t("reminderBannerTitle", { count: dueReminders.length })}
           </strong>
           <ul className="list" style={{ marginTop: 8 }}>
             {dueReminders.map((r) => {
-              const borderLeftColor = r.isDue ? "#ef4444" : "#f59e0b";
-              const backgroundColor = r.isDue ? "#fef2f2" : "#fffbeb";
-              const borderColor = r.isDue ? "#fee2e2" : "#fef3c7";
-              const textColor = r.isDue ? "#991b1b" : "#92400e";
+              const borderLeftColor = r.isDue ? "var(--badge-red-accent)" : "var(--badge-amber-accent)";
+              const backgroundColor = r.isDue ? "var(--badge-red-bg)" : "var(--badge-amber-bg)";
+              const borderColor = r.isDue ? "var(--badge-red-border)" : "var(--badge-amber-border)";
+              const textColor = r.isDue ? "var(--badge-red-text)" : "var(--badge-amber-text)";
               return (
                 <li
                   key={r.id}
@@ -200,7 +201,7 @@ function HomeInner() {
                         padding: "0 8px",
                         fontSize: 12,
                         borderRadius: 6,
-                        background: r.isDue ? "#ef4444" : "#f59e0b",
+                        background: r.isDue ? "var(--badge-red-accent)" : "var(--badge-amber-accent)",
                         color: "#fff",
                         border: "none",
                         cursor: "pointer",
@@ -243,7 +244,7 @@ function HomeInner() {
                     <Link href={`/vehicles/${v.id}`}>
                       {v.name} {v.plate ? `(${v.plate})` : ""}
                     </Link>
-                    <div style={{ fontSize: 13, color: "#666", display: "flex", flexWrap: "wrap", gap: 12 }}>
+                    <div style={{ fontSize: 13, color: "var(--color-text-muted)", display: "flex", flexWrap: "wrap", gap: 12 }}>
                       <span>
                         {t("dashboardOdometer")}:{" "}
                         {stats?.odometer !== null && stats?.odometer !== undefined
@@ -264,10 +265,10 @@ function HomeInner() {
                       </span>
                     </div>
                     <div style={{ fontSize: 12, display: "flex", gap: 8 }}>
-                      <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#a12a24" }}>
+                      <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "var(--color-danger)" }}>
                         {t("dashboardDueCount", { count: dueCount })}
                       </Link>
-                      <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "#8b6d1e" }}>
+                      <Link href={`/vehicles/${v.id}/schedule`} style={{ color: "var(--badge-amber-text)" }}>
                         {t("dashboardUpcomingCount", { count: upcomingCount })}
                       </Link>
                     </div>

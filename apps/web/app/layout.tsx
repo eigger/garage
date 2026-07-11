@@ -25,12 +25,15 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
-  themeColor: "#18523f",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#18523f" },
+    { media: "(prefers-color-scheme: dark)", color: "#121212" },
+  ],
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="ko" suppressHydrationWarning>
       <body>
         <RegisterServiceWorker />
         <SettingsProvider>

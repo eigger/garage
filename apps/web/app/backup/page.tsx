@@ -33,7 +33,7 @@ export default function BackupPage() {
     return (
       <main className="container">
         <SettingsBar />
-        <p style={{ color: "red", fontWeight: "600" }}>Forbidden: Admin access only.</p>
+        <p style={{ color: "var(--color-danger)", fontWeight: "600" }}>Forbidden: Admin access only.</p>
         <p>
           <Link href="/">{t("backToDashboard")}</Link>
         </p>
@@ -115,7 +115,7 @@ export default function BackupPage() {
         {/* Export Card */}
         <section className="card">
           <h2>{t("backupExportButton").split(" (")[0]}</h2>
-          <p style={{ fontSize: 14, color: "#666", margin: "8px 0 16px" }}>
+          <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: "8px 0 16px" }}>
             내보내기를 실행하면 차량 데이터베이스 테이블 내용과 업로드된 모든 이미지/PDF 영수증 파일이 하나의 압축 파일로 다운로드됩니다.
           </p>
           <button type="button" onClick={handleExport} disabled={loading}>
@@ -124,9 +124,9 @@ export default function BackupPage() {
         </section>
 
         {/* Restore Card */}
-        <section className="card" style={{ border: "1px solid #a12a24" }}>
-          <h2 style={{ color: "#a12a24" }}>{t("backupRestoreButton")}</h2>
-          <p style={{ fontSize: 14, color: "#a12a24", fontWeight: "600", margin: "8px 0 16px" }}>
+        <section className="card" style={{ border: "1px solid var(--color-danger)" }}>
+          <h2 style={{ color: "var(--color-danger)" }}>{t("backupRestoreButton")}</h2>
+          <p style={{ fontSize: 14, color: "var(--color-danger)", fontWeight: "600", margin: "8px 0 16px" }}>
             {t("backupWarning")}
           </p>
           <form onSubmit={handleRestore} className="form">
@@ -142,8 +142,8 @@ export default function BackupPage() {
               disabled={loading || !file}
               style={{
                 marginTop: 16,
-                backgroundColor: loading || !file ? "#ccc" : "#a12a24",
-                borderColor: loading || !file ? "#ccc" : "#a12a24",
+                backgroundColor: loading || !file ? "var(--color-disabled)" : "var(--color-danger)",
+                borderColor: loading || !file ? "var(--color-disabled)" : "var(--color-danger)",
                 color: "#fff",
               }}
             >

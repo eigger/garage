@@ -9,7 +9,7 @@ Implementation status reflects the current source tree. Keys managed in the admi
 |---|---|---|---|---|
 | [Opinet](#1-opinet-fuel-price-api) | Garage → external | **Available** | `/integrations` or `OPINET_API_KEY` | Nearby gas stations & prices |
 | [OBD app (Torque Pro)](#2-obd-app-torque-pro) | external → Garage | **Available** | per-vehicle `apiToken` | OBD/GPS telemetry ingest |
-| [REST telemetry](#3-rest-telemetry-ingest) | external → Garage | **Available** | per-vehicle `apiToken` | HA / generic JSON ingest |
+| [REST telemetry](#3-rest-telemetry-ingest) | external ↔ Garage | **Available** | per-vehicle `apiToken` | HA / generic JSON ingest + status/reminders read |
 | [WebSocket telemetry](#4-websocket-live-stream) | Garage → client | **Available** | per-vehicle `apiToken` | Live location & status |
 | [MQTT (Mosquitto)](#5-mqtt-mosquitto--home-assistant) | Garage → external | Code ready | `MQTT_URL` + Compose | HA / Node-RED |
 | [GitHub Releases](#6-github-releases-update-check) | Garage → external | **Available** | (none) | `/health` update notice |
@@ -19,6 +19,7 @@ Implementation status reflects the current source tree. Keys managed in the admi
 | [Navigation deep links](#10-navigation-deep-links-t-map--kakao--naver) | Garage → mobile apps | **Available** | (none) | Open T map / Kakao / Naver nav to saved fuel locations |
 | [Vehicle records REST API](#11-vehicle-records-rest-api-fuel--maintenance) | external → Garage | **Available** | Garage user JWT (`/api/auth/login`) | Fuel logs, maintenance records, odometer side-effects |
 | [PWA Web Push](#12-pwa-web-push) | Garage → client | **Available** | `VAPID_*` env vars | Due maintenance/admin reminder notifications |
+| [API Explorer](#13-api-explorer) | (developer tool) | **Available** | ADMIN login | Browse & test every REST endpoint from the web UI |
 
 ---
 
@@ -198,6 +199,51 @@ Torque Pro typically omits `inVehicle` and is handled by rules 1–3 automatical
 2. Broadcast to WebSocket subscribers
 3. *(Note: this route does not publish to MQTT today — only the Torque GET route does)*
 
+### Vehicle status & reminders (read)
+
+Same `apiToken` auth as above (query `?token=` or `Authorization: Bearer`), but for **reading** instead of writing — this is what a Home Assistant `rest` sensor should poll. No user login is needed.
+
+```
+GET /api/ingest/status?token={apiToken}
+```
+
+Returns the vehicle row plus its latest known telemetry (never includes `apiToken` itself):
+
+```json
+{
+  "id": "clx...",
+  "name": "쏘나타",
+  "plate": "12가3456",
+  "fuelType": "GASOLINE",
+  "odometer": 45230,
+  "fuelLevel": 62,
+  "latitude": 37.5665,
+  "longitude": 126.978,
+  "locationUpdatedAt": "2024-06-01T09:12:00.000Z",
+  "speed": 0
+}
+```
+
+```
+GET /api/ingest/reminders?token={apiToken}
+```
+
+Returns every `PENDING` maintenance/admin reminder for the vehicle, each with `currentOdometer` and a computed `isDue` (date or odometer threshold reached):
+
+```json
+[
+  { "type": "engineOilFilter", "dueDate": "2024-07-01T00:00:00.000Z", "dueOdometer": 50000, "isDue": false, "currentOdometer": 45230 }
+]
+```
+
+Both return `401 { "error": "unauthorized" }` when the token is missing or invalid — a quick way to sanity-check a token from a terminal:
+
+```bash
+curl "https://GARAGE_HOST/api/ingest/status?token=YOUR_VEHICLE_API_TOKEN"
+```
+
+Admins can also click through every endpoint (including these) from the web UI — see **[API Explorer](#13-api-explorer)**.
+
 ---
 
 ### Home Assistant — copy & paste `rest_command`
@@ -257,6 +303,32 @@ rest_command:
         "dtcCodes": "{{ states('sensor.YOUR_DTC_SENSOR') }}",
         "inVehicle": {{ is_state('sensor.YOUR_CAR_BLUETOOTH_SENSOR', 'connected') | lower }}
       }
+```
+
+**Read Garage back into HA** — `rest` sensors that poll `GET /api/ingest/status` (Garage → HA direction, no telemetry push needed):
+
+```yaml
+# --- Garage status sensors (read) ---
+# Paste into configuration.yaml, replace GARAGE_HOST / API_TOKEN.
+
+sensor:
+  - platform: rest
+    name: "Garage Odometer"
+    resource: "http://GARAGE_HOST/api/ingest/status?token=API_TOKEN"
+    value_template: "{{ value_json.odometer }}"
+    unit_of_measurement: "km"
+    scan_interval: 300
+  - platform: rest
+    name: "Garage Fuel Level"
+    resource: "http://GARAGE_HOST/api/ingest/status?token=API_TOKEN"
+    value_template: "{{ value_json.fuelLevel }}"
+    unit_of_measurement: "%"
+    scan_interval: 300
+  - platform: rest
+    name: "Garage Due Reminders"
+    resource: "http://GARAGE_HOST/api/ingest/reminders?token=API_TOKEN"
+    value_template: "{{ value_json | selectattr('isDue') | list | count }}"
+    scan_interval: 3600
 ```
 
 **Optional automation** — push telemetry every minute while driving (speed > 5 km/h):
@@ -745,6 +817,22 @@ Dismissed reminders are not pushed again. Completing a schedule item starts a ne
 | `GET` | `/api/push/status` | JWT | Current user's subscription state |
 | `POST` | `/api/push/subscribe` | JWT | Register browser push subscription |
 | `DELETE` | `/api/push/subscribe` | JWT | Remove subscription (`{ endpoint }`) |
+
+---
+
+## 13. API Explorer
+
+| Field | Value |
+|---|---|
+| Status | **Available** |
+| Access | ADMIN only, web UI `/api-explorer` |
+| Implementation | `apps/web/app/api-explorer/page.tsx` |
+
+A built-in page listing every REST endpoint in this document, grouped by how it authenticates:
+
+- **JWT (로그인 세션)** — read-only `GET` endpoints are one-click testable using the admin's own session; the response is shown as formatted JSON.
+- **차량 apiToken** — pick a vehicle from a dropdown (its token is fetched the same way `/vehicles/[id]/integration` does), then test `GET /api/ingest/status` and `GET /api/ingest/reminders` live.
+- Endpoints that create/modify/delete data (`POST`/`PATCH`/`DELETE`) are listed for reference with a ready-to-copy `curl` command, but are **not** one-click runnable — this page is meant for safely checking that reads work (e.g. before wiring up a Home Assistant sensor), not for driving the app.
 
 ---
 

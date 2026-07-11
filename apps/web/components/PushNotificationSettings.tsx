@@ -96,7 +96,7 @@ export function PushNotificationSettings() {
   if (!isPushSupported()) {
     return (
       <PushSection title={t("pushHeading")} help={t("pushUnsupported")}>
-        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{t("pushUnsupported")}</p>
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("pushUnsupported")}</p>
       </PushSection>
     );
   }
@@ -108,7 +108,7 @@ export function PushNotificationSettings() {
 
   return (
     <PushSection title={t("pushHeading")} help={t("pushHelp")}>
-      <p style={{ fontSize: 13, color: "#666", margin: "0 0 12px" }}>{t(statusKey)}</p>
+      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 12px" }}>{t(statusKey)}</p>
       {configured && permission !== "denied" && (
         <div style={{ display: "flex", gap: 8 }}>
           {!subscribed ? (
@@ -141,9 +141,9 @@ function PushSection({
   children: React.ReactNode;
 }) {
   return (
-    <section style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid #eee" }}>
+    <section style={{ marginTop: 24, paddingTop: 16, borderTop: "1px solid var(--color-border)" }}>
       <h3 style={{ margin: "0 0 4px", fontSize: 15 }}>{title}</h3>
-      <p style={{ fontSize: 12, color: "#888", margin: "0 0 12px" }}>{help}</p>
+      <p style={{ fontSize: 12, color: "var(--color-text-muted-2)", margin: "0 0 12px" }}>{help}</p>
       {children}
     </section>
   );

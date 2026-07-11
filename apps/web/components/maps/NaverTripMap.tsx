@@ -56,13 +56,13 @@ export function NaverTripMap({ points, clientId }: { points: SpeedPoint[]; clien
   }, [clientId, points]);
 
   if (error) {
-    return <p style={{ fontSize: 13, color: "#a12a24" }}>{error}</p>;
+    return <p style={{ fontSize: 13, color: "var(--color-danger)" }}>{error}</p>;
   }
 
   return (
     <div
       ref={containerRef}
-      style={{ height: 240, width: "100%", borderRadius: 8, background: "#f1f5f9" }}
+      style={{ height: 240, width: "100%", borderRadius: 8, background: "var(--color-surface-secondary)" }}
     />
   );
 }

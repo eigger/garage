@@ -13,7 +13,7 @@ const PROVIDERS: NavProvider[] = ["tmap", "kakao", "naver"];
 export function NavLaunchButtons({ destination, labels, heading }: NavLaunchButtonsProps) {
   return (
     <div style={{ marginTop: 8 }}>
-      <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>{heading}</div>
+      <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 6 }}>{heading}</div>
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {PROVIDERS.map((provider) => (
           <a
@@ -23,9 +23,9 @@ export function NavLaunchButtons({ destination, labels, heading }: NavLaunchButt
               fontSize: 12,
               padding: "6px 10px",
               borderRadius: 8,
-              border: "1px solid #e2e8f0",
-              background: "#fff",
-              color: "#18523f",
+              border: "1px solid var(--color-border-light)",
+              background: "var(--color-surface)",
+              color: "var(--color-primary)",
               textDecoration: "none",
             }}
           >

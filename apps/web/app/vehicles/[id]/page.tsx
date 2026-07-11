@@ -240,15 +240,15 @@ export default function VehicleOverviewPage() {
 
       {reminders.length > 0 && (
         <section style={{ marginBottom: 16 }}>
-          <strong style={{ fontSize: 15, color: "#1f2937", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+          <strong style={{ fontSize: 15, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
             <AlertIcon size={16} filled /> {t("reminderBannerTitle", { count: reminders.length })}
           </strong>
           <ul className="list" style={{ marginTop: 8 }}>
             {reminders.map((r) => {
-              const borderLeftColor = r.isDue ? "#ef4444" : "#f59e0b";
-              const backgroundColor = r.isDue ? "#fef2f2" : "#fffbeb";
-              const borderColor = r.isDue ? "#fee2e2" : "#fef3c7";
-              const textColor = r.isDue ? "#991b1b" : "#92400e";
+              const borderLeftColor = r.isDue ? "var(--badge-red-accent)" : "var(--badge-amber-accent)";
+              const backgroundColor = r.isDue ? "var(--badge-red-bg)" : "var(--badge-amber-bg)";
+              const borderColor = r.isDue ? "var(--badge-red-border)" : "var(--badge-amber-border)";
+              const textColor = r.isDue ? "var(--badge-red-text)" : "var(--badge-amber-text)";
               return (
                 <li
                   key={r.id}
@@ -286,7 +286,7 @@ export default function VehicleOverviewPage() {
                         padding: "0 10px",
                         fontSize: 12,
                         borderRadius: 6,
-                        background: r.isDue ? "#ef4444" : "#f59e0b",
+                        background: r.isDue ? "var(--badge-red-accent)" : "var(--badge-amber-accent)",
                         color: "#fff",
                         border: "none",
                         cursor: "pointer",
@@ -315,13 +315,13 @@ export default function VehicleOverviewPage() {
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Link href={`/vehicles/${vehicleId}/quick-log`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>{t("navQuickLog")}</div>
-          <strong style={{ color: "#18523f" }}>{t("quickLogHeading")} →</strong>
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("navQuickLog")}</div>
+          <strong style={{ color: "var(--color-primary)" }}>{t("quickLogHeading")} →</strong>
         </Link>
 
         <Link href={`/vehicles/${vehicleId}/schedule`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>{t("navSchedule")}</div>
-          <strong style={{ color: dueCount > 0 ? "#a12a24" : "#18523f" }}>
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("navSchedule")}</div>
+          <strong style={{ color: dueCount > 0 ? "var(--color-danger)" : "var(--color-success)" }}>
             {dueCount > 0
               ? `${t("scheduleDueBadge")} ${dueCount}`
               : upcomingCount > 0
@@ -331,8 +331,8 @@ export default function VehicleOverviewPage() {
         </Link>
 
         <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>
-          <div style={{ fontSize: 13, color: "#666" }}>{t("totalDistance")} ({t("tripPeriodWeek")})</div>
-          <strong style={{ color: "#18523f" }}>
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("totalDistance")} ({t("tripPeriodWeek")})</div>
+          <strong style={{ color: "var(--color-primary)" }}>
             {summary ? formatDistance(summary.totalDistanceKm) : "-"}
           </strong>
         </Link>
@@ -342,15 +342,15 @@ export default function VehicleOverviewPage() {
         <h2 style={{ margin: "0 0 8px", fontSize: 16 }}>{t("monthlyCostSummary")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("monthlyFuelCost")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("monthlyFuelCost")}</div>
             <strong>{formatCurrency(monthFuelCost)}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("monthlyMaintenanceCost")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("monthlyMaintenanceCost")}</div>
             <strong>{formatCurrency(monthMaintenanceCost)}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("monthlyTotalCost")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("monthlyTotalCost")}</div>
             <strong>{formatCurrency(monthFuelCost + monthMaintenanceCost)}</strong>
           </div>
         </div>
@@ -369,7 +369,7 @@ export default function VehicleOverviewPage() {
                     setEditing((prev) => !prev);
                     setSaveError("");
                   }}
-                  style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: editing ? "#eee" : "#18523f", color: editing ? "#333" : "#fff" }}
+                  style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: editing ? "var(--color-surface-secondary)" : "var(--color-primary)", color: editing ? "var(--color-text-on-secondary)" : "var(--color-text-on-primary)" }}
                 >
                   {editing ? t("cancel") : t("edit")}
                 </button>
@@ -377,7 +377,7 @@ export default function VehicleOverviewPage() {
                   type="button"
                   onClick={handleDeleteVehicle}
                   disabled={deletingVehicle}
-                  style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: "#a12a24", color: "#fff" }}
+                  style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: "var(--color-danger)", color: "#fff" }}
                 >
                   {t("delete")}
                 </button>
@@ -385,14 +385,14 @@ export default function VehicleOverviewPage() {
             )}
           </div>
           {deleteVehicleError && (
-            <p style={{ color: "#a12a24", fontSize: 13, margin: "0 0 8px" }}>{deleteVehicleError}</p>
+            <p style={{ color: "var(--color-danger)", fontSize: 13, margin: "0 0 8px" }}>{deleteVehicleError}</p>
           )}
 
           {editing ? (
             <form onSubmit={handleSave} className="form" style={{ marginTop: 12 }}>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleMake")}</label>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleMake")}</label>
                   <input
                     placeholder={t("vehicleMake")}
                     value={make}
@@ -400,7 +400,7 @@ export default function VehicleOverviewPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleModel")}</label>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleModel")}</label>
                   <input
                     placeholder={t("vehicleModel")}
                     value={model}
@@ -408,7 +408,7 @@ export default function VehicleOverviewPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehiclePlate")}</label>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehiclePlate")}</label>
                   <input
                     placeholder={t("vehiclePlate")}
                     value={plate}
@@ -416,7 +416,7 @@ export default function VehicleOverviewPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleYear")}</label>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleYear")}</label>
                   <input
                     type="number"
                     placeholder={t("vehicleYear")}
@@ -426,7 +426,7 @@ export default function VehicleOverviewPage() {
                 </div>
               </div>
               <div style={{ marginTop: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleVin")}</label>
+                <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleVin")}</label>
                 <input
                   placeholder={t("vehicleVin")}
                   value={vin}
@@ -437,7 +437,7 @@ export default function VehicleOverviewPage() {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginTop: 12 }}>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleTireSize")}</label>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleTireSize")}</label>
                   <input
                     placeholder="205/55R16"
                     value={tireSize}
@@ -445,7 +445,7 @@ export default function VehicleOverviewPage() {
                   />
                 </div>
                 <div>
-                  <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("vehicleBatteryCapacity")}</label>
+                  <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleBatteryCapacity")}</label>
                   <input
                     placeholder="77.4 kWh"
                     value={batteryCapacity}
@@ -455,7 +455,7 @@ export default function VehicleOverviewPage() {
               </div>
 
               <div style={{ marginTop: 12 }}>
-                <label style={{ fontSize: 12, fontWeight: "600", color: "#666" }}>{t("dashboardOdometer")}</label>
+                <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("dashboardOdometer")}</label>
                 <input
                   type="number"
                   placeholder={t("dashboardOdometer")}
@@ -466,7 +466,7 @@ export default function VehicleOverviewPage() {
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 12 }}>
-                <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>
+                <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
                   {t("registrationCertificate")}
                 </label>
                 <input
@@ -480,12 +480,12 @@ export default function VehicleOverviewPage() {
                     <div className="upload-progress-track">
                       <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
                     </div>
-                    <span style={{ fontSize: 12, color: "#666" }}>{t("uploading")} {uploadProgress}%</span>
+                    <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("uploading")} {uploadProgress}%</span>
                   </div>
                 )}
               </div>
 
-              {saveError && <p style={{ color: "red", fontSize: 13, margin: "8px 0 0" }}>{saveError}</p>}
+              {saveError && <p style={{ color: "var(--color-danger)", fontSize: 13, margin: "8px 0 0" }}>{saveError}</p>}
 
               <button type="submit" disabled={savingState} style={{ marginTop: 16 }}>
                 {savingState ? t("saving") : t("save")}
@@ -501,26 +501,26 @@ export default function VehicleOverviewPage() {
                 <div><strong>{t("dashboardOdometer")}:</strong> {vehicle.odometer !== null && vehicle.odometer !== undefined ? formatDistance(vehicle.odometer) : "-"}</div>
                 <div><strong>{t("fuelLevel")}:</strong> {vehicle.fuelLevel !== null && vehicle.fuelLevel !== undefined ? `${vehicle.fuelLevel.toFixed(1)}%` : "-"}</div>
               </div>
-              <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4, wordBreak: "break-all" }}>
+              <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4, wordBreak: "break-all" }}>
                 <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
                 <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
                 <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
               </div>
-              <div style={{ borderTop: "1px solid #eee", paddingTop: 8, marginTop: 4 }}>
+              <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
                 <strong>{t("registrationCertificate")}:</strong>{" "}
                 {regCertificate ? (
                   <a
                     href={`${API_URL}/api/attachments/file/${regCertificate.filePath}${getToken() ? `?token=${getToken()}` : ""}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={{ color: "#18523f", textDecoration: "underline", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: 4 }}
+                    style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: 4 }}
                   >
                     <PaperclipIcon /> {t("registrationCertificate")} ({regCertificate.mimeType.split("/")[1]?.toUpperCase() || "FILE"})
                   </a>
                 ) : (
-                  <span style={{ color: "#999" }}>미등록 (Not registered)</span>
+                  <span style={{ color: "var(--color-text-muted-2)" }}>미등록 (Not registered)</span>
                 )}
               </div>
             </div>
@@ -533,7 +533,7 @@ export default function VehicleOverviewPage() {
           <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><MapPinIcon /> {t("lastKnownLocation")}</span>
             {vehicle.locationUpdatedAt && (
-              <span style={{ fontSize: 12, fontWeight: "normal", color: "#666" }}>
+              <span style={{ fontSize: 12, fontWeight: "normal", color: "var(--color-text-muted)" }}>
                 {t("locationUpdatedAtLabel", {
                   time: new Date(vehicle.locationUpdatedAt).toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
                     month: "short",
@@ -553,11 +553,11 @@ export default function VehicleOverviewPage() {
                 width: 8,
                 height: 8,
                 borderRadius: "50%",
-                backgroundColor: isDriving ? "#10b981" : isStopped ? "#3b82f6" : "#6b7280",
+                backgroundColor: isDriving ? "var(--live-driving-dot)" : isStopped ? "var(--live-stopped-dot)" : "var(--live-idle-dot)",
                 animation: isDriving ? "statusPulse 1.5s infinite ease-in-out" : "none",
               }}
             />
-            <span style={{ fontSize: 13, fontWeight: "600", color: isDriving ? "#047857" : isStopped ? "#1d4ed8" : "#374151" }}>
+            <span style={{ fontSize: 13, fontWeight: "600", color: isDriving ? "var(--live-driving-text)" : isStopped ? "var(--live-stopped-text)" : "var(--live-idle-text)" }}>
               {isDriving
                 ? t("statusDriving")
                 : isStopped

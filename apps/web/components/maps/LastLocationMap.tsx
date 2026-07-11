@@ -38,9 +38,9 @@ function RecenterButton({ onClick }: { onClick: () => void }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "#fff",
-        color: "#18523f",
-        border: "1px solid #d0d0d0",
+        background: "var(--color-surface)",
+        color: "var(--color-primary)",
+        border: "1px solid var(--color-input-border)",
         borderRadius: 8,
         boxShadow: "0 1px 4px rgba(0,0,0,0.2)",
       }}
@@ -147,10 +147,10 @@ function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appK
     mapRef.current.setLevel(3);
   }
 
-  if (error) return <p style={{ fontSize: 13, color: "#a12a24", margin: 8 }}>{error}</p>;
+  if (error) return <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 8 }}>{error}</p>;
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />
+      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "var(--color-surface-secondary)", borderRadius: 8 }} />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
@@ -203,10 +203,10 @@ function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; cl
     mapRef.current.setZoom(DEFAULT_ZOOM);
   }
 
-  if (error) return <p style={{ fontSize: 13, color: "#a12a24", margin: 8 }}>{error}</p>;
+  if (error) return <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 8 }}>{error}</p>;
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />
+      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "var(--color-surface-secondary)", borderRadius: 8 }} />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
@@ -261,10 +261,10 @@ function TmapLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKe
     mapRef.current.setZoom(DEFAULT_ZOOM);
   }
 
-  if (error) return <p style={{ fontSize: 13, color: "#a12a24", margin: 8 }}>{error}</p>;
+  if (error) return <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 8 }}>{error}</p>;
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "#f1f5f9", borderRadius: 8 }} />
+      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "var(--color-surface-secondary)", borderRadius: 8 }} />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
