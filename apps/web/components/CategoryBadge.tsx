@@ -20,8 +20,8 @@ export function CategoryBadge({
         fontWeight: 600,
         padding: "2px 8px",
         borderRadius: 999,
-        background: isAdmin ? "#e8f0fe" : "#e3f1e9",
-        color: isAdmin ? "#1d4ed8" : "#18523f",
+        background: isAdmin ? "var(--badge-admin-bg)" : "var(--status-ok-bg)",
+        color: isAdmin ? "var(--badge-admin-text)" : "var(--color-success)",
         flexShrink: 0,
       }}
     >

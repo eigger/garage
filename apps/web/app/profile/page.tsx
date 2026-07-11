@@ -12,10 +12,31 @@ import { PushNotificationSettings } from "../../components/PushNotificationSetti
 import { useMapProviders } from "../../lib/maps/useMapProviders";
 import { isMapProvider, MAP_PROVIDER_STORAGE_KEY } from "../../lib/maps/types";
 import { SettingsGearIcon, CheckIcon, XIcon } from "../../components/icons";
+import type { AccentColor } from "../../lib/i18n/settings-context";
+
+const ACCENT_SWATCHES: { value: AccentColor; hex: string; labelKey: "accentGreen" | "accentBlue" | "accentPurple" | "accentOrange" | "accentBlack" }[] = [
+  { value: "green", hex: "#18523f", labelKey: "accentGreen" },
+  { value: "blue", hex: "#1d4ed8", labelKey: "accentBlue" },
+  { value: "purple", hex: "#7c3aed", labelKey: "accentPurple" },
+  { value: "orange", hex: "#c2410c", labelKey: "accentOrange" },
+  { value: "black", hex: "#18181b", labelKey: "accentBlack" },
+];
 
 export default function ProfilePage() {
   const { user, requireAuth } = useAuth();
-  const { locale, setLocale, distanceUnit, setDistanceUnit, currency, setCurrency, t } = useSettings();
+  const {
+    locale,
+    setLocale,
+    distanceUnit,
+    setDistanceUnit,
+    currency,
+    setCurrency,
+    theme,
+    setTheme,
+    accentColor,
+    setAccentColor,
+    t,
+  } = useSettings();
   const { showToast } = useToast();
   const router = useRouter();
   const mapConfig = useMapProviders();
@@ -108,7 +129,7 @@ export default function ProfilePage() {
 
       <form onSubmit={handleSubmit} className="form" style={{ maxWidth: 400 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("name")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("name")}</label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -118,7 +139,7 @@ export default function ProfilePage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 12 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("emailPlaceholder")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("emailPlaceholder")}</label>
           <input
             type="email"
             value={email}
@@ -128,12 +149,12 @@ export default function ProfilePage() {
           />
         </div>
 
-        <h3 style={{ marginTop: 24, marginBottom: 8, fontSize: 15, borderBottom: "1px solid #eee", paddingBottom: 6 }}>
+        <h3 style={{ marginTop: 24, marginBottom: 8, fontSize: 15, borderBottom: "1px solid var(--color-border)", paddingBottom: 6 }}>
           {t("changePasswordHeading")}
         </h3>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("currentPassword")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("currentPassword")}</label>
           <input
             type="password"
             value={currentPassword}
@@ -143,7 +164,7 @@ export default function ProfilePage() {
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 12 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("newPassword")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("newPassword")}</label>
           <input
             type="password"
             value={newPassword}
@@ -153,12 +174,12 @@ export default function ProfilePage() {
         </div>
 
         {message && (
-          <p style={{ color: "green", fontSize: 14, margin: "12px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+          <p style={{ color: "var(--color-primary)", fontSize: 14, margin: "12px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
             <CheckIcon /> {message}
           </p>
         )}
         {error && (
-          <p style={{ color: "red", fontSize: 14, margin: "12px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
+          <p style={{ color: "var(--color-danger)", fontSize: 14, margin: "12px 0 0", display: "flex", alignItems: "center", gap: 4 }}>
             <XIcon /> {error}
           </p>
         )}
@@ -168,12 +189,12 @@ export default function ProfilePage() {
         </button>
       </form>
 
-      <h3 style={{ marginTop: 28, marginBottom: 12, fontSize: 15, borderBottom: "1px solid #eee", paddingBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+      <h3 style={{ marginTop: 28, marginBottom: 12, fontSize: 15, borderBottom: "1px solid var(--color-border)", paddingBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
         <SettingsGearIcon /> {t("preferences")}
       </h3>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, maxWidth: 400, marginBottom: 24 }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("languageLabel")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("languageLabel")}</label>
           <select
             value={locale}
             onChange={(e) => setLocale(e.target.value as any)}
@@ -184,7 +205,45 @@ export default function ProfilePage() {
           </select>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("distanceUnitLabel")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("themeLabel")}</label>
+          <select
+            value={theme}
+            onChange={(e) => setTheme(e.target.value as any)}
+            style={{ width: "100%", height: 48, minHeight: 48 }}
+          >
+            <option value="system">{t("themeSystem")}</option>
+            <option value="light">{t("themeLight")}</option>
+            <option value="dark">{t("themeDark")}</option>
+          </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("accentColorLabel")}</label>
+          <div style={{ display: "flex", gap: 10 }}>
+            {ACCENT_SWATCHES.map((swatch) => (
+              <button
+                key={swatch.value}
+                type="button"
+                onClick={() => setAccentColor(swatch.value)}
+                title={t(swatch.labelKey)}
+                aria-label={t(swatch.labelKey)}
+                aria-pressed={accentColor === swatch.value}
+                style={{
+                  width: 36,
+                  height: 36,
+                  minHeight: 36,
+                  padding: 0,
+                  borderRadius: "50%",
+                  background: swatch.hex,
+                  border: accentColor === swatch.value ? "3px solid var(--color-text)" : "3px solid transparent",
+                  boxShadow: accentColor === swatch.value ? "0 0 0 1px var(--color-border)" : "none",
+                  cursor: "pointer",
+                }}
+              />
+            ))}
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("distanceUnitLabel")}</label>
           <select
             value={distanceUnit}
             onChange={(e) => setDistanceUnit(e.target.value as any)}
@@ -195,7 +254,7 @@ export default function ProfilePage() {
           </select>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("currencyLabel")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("currencyLabel")}</label>
           <select
             value={currency}
             onChange={(e) => setCurrency(e.target.value as any)}
@@ -206,7 +265,7 @@ export default function ProfilePage() {
           </select>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-          <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("mapProviderLabel")}</label>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("mapProviderLabel")}</label>
           <select
             value={mapProviderPref}
             onChange={(e) => handleMapProviderChange(e.target.value)}

@@ -96,8 +96,8 @@ export default function MaintenancePresetsPage() {
             type="button"
             onClick={() => setCategory(tab)}
             style={{
-              background: category === tab ? "#18523f" : "#eee",
-              color: category === tab ? "#fff" : "#333",
+              background: category === tab ? "var(--color-primary)" : "var(--color-surface-secondary)",
+              color: category === tab ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
               flex: 1,
             }}
           >
@@ -139,8 +139,8 @@ export default function MaintenancePresetsPage() {
               type="button"
               onClick={() => setFuelType(ft)}
               style={{
-                background: fuelType === ft ? "#18523f" : "#eee",
-                color: fuelType === ft ? "#fff" : "#333",
+                background: fuelType === ft ? "var(--color-primary)" : "var(--color-surface-secondary)",
+                color: fuelType === ft ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
                 flex: 1,
               }}
             >
@@ -378,8 +378,8 @@ function AddPresetForm({
           type="button"
           onClick={() => setMode("catalog")}
           style={{
-            background: mode === "catalog" ? "#18523f" : "#eee",
-            color: mode === "catalog" ? "#fff" : "#333",
+            background: mode === "catalog" ? "var(--color-primary)" : "var(--color-surface-secondary)",
+            color: mode === "catalog" ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
             flex: 1,
           }}
         >
@@ -389,8 +389,8 @@ function AddPresetForm({
           type="button"
           onClick={() => setMode("custom")}
           style={{
-            background: mode === "custom" ? "#18523f" : "#eee",
-            color: mode === "custom" ? "#fff" : "#333",
+            background: mode === "custom" ? "var(--color-primary)" : "var(--color-surface-secondary)",
+            color: mode === "custom" ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
             flex: 1,
           }}
         >

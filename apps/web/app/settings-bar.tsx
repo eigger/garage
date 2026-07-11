@@ -70,7 +70,7 @@ export function SettingsBar() {
 
       <span
         style={{
-          color: "#888",
+          color: "var(--color-text-muted-2)",
           fontSize: 12,
           display: "inline-flex",
           alignItems: "center",

@@ -178,8 +178,8 @@ export default function HistoryPage() {
             type="button"
             onClick={() => setSubTab(tb.key)}
             style={{
-              background: subTab === tb.key ? "#18523f" : "#eee",
-              color: subTab === tb.key ? "#fff" : "#333",
+              background: subTab === tb.key ? "var(--color-primary)" : "var(--color-surface-secondary)",
+              color: subTab === tb.key ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
               flex: 1,
               minHeight: 38,
               fontSize: 14,
@@ -234,9 +234,9 @@ export default function HistoryPage() {
                     minHeight: 38,
                     fontSize: 13,
                     fontWeight: "500",
-                    backgroundColor: "#ffffff",
-                    color: "#18523f",
-                    border: "1px solid #e2e8f0",
+                    backgroundColor: "var(--color-surface)",
+                    color: "var(--color-primary)",
+                    border: "1px solid var(--color-border-light)",
                     borderRadius: 8,
                     cursor: "pointer",
                   }}
@@ -269,8 +269,8 @@ export default function HistoryPage() {
                   fontSize: 12,
                   padding: "4px 10px",
                   minHeight: "auto",
-                  background: categoryFilter === value ? "#18523f" : "#eee",
-                  color: categoryFilter === value ? "#fff" : "#333",
+                  background: categoryFilter === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
+                  color: categoryFilter === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
                 }}
               >
                 {t(labelKey)}
@@ -288,7 +288,7 @@ export default function HistoryPage() {
                 minHeight: 38,
                 fontSize: 13,
                 borderRadius: 8,
-                border: "1px solid #e2e8f0",
+                border: "1px solid var(--color-border-light)",
                 padding: "0 12px",
                 outline: "none",
               }}
@@ -324,9 +324,9 @@ export default function HistoryPage() {
                     minHeight: 38,
                     fontSize: 13,
                     fontWeight: "500",
-                    backgroundColor: "#ffffff",
-                    color: "#18523f",
-                    border: "1px solid #e2e8f0",
+                    backgroundColor: "var(--color-surface)",
+                    color: "var(--color-primary)",
+                    border: "1px solid var(--color-border-light)",
                     borderRadius: 8,
                     cursor: "pointer",
                   }}
@@ -476,7 +476,7 @@ function FuelLogRow({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span>
           {log.date.slice(0, 10)} · {log.liters}{volumeUnit} · {formatCurrency(log.cost)}
-          {log.location && <span style={{ fontSize: 13, color: "#666", marginLeft: 8 }}>({log.location})</span>}
+          {log.location && <span style={{ fontSize: 13, color: "var(--color-text-muted)", marginLeft: 8 }}>({log.location})</span>}
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
@@ -496,9 +496,9 @@ function FuelLogRow({
             padding: "3px 6px",
             fontSize: 11,
             fontWeight: "600",
-            color: "#166534",
-            backgroundColor: "#dcfce7",
-            border: "1px solid #bbf7d0",
+            color: "var(--badge-green-text)",
+            backgroundColor: "var(--badge-green-bg)",
+            border: "1px solid var(--badge-green-border)",
             borderRadius: 6,
           }}>
             <LeafIcon /> {efficiency.kmPerLiter.toFixed(1)} {units.perUnit}
@@ -510,9 +510,9 @@ function FuelLogRow({
             padding: "3px 6px",
             fontSize: 11,
             fontWeight: "500",
-            color: "#374151",
-            backgroundColor: "#f3f4f6",
-            border: "1px solid #e5e7eb",
+            color: "var(--badge-grey-text)",
+            backgroundColor: "var(--badge-grey-bg)",
+            border: "1px solid var(--badge-grey-border)",
             borderRadius: 6,
           }}>
             <BarChartIcon /> {efficiency.litersPer100Km.toFixed(1)} {units.per100}
@@ -524,16 +524,16 @@ function FuelLogRow({
             padding: "3px 6px",
             fontSize: 11,
             fontWeight: "500",
-            color: "#1e3a8a",
-            backgroundColor: "#dbeafe",
-            border: "1px solid #bfdbfe",
+            color: "var(--badge-blue-text)",
+            backgroundColor: "var(--badge-blue-bg)",
+            border: "1px solid var(--badge-blue-border)",
             borderRadius: 6,
           }}>
             <RouteIcon /> {efficiency.distanceKm.toFixed(0)}km {t("historyTabTrips")}
           </span>
         </div>
       )}
-      {log.address && <div style={{ fontSize: 12, color: "#666" }}>{log.address}</div>}
+      {log.address && <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{log.address}</div>}
       {log.latitude !== null && log.longitude !== null && (
         <>
           <button
@@ -543,9 +543,9 @@ function FuelLogRow({
               minHeight: 32,
               fontSize: 13,
               padding: "0 10px",
-              background: showMap ? "#18523f" : "#fff",
-              color: showMap ? "#fff" : "#18523f",
-              border: "1px solid #e2e8f0",
+              background: showMap ? "var(--color-primary)" : "var(--color-surface)",
+              color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
+              border: "1px solid var(--color-border-light)",
               borderRadius: 8,
               display: "inline-flex",
               alignItems: "center",
@@ -594,11 +594,11 @@ function AttachmentList({ attachments }: { attachments: { id: string; filePath: 
               display: "inline-flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "1px solid #ddd",
+              border: "1px solid var(--color-border)",
               borderRadius: 4,
               overflow: "hidden",
               textDecoration: "none",
-              backgroundColor: "#f9f9f9",
+              backgroundColor: "var(--color-surface-secondary)",
             }}
           >
             {isImage ? (
@@ -609,7 +609,7 @@ function AttachmentList({ attachments }: { attachments: { id: string; filePath: 
                 style={{ width: 60, height: 60, objectFit: "cover" }}
               />
             ) : (
-              <span style={{ fontSize: 11, color: "#666", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
                 <FileTextIcon /> PDF
               </span>
             )}
@@ -748,8 +748,8 @@ function MaintenanceRow({
                   flex: 1,
                   fontSize: 13,
                   minHeight: 36,
-                  background: category === value ? "#18523f" : "#eee",
-                  color: category === value ? "#fff" : "#333",
+                  background: category === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
+                  color: category === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
                 }}
               >
                 {t(labelKey)}
@@ -945,15 +945,15 @@ function TripSection({
       {summary && (
         <div className="card" style={{ display: "flex", gap: 20, marginBottom: 12 }}>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("totalDistance")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDistance")}</div>
             <strong>{formatDistance(summary.totalDistanceKm)}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("totalDuration")}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDuration")}</div>
             <strong>{formatDuration(summary.totalDurationSec, t)}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "#666" }}>{t("tripCount", { count: summary.tripCount })}</div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("tripCount", { count: summary.tripCount })}</div>
           </div>
         </div>
       )}
@@ -1029,9 +1029,9 @@ function TripSection({
                           minHeight: 36,
                           fontSize: 13,
                           padding: "0 10px",
-                          background: isSelected ? "#18523f" : "#fff",
-                          color: isSelected ? "#fff" : "#18523f",
-                          border: "1px solid #e2e8f0",
+                          background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
+                          color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                          border: "1px solid var(--color-border-light)",
                           borderRadius: 8,
                         }}
                       >
@@ -1043,9 +1043,9 @@ function TripSection({
                   {isSelected && (
                     <div style={{ marginTop: 12 }}>
                       {!trip.routePolyline ? (
-                        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{t("noRouteData")}</p>
+                        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("noRouteData")}</p>
                       ) : tripPointsCache[trip.id] === undefined ? (
-                        <p style={{ fontSize: 13, color: "#666", margin: 0 }}>{t("loading")}</p>
+                        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("loading")}</p>
                       ) : (
                         <TripRouteMap
                           points={tripPointsCache[trip.id]}
@@ -1072,9 +1072,9 @@ function TripSection({
                 minHeight: 38,
                 fontSize: 13,
                 fontWeight: "500",
-                backgroundColor: "#ffffff",
-                color: "#18523f",
-                border: "1px solid #e2e8f0",
+                backgroundColor: "var(--color-surface)",
+                color: "var(--color-primary)",
+                border: "1px solid var(--color-border-light)",
                 borderRadius: 8,
                 cursor: "pointer",
               }}

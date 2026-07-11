@@ -53,8 +53,8 @@ function QuickLogPageInner() {
             type="button"
             onClick={() => setTab(tb.key)}
             style={{
-              background: tab === tb.key ? "#18523f" : "#eee",
-              color: tab === tb.key ? "#fff" : "#333",
+              background: tab === tb.key ? "var(--color-primary)" : "var(--color-surface-secondary)",
+              color: tab === tb.key ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
               flex: 1,
             }}
           >
@@ -87,23 +87,37 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [baseOdometer, setBaseOdometer] = useState<number>(0);
 
+  // 윗줄(더하기): 천원 단위부터 큰 단위까지. 아랫줄(빼기+지우기): 잘못 눌렀을 때 바로
+  // 되돌릴 수 있는 단위만 추려서 두 줄로 끝나게 한다.
   const presets = currency === "KRW"
     ? [
-        { label: isKo ? "+1만" : "+10k", value: 10000 },
-        { label: isKo ? "+3만" : "+30k", value: 30000 },
-        { label: isKo ? "+5만" : "+50k", value: 50000 },
-        { label: isKo ? "+10만" : "+100k", value: 100000 },
+        { label: "+1,000", value: 1000 },
+        { label: "+1만", value: 10000 },
+        { label: "+3만", value: 30000 },
+        { label: "+5만", value: 50000 },
       ]
     : [
+        { label: "+$1", value: 1 },
         { label: "+$10", value: 10 },
         { label: "+$30", value: 30 },
         { label: "+$50", value: 50 },
-        { label: "+$100", value: 100 },
+      ];
+
+  const correctionPresets = currency === "KRW"
+    ? [
+        { label: "-1,000", value: -1000 },
+        { label: "-1만", value: -10000 },
+        { label: "-3만", value: -30000 },
+      ]
+    : [
+        { label: "-$1", value: -1 },
+        { label: "-$10", value: -10 },
+        { label: "-$30", value: -30 },
       ];
 
   function handleAddPreset(value: number) {
     const currentCost = Number(cost) || 0;
-    const newCost = currentCost + value;
+    const newCost = Math.max(0, currentCost + value);
     handleCostChange(String(newCost));
   }
 
@@ -307,12 +321,12 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           onChange={(e) => setOdometer(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
         />
-        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
           {distanceUnit}
         </span>
       </div>
       {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
-        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ color: "var(--badge-amber-accent)", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
           <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
         </p>
       )}
@@ -323,7 +337,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             type="button"
             onClick={handleFindStations}
             disabled={locLoading || !vehicle || vehicle.fuelType === "ELECTRIC"}
-            style={{ padding: "0 12px", minHeight: 44, fontSize: 14, background: "#18523f", color: "#fff", width: "100%" }}
+            style={{ padding: "0 12px", minHeight: 44, fontSize: 14, background: "var(--color-primary)", color: "var(--color-text-on-primary)", width: "100%" }}
           >
             {locLoading ? t("loading") : t("detectLocation")}
           </button>
@@ -359,7 +373,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       )}
 
       {stationAddress && (
-        <p style={{ fontSize: 12, color: "#666", margin: 0 }}>{stationAddress}</p>
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>{stationAddress}</p>
       )}
 
       {stationCoords && (
@@ -383,7 +397,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           onChange={(e) => handleUnitPriceChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
         />
-        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
           {currencyUnit}
         </span>
       </div>
@@ -398,7 +412,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           onChange={(e) => handleLitersChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
         />
-        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
           {fuelVolumeUnit(vehicle?.fuelType ?? null)}
         </span>
       </div>
@@ -413,12 +427,12 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           autoFocus
           style={{ width: "100%", paddingRight: 40 }}
         />
-        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
           {currencyUnit}
         </span>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${presets.length + 1}, 1fr)`, gap: 6, marginTop: 4, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${presets.length}, 1fr)`, gap: 6, marginTop: 4 }}>
         {presets.map((p) => (
           <button
             key={p.label}
@@ -430,9 +444,33 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
               fontSize: 12,
               minHeight: 32,
               height: 32,
-              background: "#e8f0ec",
-              color: "#18523f",
-              border: "1px solid #cddcd4",
+              background: "var(--chip-green-bg)",
+              color: "var(--color-primary)",
+              border: "1px solid var(--chip-green-border)",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: `repeat(${correctionPresets.length + 1}, 1fr)`, gap: 6, marginTop: 6, marginBottom: 12 }}>
+        {correctionPresets.map((p) => (
+          <button
+            key={p.label}
+            type="button"
+            onClick={() => handleAddPreset(p.value)}
+            style={{
+              width: "100%",
+              padding: "4px 6px",
+              fontSize: 12,
+              minHeight: 32,
+              height: 32,
+              background: "var(--chip-red-bg)",
+              color: "var(--color-danger)",
+              border: "1px solid var(--chip-red-border)",
               borderRadius: 4,
               cursor: "pointer",
             }}
@@ -449,9 +487,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             fontSize: 12,
             minHeight: 32,
             height: 32,
-            background: "#fdf2f2",
-            color: "#a12a24",
-            border: "1px solid #fde2e2",
+            background: "var(--chip-red-bg)",
+            color: "var(--color-danger)",
+            border: "1px solid var(--chip-red-border)",
             borderRadius: 4,
             cursor: "pointer",
             display: "flex",
@@ -465,7 +503,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "8px 0" }}>
-        <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("attachmentLabel")}</label>
+        <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("attachmentLabel")}</label>
         <input
           key={fileKey}
           type="file"
@@ -478,12 +516,12 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             <div className="upload-progress-track">
               <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
             </div>
-            <span style={{ fontSize: 12, color: "#666" }}>{t("uploading")} {uploadProgress}%</span>
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("uploading")} {uploadProgress}%</span>
           </div>
         )}
       </div>
 
-      <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "#18523f" }}>
+      <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "var(--color-primary)" }}>
         {showMore ? t("fewerFields") : t("moreFields")}
       </button>
 
@@ -657,12 +695,12 @@ function QuickMaintenanceForm({
           onChange={(e) => setOdometer(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
         />
-        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
           {distanceUnit}
         </span>
       </div>
       {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
-        <p style={{ color: "#d97706", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
+        <p style={{ color: "var(--badge-amber-accent)", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
           <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
         </p>
       )}
@@ -686,8 +724,8 @@ function QuickMaintenanceForm({
               flex: 1,
               fontSize: 13,
               minHeight: 36,
-              background: category === value ? "#18523f" : "#eee",
-              color: category === value ? "#fff" : "#333",
+              background: category === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
+              color: category === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
             }}
           >
             {t(labelKey)}
@@ -711,12 +749,12 @@ function QuickMaintenanceForm({
                     gap: 8,
                     padding: "8px 10px",
                     borderRadius: 8,
-                    border: `1px solid ${checked ? "#18523f" : "#e2e8f0"}`,
-                    background: checked ? "#f0f7f4" : "#fff",
+                    border: `1px solid ${checked ? "var(--color-primary)" : "var(--color-border-light)"}`,
+                    background: checked ? "var(--color-surface-hover)" : "var(--color-surface)",
                     cursor: "pointer",
                     fontSize: 13,
                     fontWeight: checked ? "600" : "400",
-                    color: checked ? "#18523f" : "#333",
+                    color: checked ? "var(--color-primary)" : "var(--color-text-on-secondary)",
                     minHeight: "auto",
                   }}
                 >
@@ -730,7 +768,7 @@ function QuickMaintenanceForm({
                         setSelectedPartTypes((prev) => prev.filter((t) => t !== p.partType));
                       }
                     }}
-                    style={{ minHeight: "auto", width: "auto", accentColor: "#18523f" }}
+                    style={{ minHeight: "auto", width: "auto", accentColor: "var(--color-primary)" }}
                   />
                   {formatItemLabel(t, p.partType)}
                 </label>
@@ -757,13 +795,13 @@ function QuickMaintenanceForm({
           autoFocus
           style={{ width: "100%", paddingRight: 40 }}
         />
-        <span style={{ position: "absolute", right: 12, color: "#666", fontSize: 13, pointerEvents: "none" }}>
+        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
           {currencyUnit}
         </span>
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "8px 0" }}>
-        <label style={{ fontSize: 13, fontWeight: "600", color: "#444" }}>{t("attachmentLabel")}</label>
+        <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("attachmentLabel")}</label>
         <input
           key={fileKey}
           type="file"
@@ -776,12 +814,12 @@ function QuickMaintenanceForm({
             <div className="upload-progress-track">
               <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
             </div>
-            <span style={{ fontSize: 12, color: "#666" }}>{t("uploading")} {uploadProgress}%</span>
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("uploading")} {uploadProgress}%</span>
           </div>
         )}
       </div>
 
-      <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "#18523f" }}>
+      <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "var(--color-primary)" }}>
         {showMore ? t("fewerFields") : t("moreFields")}
       </button>
 

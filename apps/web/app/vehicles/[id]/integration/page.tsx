@@ -69,11 +69,11 @@ export default function VehicleIntegrationPage() {
       <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>{t("obdGpsIntegrationTitle")}</h2>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 12, fontSize: 14 }}>
-        <div style={{ padding: 12, backgroundColor: "#f8fafc", borderRadius: 8, border: "1px solid #e2e8f0" }}>
+        <div style={{ padding: 12, backgroundColor: "var(--code-bg)", borderRadius: 8, border: "1px solid var(--color-border-light)" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
             <div>
               <strong>{t("apiTokenLabel")}:</strong>
-              <code style={{ marginLeft: 8, background: "#e2e8f0", padding: "2px 6px", borderRadius: 4, fontFamily: "monospace" }}>
+              <code style={{ marginLeft: 8, background: "var(--code-inline-bg)", padding: "2px 6px", borderRadius: 4, fontFamily: "monospace" }}>
                 {vehicle.apiToken || t("apiTokenNotIssued")}
               </code>
             </div>
@@ -82,7 +82,7 @@ export default function VehicleIntegrationPage() {
                 type="button"
                 onClick={handleCopyToken}
                 disabled={!vehicle.apiToken}
-                style={{ minHeight: "auto", padding: "6px 12px", fontSize: 12, background: "#eee", color: "#333" }}
+                style={{ minHeight: "auto", padding: "6px 12px", fontSize: 12, background: "var(--color-surface-secondary)", color: "var(--color-text-on-secondary)" }}
               >
                 {t("copyToken")}
               </button>
@@ -98,33 +98,33 @@ export default function VehicleIntegrationPage() {
           </div>
         </div>
 
-        <div style={{ borderTop: "1px solid #eee", paddingTop: 12 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#18523f", display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "var(--color-primary)", display: "flex", alignItems: "center", gap: 6 }}>
             <SmartphoneIcon /> Torque Pro 앱 연동 방법
           </h3>
-          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: "1.6", color: "#444" }}>
+          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, lineHeight: "1.6", color: "var(--color-text-secondary)" }}>
             <li>Torque Pro 앱 설정 &gt; <code>Web Queue / OBD Web Server</code> 메뉴로 이동합니다.</li>
             <li><code>Send data to web server</code>를 활성화합니다.</li>
             <li><code>Web Server URL</code> 항목에 아래 주소를 입력합니다:
-              <div style={{ background: "#f1f5f9", padding: 8, borderRadius: 6, margin: "4px 0", wordBreak: "break-all", fontFamily: "monospace", fontSize: 12 }}>
+              <div style={{ background: "var(--code-bg-alt)", padding: 8, borderRadius: 6, margin: "4px 0", wordBreak: "break-all", fontFamily: "monospace", fontSize: 12 }}>
                 {typeof window !== "undefined" ? `${window.location.origin}/api/ingest/obd?token=${vehicle.apiToken}` : ""}
               </div>
             </li>
           </ol>
         </div>
 
-        <div style={{ borderTop: "1px solid #eee", paddingTop: 12 }}>
-          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "#18523f", display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 12 }}>
+          <h3 style={{ margin: "0 0 8px", fontSize: 14, color: "var(--color-primary)", display: "flex", alignItems: "center", gap: 6 }}>
             <HomeIcon /> Home Assistant (HA) / 범용 REST API 연동
           </h3>
-          <p style={{ margin: "0 0 8px", fontSize: 13, color: "#444" }}>
+          <p style={{ margin: "0 0 8px", fontSize: 13, color: "var(--color-text-secondary)" }}>
             아래의 HTTP POST 규격으로 차량 주행 텔레메트리 정보를 실시간으로 인제스트할 수 있습니다:
           </p>
-          <div style={{ background: "#f1f5f9", padding: 8, borderRadius: 6, wordBreak: "break-all", fontFamily: "monospace", fontSize: 12, overflow: "auto", lineHeight: "1.4" }}>
+          <div style={{ background: "var(--code-bg-alt)", padding: 8, borderRadius: 6, wordBreak: "break-all", fontFamily: "monospace", fontSize: 12, overflow: "auto", lineHeight: "1.4" }}>
             <strong>POST</strong> {typeof window !== "undefined" ? `${window.location.origin}/api/ingest/telemetry` : ""}<br />
             <strong>Header:</strong> <code>Authorization: Bearer {vehicle.apiToken}</code><br />
             <strong>Body (JSON):</strong>
-            <pre style={{ margin: "4px 0 0", color: "#0f172a" }}>
+            <pre style={{ margin: "4px 0 0", color: "var(--code-text)" }}>
 {JSON.stringify({
   speed: 65,
   rpm: 2000,

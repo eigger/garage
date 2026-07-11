@@ -124,8 +124,8 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  background: settingsMenuOpen ? "#18523f" : "#eee",
-                  color: settingsMenuOpen ? "#fff" : "#333",
+                  background: settingsMenuOpen ? "var(--color-primary)" : "var(--color-surface-secondary)",
+                  color: settingsMenuOpen ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
                   borderRadius: 8,
                   border: "none",
                 }}
@@ -139,8 +139,8 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                     top: "calc(100% + 4px)",
                     right: 0,
                     zIndex: 10,
-                    background: "#fff",
-                    border: "1px solid #e2e8f0",
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-border-light)",
                     borderRadius: 8,
                     boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
                     minWidth: 160,
@@ -150,14 +150,14 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                   <Link
                     href={`${basePath}/access`}
                     onClick={() => setSettingsMenuOpen(false)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "var(--color-text)", textDecoration: "none" }}
                   >
                     <LockIcon /> {t("navAccess")}
                   </Link>
                   <Link
                     href={`${basePath}/integration`}
                     onClick={() => setSettingsMenuOpen(false)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "#333", textDecoration: "none", borderTop: "1px solid #f0f0f0" }}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "var(--color-text)", textDecoration: "none", borderTop: "1px solid var(--color-border)" }}
                   >
                     <LinkIcon /> {t("navIntegration")}
                   </Link>
@@ -171,7 +171,7 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
         style={{
           display: "flex",
           gap: 4,
-          borderBottom: "1px solid #e5e5e5",
+          borderBottom: "1px solid var(--color-border)",
           marginBottom: 16,
           overflowX: "auto",
           WebkitOverflowScrolling: "touch",
@@ -188,8 +188,8 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                 padding: "12px 16px",
                 fontSize: 14,
                 whiteSpace: "nowrap",
-                borderBottom: active ? "2px solid #18523f" : "2px solid transparent",
-                color: active ? "#18523f" : "#666",
+                borderBottom: active ? "2px solid var(--color-primary)" : "2px solid transparent",
+                color: active ? "var(--color-primary)" : "var(--color-text-muted)",
                 fontWeight: active ? 600 : 400,
                 flexShrink: 0,
               }}
