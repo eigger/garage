@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useParams, useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
@@ -9,7 +9,6 @@ import { useSettings } from "../../../lib/i18n/settings-context";
 import { SettingsBar } from "../../settings-bar";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
 import { setLastVehicleId } from "../../../lib/lastVehicle";
-import { SettingsGearIcon, LockIcon, LinkIcon } from "../../../components/icons";
 import type { Vehicle } from "../../../lib/types";
 
 export default function VehicleLayout({ children }: { children: ReactNode }) {
@@ -17,23 +16,10 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   const vehicleId = params.id;
   const pathname = usePathname();
   const router = useRouter();
-  const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
+  const { user, loading: authLoading, requireAuth } = useAuth();
   const { t } = useSettings();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
-  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
-  const settingsMenuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!settingsMenuOpen) return;
-    function handleOutsideClick(e: MouseEvent) {
-      if (settingsMenuRef.current && !settingsMenuRef.current.contains(e.target as Node)) {
-        setSettingsMenuOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleOutsideClick);
-    return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [settingsMenuOpen]);
 
   useEffect(() => {
     requireAuth();
@@ -76,14 +62,6 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   }
   if (!user) return null;
 
-  const tabs = [
-    { href: basePath, label: t("navOverview") },
-    { href: `${basePath}/quick-log`, label: t("navQuickLog") },
-    { href: `${basePath}/schedule`, label: t("navSchedule") },
-    { href: `${basePath}/history`, label: t("navHistory") },
-    { href: `${basePath}/analytics`, label: t("navAnalytics") },
-  ];
-
   return (
     <main className="container">
       <SettingsBar />
@@ -93,8 +71,10 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
       {vehicle && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8, width: "100%" }}>
           <h1 style={{ margin: 0, fontSize: "clamp(18px, 4.5vw, 24px)", wordBreak: "break-all", flex: "1 1 0%", minWidth: 0 }}>
-            {vehicle.name} {vehicle.plate ? `(${vehicle.plate})` : ""}
-            {vehicle.fuelType ? ` · ${t(fuelTypeLabelKey(vehicle.fuelType))}` : ""}
+            <Link href={basePath} style={{ color: "inherit", textDecoration: "none" }}>
+              {vehicle.name} {vehicle.plate ? `(${vehicle.plate})` : ""}
+              {vehicle.fuelType ? ` · ${t(fuelTypeLabelKey(vehicle.fuelType))}` : ""}
+            </Link>
           </h1>
           {allVehicles.length > 1 && (
             <select
@@ -110,95 +90,8 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
               ))}
             </select>
           )}
-          {isAdmin && (
-            <div ref={settingsMenuRef} style={{ position: "relative", flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => setSettingsMenuOpen((v) => !v)}
-                aria-label={t("vehicleManagementHeading")}
-                style={{
-                  width: 36,
-                  height: 36,
-                  minHeight: 36,
-                  padding: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  background: settingsMenuOpen ? "var(--color-primary)" : "var(--color-surface-secondary)",
-                  color: settingsMenuOpen ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
-                  borderRadius: 8,
-                  border: "none",
-                }}
-              >
-                <SettingsGearIcon />
-              </button>
-              {settingsMenuOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: "calc(100% + 4px)",
-                    right: 0,
-                    zIndex: 10,
-                    background: "var(--color-surface)",
-                    border: "1px solid var(--color-border-light)",
-                    borderRadius: 8,
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    minWidth: 160,
-                    overflow: "hidden",
-                  }}
-                >
-                  <Link
-                    href={`${basePath}/access`}
-                    onClick={() => setSettingsMenuOpen(false)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "var(--color-text)", textDecoration: "none" }}
-                  >
-                    <LockIcon /> {t("navAccess")}
-                  </Link>
-                  <Link
-                    href={`${basePath}/integration`}
-                    onClick={() => setSettingsMenuOpen(false)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 14px", fontSize: 14, color: "var(--color-text)", textDecoration: "none", borderTop: "1px solid var(--color-border)" }}
-                  >
-                    <LinkIcon /> {t("navIntegration")}
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
-      <nav
-        style={{
-          display: "flex",
-          gap: 4,
-          borderBottom: "1px solid var(--color-border)",
-          marginBottom: 16,
-          overflowX: "auto",
-          WebkitOverflowScrolling: "touch",
-        }}
-        className="no-scrollbar"
-      >
-        {tabs.map((tab) => {
-          const active = tab.href === basePath ? pathname === basePath : pathname?.startsWith(tab.href);
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              style={{
-                padding: "12px 16px",
-                fontSize: 14,
-                whiteSpace: "nowrap",
-                borderBottom: active ? "2px solid var(--color-primary)" : "2px solid transparent",
-                color: active ? "var(--color-primary)" : "var(--color-text-muted)",
-                fontWeight: active ? 600 : 400,
-                flexShrink: 0,
-              }}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
       {children}
     </main>
   );

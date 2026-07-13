@@ -6,6 +6,7 @@ import { SettingsProvider } from "../lib/i18n/settings-context";
 import { AuthProvider } from "../lib/auth-context";
 import { ToastProvider } from "../lib/toast-context";
 import { ConfirmProvider } from "../lib/confirm-context";
+import { BottomNav } from "../components/BottomNav";
 
 export const metadata: Metadata = {
   title: "Garage",
@@ -39,7 +40,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <SettingsProvider>
           <ToastProvider>
             <ConfirmProvider>
-              <AuthProvider>{children}</AuthProvider>
+              <AuthProvider>
+                {children}
+                <BottomNav />
+              </AuthProvider>
             </ConfirmProvider>
           </ToastProvider>
         </SettingsProvider>

@@ -10,7 +10,7 @@ import { SettingsBar } from "./settings-bar";
 import { formatItemLabel } from "../lib/i18n/itemLabel";
 import { getLastVehicleId } from "../lib/lastVehicle";
 import { countScheduleStatuses } from "../lib/scheduleStatus";
-import { AlertIcon, CarIcon, UsersIcon, WrenchIcon, PlugIcon, TerminalIcon } from "../components/icons";
+import { AlertIcon } from "../components/icons";
 import type { ConsumablePart, FuelLog, Reminder, TripSummary, Vehicle } from "../lib/types";
 
 type VehicleCardSummary = {
@@ -60,6 +60,13 @@ function HomeInner() {
         const lastId = getLastVehicleId();
         const target = loadedVehicles.find((v) => v.id === lastId) ?? loadedVehicles[0];
         router.replace(`/vehicles/${target.id}/quick-log`);
+        return;
+      }
+
+      // 차량이 1대뿐이면 목록을 거칠 필요가 없다 — 곧장 그 차량의 개요로 보낸다.
+      // (알림 배너/이번달 비용 등은 개요 화면에도 동일하게 표시된다.)
+      if (loadedVehicles.length === 1) {
+        router.replace(`/vehicles/${loadedVehicles[0].id}`);
         return;
       }
 
@@ -130,26 +137,6 @@ function HomeInner() {
         </button>
       </div>
       <p style={{ marginTop: 0, marginBottom: 16 }}>{t("appTagline")}</p>
-
-      {/* 관리자 메뉴 — 상단 그리드 카드 */}
-      {user.role === "ADMIN" && (
-        <ul className="list" style={{ marginBottom: 24 }}>
-          {([
-            { href: "/vehicles", Icon: CarIcon, label: t("manageVehicles") },
-            { href: "/users", Icon: UsersIcon, label: t("manageUsers") },
-            { href: "/maintenance-presets", Icon: WrenchIcon, label: t("presetsHeading") },
-            { href: "/integrations", Icon: PlugIcon, label: t("navIntegrations") },
-            { href: "/api-explorer", Icon: TerminalIcon, label: t("navApiExplorer") },
-          ] as const).map(({ href, Icon, label }) => (
-            <li key={href} className="list-item">
-              <Link href={href} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Icon size={16} />
-                {label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      )}
 
       {/* 정비 알림 배너 */}
       {dueReminders.length > 0 && (
