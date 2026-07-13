@@ -1,11 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { apiFetch, API_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
-import { SettingsBar } from "../settings-bar";
 import { TerminalIcon } from "../../components/icons";
 import type { Vehicle } from "../../lib/types";
 
@@ -130,10 +128,6 @@ export default function ApiExplorerPage() {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       <h1 style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <TerminalIcon /> API 탐색기
       </h1>

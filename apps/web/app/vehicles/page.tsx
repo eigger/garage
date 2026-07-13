@@ -6,7 +6,6 @@ import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
-import { SettingsBar } from "../settings-bar";
 import type { FuelType, Vehicle } from "../../lib/types";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
 import { FUEL_TYPES } from "@garage/shared";
@@ -91,10 +90,6 @@ export default function VehiclesPage() {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       <h1>{t("vehiclesHeading")}</h1>
 
       <ul className="list">

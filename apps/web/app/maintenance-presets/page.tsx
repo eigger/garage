@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
-import { SettingsBar } from "../settings-bar";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
 import { formatItemLabel } from "../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../lib/i18n/translations";
@@ -82,10 +80,6 @@ export default function MaintenancePresetsPage() {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       <h1>{t("presetsHeading")}</h1>
       <p>{isAdministrative ? t("presetsIntroAdministrative") : t("presetsIntro")}</p>
 

@@ -6,7 +6,6 @@ import { usePathname, useParams, useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
-import { SettingsBar } from "../../settings-bar";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
 import { setLastVehicleId } from "../../../lib/lastVehicle";
 import type { Vehicle } from "../../../lib/types";
@@ -64,10 +63,6 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       {vehicle && (
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8, width: "100%" }}>
           <h1 style={{ margin: 0, fontSize: "clamp(18px, 4.5vw, 24px)", wordBreak: "break-all", flex: "1 1 0%", minWidth: 0 }}>

@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
-import { SettingsBar } from "../settings-bar";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -100,7 +99,6 @@ export default function LoginPage() {
   if (checkingBootstrap) {
     return (
       <main className="container">
-        <SettingsBar />
         <p>{t("loading")}</p>
       </main>
     );
@@ -108,7 +106,6 @@ export default function LoginPage() {
 
   return (
     <main className="container">
-      <SettingsBar />
       <h1>{t("appTitle")}</h1>
       {needsBootstrap ? (
         <>

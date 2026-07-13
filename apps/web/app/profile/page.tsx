@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
-import { SettingsBar } from "../settings-bar";
 import { PushNotificationSettings } from "../../components/PushNotificationSettings";
 import { useMapProviders } from "../../lib/maps/useMapProviders";
 import { isMapProvider, MAP_PROVIDER_STORAGE_KEY } from "../../lib/maps/types";
@@ -121,10 +119,6 @@ export default function ProfilePage() {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       <h1>{t("navProfile")}</h1>
 
       <form onSubmit={handleSubmit} className="form" style={{ maxWidth: 400 }}>
