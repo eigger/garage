@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
-import { SettingsBar } from "../settings-bar";
 import type { User } from "../../lib/types";
 
 export default function UsersPage() {
@@ -84,10 +82,6 @@ export default function UsersPage() {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       <h1>{t("usersHeading")}</h1>
 
       <ul className="list">

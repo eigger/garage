@@ -20,6 +20,9 @@ import {
   LockIcon,
   LinkIcon,
   BarChartIcon,
+  UserIcon,
+  DatabaseIcon,
+  LogoutIcon,
 } from "./icons";
 
 // 차량 상세 화면(/vehicles/[id]/*)에 있을 때만 경로에서 차량 id를 뽑아낸다.
@@ -36,11 +39,27 @@ export function BottomNav() {
   const { t } = useSettings();
   const [moreOpen, setMoreOpen] = useState(false);
   const [lastVehicleId, setLastVehicleIdState] = useState<string | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLastVehicleIdState(getLastVehicleId());
   }, [pathname]);
+
+  useEffect(() => {
+    if (!user) return;
+    fetch("/health")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && typeof data.updateAvailable === "boolean") {
+          setUpdateInfo({
+            latestVersion: data.latestVersion,
+            updateAvailable: data.updateAvailable,
+          });
+        }
+      })
+      .catch((err) => console.error("Failed to check update:", err));
+  }, [user]);
 
   useEffect(() => {
     if (!moreOpen) return;
@@ -77,55 +96,80 @@ export function BottomNav() {
   return (
     <>
       <nav className="bottom-nav">
-        {tabs.map((tab) => {
-          const active =
-            tab.href !== null &&
-            (tab.key === "home" ? pathname === "/" || pathname === basePath : pathname?.startsWith(tab.href));
-          if (tab.primary) {
+        <div className="bottom-nav-inner">
+          {tabs.map((tab) => {
+            const active =
+              tab.href !== null &&
+              (tab.key === "home" ? pathname === "/" || pathname === basePath : pathname?.startsWith(tab.href));
+            if (tab.primary) {
+              return (
+                <Link
+                  key={tab.key}
+                  href={tab.href ?? "#"}
+                  className={`primary-tab ${active ? "active" : ""} ${!tab.href ? "disabled" : ""}`}
+                  aria-disabled={!tab.href}
+                >
+                  <span className="icon-wrap">
+                    <span className="icon">
+                      <tab.Icon />
+                    </span>
+                  </span>
+                  {tab.label}
+                </Link>
+              );
+            }
             return (
               <Link
                 key={tab.key}
                 href={tab.href ?? "#"}
-                className={`primary-tab ${active ? "active" : ""} ${!tab.href ? "disabled" : ""}`}
+                className={`${active ? "active" : ""} ${!tab.href ? "disabled" : ""}`}
                 aria-disabled={!tab.href}
               >
-                <span className="icon-wrap">
-                  <span className="icon">
-                    <tab.Icon />
-                  </span>
+                <span className="icon">
+                  <tab.Icon />
                 </span>
                 {tab.label}
               </Link>
             );
-          }
-          return (
-            <Link
-              key={tab.key}
-              href={tab.href ?? "#"}
-              className={`${active ? "active" : ""} ${!tab.href ? "disabled" : ""}`}
-              aria-disabled={!tab.href}
-            >
-              <span className="icon">
-                <tab.Icon />
-              </span>
-              {tab.label}
-            </Link>
-          );
-        })}
-        <button type="button" className={`bottom-nav-more ${moreOpen ? "active" : ""}`} onClick={() => setMoreOpen((v) => !v)}>
-          <span className="icon">
-            <MoreDotsIcon />
-          </span>
-          {t("navMore")}
-        </button>
+          })}
+          <button type="button" className={`bottom-nav-more ${moreOpen ? "active" : ""}`} onClick={() => setMoreOpen((v) => !v)}>
+            <span className="icon" style={{ position: "relative" }}>
+              <MoreDotsIcon />
+              {updateInfo?.updateAvailable && (
+                <span
+                  title={`New version v${updateInfo.latestVersion} is available!`}
+                  style={{
+                    position: "absolute",
+                    top: -2,
+                    right: -4,
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    backgroundColor: "#ff4d4f",
+                  }}
+                />
+              )}
+            </span>
+            {t("navMore")}
+          </button>
+        </div>
       </nav>
 
       {moreOpen && (
         <div className="sheet-backdrop" onClick={() => setMoreOpen(false)}>
           <div className="sheet-card" ref={sheetRef} onClick={(e) => e.stopPropagation()}>
             <div className="sheet-handle" />
-            <strong style={{ display: "block", fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 8px" }}>
-              {t("navMoreMenuHeading")}
+            <strong
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 13,
+                color: "var(--color-text-muted)",
+                margin: "0 0 8px",
+              }}
+            >
+              <MoreDotsIcon size={14} /> {t("navMoreMenuHeading")}
             </strong>
 
             {basePath && (
@@ -178,11 +222,11 @@ export function BottomNav() {
             <div className="sheet-group-label">{t("navAccountMenuHeading")}</div>
             <div className="sheet-grid">
               <button type="button" className="sheet-item" onClick={() => go("/profile")}>
-                {t("navProfile")}
+                <UserIcon size={20} /> {t("navProfile")}
               </button>
               {isAdmin && (
                 <button type="button" className="sheet-item" onClick={() => go("/backup")}>
-                  {t("navBackupRestore")}
+                  <DatabaseIcon size={20} /> {t("navBackupRestore")}
                 </button>
               )}
               <button
@@ -193,8 +237,42 @@ export function BottomNav() {
                   logout();
                 }}
               >
-                {t("logout")}
+                <LogoutIcon size={20} /> {t("logout")}
               </button>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                fontSize: 12,
+                color: "var(--color-text-muted-2)",
+                marginTop: 12,
+                paddingTop: 12,
+                borderTop: "1px solid var(--color-border)",
+              }}
+            >
+              v{process.env.APP_VERSION}
+              {updateInfo?.updateAvailable && (
+                <span
+                  title={`New version v${updateInfo.latestVersion} is available!`}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    backgroundColor: "#ff4d4f",
+                    color: "white",
+                    fontSize: 10,
+                    fontWeight: "bold",
+                    borderRadius: 10,
+                    padding: "2px 6px",
+                    cursor: "help",
+                  }}
+                >
+                  Update Available
+                </span>
+              )}
             </div>
           </div>
         </div>

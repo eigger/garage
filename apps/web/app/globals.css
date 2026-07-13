@@ -582,6 +582,8 @@ button:disabled {
 }
 
 /* Bottom navigation — 한손 조작을 위해 자주 쓰는 탭을 화면 하단에 고정 */
+/* 바텀 네비 배경/구분선은 화면 전체 폭으로 깔아서(풀블리드) PC에서 가운데만 칠해지다
+   만 것처럼 뚝 끊겨 보이지 않게 하고, 실제 탭 내용만 안쪽에서 폭을 제한해 중앙 정렬한다. */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -592,13 +594,18 @@ button:disabled {
   background: var(--color-surface);
   border-top: 1px solid var(--color-border);
   display: flex;
+  justify-content: center;
   z-index: 60;
+}
+
+.bottom-nav-inner {
+  display: flex;
+  width: 100%;
   max-width: 480px;
-  margin: 0 auto;
 }
 
 @media (min-width: 640px) {
-  .bottom-nav {
+  .bottom-nav-inner {
     max-width: 640px;
   }
 }

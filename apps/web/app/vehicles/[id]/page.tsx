@@ -59,6 +59,7 @@ export default function VehicleOverviewPage() {
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [monthFuelCost, setMonthFuelCost] = useState(0);
   const [monthMaintenanceCost, setMonthMaintenanceCost] = useState(0);
+  const [lastFuelCost, setLastFuelCost] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Edit States
@@ -119,6 +120,7 @@ export default function VehicleOverviewPage() {
         .reduce((sum, record) => sum + (record.cost ?? 0), 0);
       setMonthFuelCost(fuelCost);
       setMonthMaintenanceCost(maintenanceCost);
+      setLastFuelCost(fuelLogs[0]?.cost ?? null);
     }
 
     if (partsRes.ok && odoRes.ok) {
@@ -315,8 +317,10 @@ export default function VehicleOverviewPage() {
 
       <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
         <Link href={`/vehicles/${vehicleId}/quick-log`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>
-          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("navQuickLog")}</div>
-          <strong style={{ color: "var(--color-primary)" }}>{t("quickLogHeading")} →</strong>
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("dashboardLastFuelCost")}</div>
+          <strong style={{ color: "var(--color-primary)" }}>
+            {lastFuelCost !== null ? formatCurrency(lastFuelCost) : "-"}
+          </strong>
         </Link>
 
         <Link href={`/vehicles/${vehicleId}/schedule`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>

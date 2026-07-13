@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "../lib/api";
 import { useSettings } from "../lib/i18n/settings-context";
 import { useAuth } from "../lib/auth-context";
-import { SettingsBar } from "./settings-bar";
 import { formatItemLabel } from "../lib/i18n/itemLabel";
 import { getLastVehicleId } from "../lib/lastVehicle";
 import { countScheduleStatuses } from "../lib/scheduleStatus";
@@ -128,8 +127,6 @@ function HomeInner() {
 
   return (
     <main className="container">
-      <SettingsBar />
-
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <h1>{t("appTitle")}</h1>
         <button onClick={logout} style={{ background: "transparent", color: "var(--color-primary)", minHeight: 32 }}>

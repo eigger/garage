@@ -1,13 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
-import { SettingsBar } from "../settings-bar";
 
 export default function BackupPage() {
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
@@ -32,11 +30,7 @@ export default function BackupPage() {
   if (user.role !== "ADMIN") {
     return (
       <main className="container">
-        <SettingsBar />
         <p style={{ color: "var(--color-danger)", fontWeight: "600" }}>Forbidden: Admin access only.</p>
-        <p>
-          <Link href="/">{t("backToDashboard")}</Link>
-        </p>
       </main>
     );
   }
@@ -105,10 +99,6 @@ export default function BackupPage() {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       <h1>{t("backupHeading")}</h1>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 20, marginTop: 20 }}>

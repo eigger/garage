@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
-import { SettingsBar } from "../settings-bar";
 import type { TranslationKey } from "../../lib/i18n/translations";
 
 type SettingSource = "db" | "env" | "none";
@@ -95,10 +93,6 @@ export default function IntegrationsPage() {
 
   return (
     <main className="container">
-      <SettingsBar />
-      <p>
-        <Link href="/">{t("backToDashboard")}</Link>
-      </p>
       <h1>{t("integrationsHeading")}</h1>
       <p>{t("integrationsIntro")}</p>
 
