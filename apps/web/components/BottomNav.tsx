@@ -176,9 +176,6 @@ export function BottomNav() {
               <>
                 <div className="sheet-group-label">{t("navVehicleMenuHeading")}</div>
                 <div className="sheet-grid">
-                  <button type="button" className="sheet-item" onClick={() => go(basePath)}>
-                    <CarIcon size={20} /> {t("navOverview")}
-                  </button>
                   <button type="button" className="sheet-item" onClick={() => go(`${basePath}/analytics`)}>
                     <BarChartIcon size={20} /> {t("navAnalytics")}
                   </button>
