@@ -5,19 +5,29 @@ import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap } from 
 import "leaflet/dist/leaflet.css";
 import type { LatLon, SpeedPoint } from "../../lib/maps/polyline";
 import { buildSpeedSegments, sampleForArrows } from "../../lib/maps/polyline";
+import { RecenterButton } from "./RecenterButton";
+
+function fitToPoints(map: ReturnType<typeof useMap>, points: LatLon[]) {
+  if (points.length === 0) return;
+  import("leaflet").then((L) => {
+    const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lon] as [number, number]));
+    map.fitBounds(bounds, { padding: [24, 24] });
+  });
+}
 
 function FitBounds({ points }: { points: LatLon[] }) {
   const map = useMap();
 
   useEffect(() => {
-    if (points.length === 0) return;
-    import("leaflet").then((L) => {
-      const bounds = L.latLngBounds(points.map((p) => [p.lat, p.lon] as [number, number]));
-      map.fitBounds(bounds, { padding: [24, 24] });
-    });
+    fitToPoints(map, points);
   }, [map, points]);
 
   return null;
+}
+
+function LeafletRecenterControl({ points }: { points: LatLon[] }) {
+  const map = useMap();
+  return <RecenterButton onClick={() => fitToPoints(map, points)} />;
 }
 
 // 진행 방향을 나타내는 화살표 마커 (leaflet은 서버사이드에서 L.divIcon을 만들 수 없어 동적 로드가 필요).
@@ -84,6 +94,7 @@ export function OsmTripMap({ points }: { points: SpeedPoint[] }) {
           <CircleMarker center={[start.lat, start.lon]} radius={6} pathOptions={{ color: "#fff", weight: 2, fillColor: "#10b981", fillOpacity: 1 }} />
           <CircleMarker center={[end.lat, end.lon]} radius={6} pathOptions={{ color: "#fff", weight: 2, fillColor: "#ef4444", fillOpacity: 1 }} />
           <FitBounds points={points} />
+          <LeafletRecenterControl points={points} />
         </>
       )}
     </MapContainer>

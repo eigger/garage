@@ -11,7 +11,7 @@
 
 Self-hosted family car management — maintenance schedules, fuel logs, reminders, OBD/GPS trips, and optional Home Assistant integrations.
 
-> Current release: **v0.2.12**
+> Current release: **v0.2.16**
 
 Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · [`docs/PROGRESS.md`](./docs/PROGRESS.md)
 
@@ -20,12 +20,15 @@ Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md
 ## Features
 
 - Vehicles, users, and per-vehicle access ACL (admin / general)
+- Mobile-first responsive layout with fixed bottom navigation bar for one-handed reachability
+- Smart home redirect: automatically skips the vehicle list dashboard if the account has only one vehicle, landing straight on the vehicle overview
 - Maintenance + administrative schedules with distance/time dual reminders
 - Fuel-type maintenance presets and global admin/legal presets
 - Fuel logging with receipt attachments; Opinet nearby stations (optional)
 - OBD ingest (Torque Pro) and REST/WebSocket telemetry; auto trip segmentation
 - Trip reports, route maps (OSM / Kakao / Naver / T map)
-- Dashboard reminder badges and vehicle summary cards
+- Dashboard reminder badges and vehicle summary cards (including last fuel cost)
+- Consolidated navigation (removed top header bar, version indicator in More sheet)
 - Admin backup/restore, PWA, ko/en i18n
 - First-run admin bootstrap when the user table is empty
 
@@ -35,25 +38,25 @@ Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md
 
 ### 1. Dashboard
 
-Home screen after login. Open **Manage vehicles**, **Manage users**, **Manage maintenance presets**, or **API Integrations**. Each registered vehicle shows odometer, recent distance, last fuel cost, and overdue / upcoming reminder counts.
+Home screen after login. If the user only has a single vehicle, they skip this and redirect straight to the vehicle overview page. For multiple vehicles, it shows the unified dashboard where each vehicle card displays current odometer, recent distance, last fuel cost, and overdue/upcoming reminders. The bottom navigation bar provides quick access to Home, Quick Log, and a More sheet for admin settings.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/01-dashboard.png" alt="Dashboard" width="960" />
 
 ### 2. Vehicle overview
 
-Per-vehicle hub: summary cards, monthly cost, and tabs for **Overview**, **Quick Log**, **Schedule**, and **History**. Use the gear icon for vehicle settings and OBD/GPS.
+Per-vehicle hub: summary cards (including the new "last fuel cost" card), monthly expense chart, and tab views for **Overview**, **Schedule**, and **History**. The gear icon opens vehicle settings and OBD/GPS. The header bar has been consolidated into the bottom nav layout, and administrative features are placed under the **More** sheet.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle.png" alt="Vehicle overview" width="960" />
 
 ### 3. Quick Log
 
-Log fuel or maintenance without leaving the vehicle page. Fuel entry supports station, unit price, liters, cost shortcuts, and receipt attachments. Switch to **Maintenance** for service records tied to schedule items.
+Log fuel or maintenance quickly from anywhere. Accessible as the primary, prominent button in the bottom navigation bar. Fuel entry supports station search, unit price, volume, cost shortcuts, and receipt attachments. Switch to **Maintenance** for service records tied to schedule items.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/03-quick-log.png" alt="Quick Log" width="960" />
 
 ### 4. Schedule
 
-Distance- and time-based maintenance / admin items (oil, inspection, insurance, tax, …). Edit intervals, mark completed, and jump into Quick Log from reminders.
+Distance- and time-based maintenance / administrative items (oil, inspection, insurance, tax, …). Edit intervals, mark completed, and jump into Quick Log directly from reminders.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/04-schedule.png" alt="Schedule" width="960" />
 
@@ -65,7 +68,7 @@ Trips, fuel logs, and maintenance history in one place. Fuel efficiency is calcu
 
 ### 6. API Integrations
 
-Admin page for Opinet, Kakao Map, Naver Map, and T map keys. Values apply immediately (no restart) and are not included in backup archives.
+Admin page for Opinet, Kakao Map, Naver Map, and T map keys. Values apply immediately (no restart) and are not included in backup archives. Accessed via the **More** sheet on the bottom navigation bar.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/06-integrations.png" alt="API Integrations" width="960" />
 
@@ -103,23 +106,23 @@ Public sign-up is disabled. Later accounts are created only by an admin under **
 
 ### 3. Register a vehicle
 
-1. Dashboard → **Manage vehicles**
+1. Go to the bottom nav's **More sheet** → **Manage vehicles**
 2. Fill name, plate, make/model/year, **fuel type**
 3. Save
 
-Garage copies maintenance presets for that fuel type and administrative/legal schedule items (inspection, insurance, tax, …). Manage defaults under **Manage maintenance presets**.
+Garage copies maintenance presets for that fuel type and administrative/legal schedule items (inspection, insurance, tax, …). Manage defaults under **Manage maintenance presets** (also under More sheet).
 
 ### 4. Day-to-day
 
 | Task | Where |
 |---|---|
-| Log fuel / maintenance | Vehicle → **Quick Log** |
+| Log fuel / maintenance | Bottom nav → **Quick Log** |
 | Edit schedule intervals | Vehicle → **Schedule** |
 | History, efficiency, trips | Vehicle → **History** |
 | OBD / Torque / REST token | Vehicle → gear → **OBD & GPS** |
-| Family accounts | Dashboard → **Manage users** |
-| Opinet / map API keys | Dashboard → **API Integrations** |
-| Backup / restore | Top bar → **Backup/Restore** |
+| Family accounts | Bottom nav More sheet → **Manage users** |
+| Opinet / map API keys | Bottom nav More sheet → **API Integrations** |
+| Backup / restore | Bottom nav More sheet → **Backup/Restore** |
 
 ### 5. OBD / Home Assistant (short)
 

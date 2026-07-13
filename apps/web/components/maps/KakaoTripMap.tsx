@@ -4,10 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import type { SpeedPoint } from "../../lib/maps/polyline";
 import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadKakaoMaps } from "../../lib/maps/loadSdk";
+import { RecenterButton } from "./RecenterButton";
 
 export function KakaoTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<{ setBounds: (b: object) => void } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -26,6 +29,7 @@ export function KakaoTripMap({ points, appKey }: { points: SpeedPoint[]; appKey:
           center: path[0],
           level: 5,
         });
+        mapRef.current = map;
 
         for (const seg of buildSpeedSegments(points)) {
           new kakao.Polyline({
@@ -48,6 +52,7 @@ export function KakaoTripMap({ points, appKey }: { points: SpeedPoint[]; appKey:
         const bounds = new kakao.LatLngBounds();
         for (const ll of path) bounds.extend(ll);
         map.setBounds(bounds);
+        setReady(true);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -58,15 +63,26 @@ export function KakaoTripMap({ points, appKey }: { points: SpeedPoint[]; appKey:
     };
   }, [appKey, points]);
 
+  function handleRecenter() {
+    const kakao = (window as { kakao?: { maps: KakaoMapsApi } }).kakao?.maps;
+    if (!kakao || !mapRef.current) return;
+    const bounds = new kakao.LatLngBounds();
+    for (const p of points) bounds.extend(new kakao.LatLng(p.lat, p.lon));
+    mapRef.current.setBounds(bounds);
+  }
+
   if (error) {
     return <p style={{ fontSize: 13, color: "var(--color-danger)" }}>{error}</p>;
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{ height: 240, width: "100%", borderRadius: 8, background: "var(--color-surface-secondary)" }}
-    />
+    <div style={{ position: "relative", height: 240, width: "100%" }}>
+      <div
+        ref={containerRef}
+        style={{ height: "100%", width: "100%", borderRadius: 8, background: "var(--color-surface-secondary)" }}
+      />
+      {ready && <RecenterButton onClick={handleRecenter} />}
+    </div>
   );
 }
 

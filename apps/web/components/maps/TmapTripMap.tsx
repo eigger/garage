@@ -4,10 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import type { SpeedPoint } from "../../lib/maps/polyline";
 import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
 import { loadTmapSdk } from "../../lib/maps/loadSdk";
+import { RecenterButton } from "./RecenterButton";
 
 export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<{ fitBounds: (b: object) => void } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -28,6 +31,7 @@ export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: 
           height: "240px",
           zoom: 15,
         });
+        mapRef.current = map;
 
         for (const seg of buildSpeedSegments(points)) {
           new Tmapv2.Polyline({
@@ -45,6 +49,7 @@ export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: 
         const bounds = new Tmapv2.LatLngBounds();
         for (const ll of path) bounds.extend(ll);
         map.fitBounds(bounds);
+        setReady(true);
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -55,15 +60,28 @@ export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: 
     };
   }, [appKey, points]);
 
+  function handleRecenter() {
+    const Tmapv2 = (window as { Tmapv2?: TmapApi }).Tmapv2;
+    if (!Tmapv2 || !mapRef.current || points.length === 0) return;
+    const bounds = new Tmapv2.LatLngBounds();
+    for (const p of points) {
+      bounds.extend(new Tmapv2.LatLng(p.lat, p.lon));
+    }
+    mapRef.current.fitBounds(bounds);
+  }
+
   if (error) {
     return <p style={{ fontSize: 13, color: "var(--color-danger)" }}>{error}</p>;
   }
 
   return (
-    <div
-      ref={containerRef}
-      style={{ height: 240, width: "100%", borderRadius: 8, background: "var(--color-surface-secondary)" }}
-    />
+    <div style={{ position: "relative", height: 240, width: "100%" }}>
+      <div
+        ref={containerRef}
+        style={{ height: "100%", width: "100%", borderRadius: 8, background: "var(--color-surface-secondary)" }}
+      />
+      {ready && <RecenterButton onClick={handleRecenter} />}
+    </div>
   );
 }
 
