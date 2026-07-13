@@ -13,6 +13,7 @@ html {
    media query가 OS 설정을 따르고, "라이트"/"다크"를 직접 고르면 [data-theme]이
    media query보다 우선한다. */
 :root {
+  --nav-height: 60px;
   --color-bg: #fafafa;
   --color-surface: #ffffff;
   --color-surface-hover: #f0f7f4;
@@ -301,7 +302,7 @@ body {
   color: var(--color-text);
   background: var(--color-bg);
   padding-top: env(safe-area-inset-top);
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: calc(var(--nav-height) + env(safe-area-inset-bottom));
 }
 
 a {
@@ -441,7 +442,7 @@ button:disabled {
 .toast-container {
   position: fixed;
   left: 50%;
-  bottom: calc(16px + env(safe-area-inset-bottom));
+  bottom: calc(var(--nav-height) + 16px + env(safe-area-inset-bottom));
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
@@ -578,4 +579,177 @@ button:disabled {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/* Bottom navigation — 한손 조작을 위해 자주 쓰는 탭을 화면 하단에 고정 */
+.bottom-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: var(--nav-height);
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  z-index: 60;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .bottom-nav {
+    max-width: 640px;
+  }
+}
+
+.bottom-nav a,
+.bottom-nav .bottom-nav-more {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  font-size: 10.5px;
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: auto;
+  font-weight: 400;
+  cursor: pointer;
+}
+
+.bottom-nav a.active,
+.bottom-nav .bottom-nav-more.active {
+  color: var(--color-primary);
+}
+
+.bottom-nav a.disabled {
+  color: var(--color-text-muted-2);
+  pointer-events: none;
+}
+
+.bottom-nav .icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-nav .icon svg {
+  width: 21px;
+  height: 21px;
+  display: block;
+}
+
+/* 빠른입력 탭 — stash 앱의 스캔 버튼과 같은 위상: 가장 자주 쓰는 단일 동작이라
+   가운데에 튀어나온 원형 버튼으로 강조한다. */
+.bottom-nav .primary-tab,
+.bottom-nav .primary-tab.active {
+  color: var(--color-primary);
+}
+
+.bottom-nav .primary-tab.disabled .icon-wrap {
+  opacity: 0.5;
+}
+
+.bottom-nav .primary-tab .icon-wrap {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: -20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.bottom-nav .primary-tab .icon-wrap .icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* 더보기 바텀시트 */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--color-modal-overlay);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 1001;
+}
+
+.sheet-card {
+  background: var(--color-surface);
+  border-radius: 16px 16px 0 0;
+  padding: 12px 20px calc(20px + env(safe-area-inset-bottom));
+  width: 100%;
+  max-width: 480px;
+  max-height: min(70vh, 560px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 -4px 20px var(--color-shadow);
+  animation: sheet-up 0.18s ease;
+}
+
+@media (min-width: 640px) {
+  .sheet-card {
+    max-width: 640px;
+  }
+}
+
+@keyframes sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+  margin: 0 auto 12px;
+}
+
+.sheet-group-label {
+  font-size: 12px;
+  color: var(--color-text-muted-2);
+  margin: 14px 0 6px;
+}
+
+.sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 8px;
+}
+
+.sheet-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 64px;
+  padding: 10px 6px;
+  background: var(--color-surface-secondary);
+  color: var(--color-text-on-secondary);
+  border: none;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+}
+
+.sheet-item:active {
+  transform: translateY(0.5px);
 }
