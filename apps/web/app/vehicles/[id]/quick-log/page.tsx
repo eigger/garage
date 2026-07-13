@@ -424,7 +424,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           placeholder={t("cost")}
           value={cost}
           onChange={(e) => handleCostChange(e.target.value)}
-          autoFocus
           style={{ width: "100%", paddingRight: 40 }}
         />
         <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
@@ -792,7 +791,6 @@ function QuickMaintenanceForm({
           placeholder={t("cost")}
           value={cost}
           onChange={(e) => setCost(e.target.value)}
-          autoFocus
           style={{ width: "100%", paddingRight: 40 }}
         />
         <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
