@@ -88,11 +88,15 @@ model XpEvent {
 }
 
 // 획득한 뱃지. badgeKey는 packages/shared의 뱃지 카탈로그와 짝을 이룬다.
+// tier는 깃허브 업적 뱃지처럼 "x1~x5" 등급을 나타낸다. 새로 획득할 때 1로 시작하고,
+// 이후로는 같은 행의 tier만 계속 올라간다(등급마다 새 행을 만들지 않는다).
 model VehicleBadge {
   id        String   @id @default(cuid())
   vehicleId String
   badgeKey  String
+  tier      Int      @default(1)
   earnedAt  DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 

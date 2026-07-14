@@ -1,26 +1,22 @@
-import { BADGE_ICONS, type BadgeKey } from "@garage/shared";
+import { BADGE_ICONS, MAX_BADGE_TIER, countToNextTier, type BadgeKey } from "@garage/shared";
 import type { TranslationKey } from "./i18n/translations";
 
 const NAME_KEYS: Record<BadgeKey, TranslationKey> = {
-  first_maintenance: "badgeFirstMaintenanceName",
-  on_time_3: "badgeOnTime3Name",
-  on_time_10: "badgeOnTime10Name",
-  detail_master_5: "badgeDetailMaster5Name",
-  efficiency_5: "badgeEfficiency5Name",
-  level_5: "badgeLevel5Name",
-  level_10: "badgeLevel10Name",
-  admin_master_3: "badgeAdminMaster3Name",
+  maintenance_master: "badgeMaintenanceMasterName",
+  on_time_pro: "badgeOnTimeProName",
+  detail_master: "badgeDetailMasterName",
+  efficiency_king: "badgeEfficiencyKingName",
+  admin_master: "badgeAdminMasterName",
+  level_milestone: "badgeLevelMilestoneName",
 };
 
 const DESC_KEYS: Record<BadgeKey, TranslationKey> = {
-  first_maintenance: "badgeFirstMaintenanceDesc",
-  on_time_3: "badgeOnTime3Desc",
-  on_time_10: "badgeOnTime10Desc",
-  detail_master_5: "badgeDetailMaster5Desc",
-  efficiency_5: "badgeEfficiency5Desc",
-  level_5: "badgeLevel5Desc",
-  level_10: "badgeLevel10Desc",
-  admin_master_3: "badgeAdminMaster3Desc",
+  maintenance_master: "badgeMaintenanceMasterDesc",
+  on_time_pro: "badgeOnTimeProDesc",
+  detail_master: "badgeDetailMasterDesc",
+  efficiency_king: "badgeEfficiencyKingDesc",
+  admin_master: "badgeAdminMasterDesc",
+  level_milestone: "badgeLevelMilestoneDesc",
 };
 
 export function badgeNameKey(key: BadgeKey): TranslationKey {
@@ -33,4 +29,12 @@ export function badgeDescKey(key: BadgeKey): TranslationKey {
 
 export function badgeIcon(key: BadgeKey): string {
   return BADGE_ICONS[key];
+}
+
+export function badgeMaxTier(key: BadgeKey): number {
+  return MAX_BADGE_TIER[key];
+}
+
+export function badgeCountToNextTier(key: BadgeKey, count: number): number | null {
+  return countToNextTier(key, count);
 }

@@ -15,6 +15,7 @@ import { useMapProviders } from "../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../lib/maps/types";
 import { PaperclipIcon, MapPinIcon } from "../../../components/icons";
 import { LevelCard } from "../../../components/LevelCard";
+import { formatDuration } from "../../../lib/duration";
 import dynamic from "next/dynamic";
 
 const LastLocationMap = dynamic(
@@ -221,10 +222,29 @@ export default function VehicleOverviewPage() {
       {gamification && <LevelCard data={gamification} />}
 
       <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ display: "block", textDecoration: "none", marginTop: 16 }}>
-        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("totalDistance")} ({t("tripPeriodWeek")})</div>
-        <strong style={{ color: "var(--color-primary)" }}>
-          {summary ? formatDistance(summary.totalDistanceKm) : "-"}
-        </strong>
+        <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
+          {t("tripPeriodWeek")}
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDistance")}</div>
+            <strong style={{ color: "var(--color-primary)" }}>
+              {summary ? formatDistance(summary.totalDistanceKm) : "-"}
+            </strong>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDuration")}</div>
+            <strong style={{ color: "var(--color-primary)" }}>
+              {summary ? formatDuration(summary.totalDurationSec, t) : "-"}
+            </strong>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("tripCountLabel")}</div>
+            <strong style={{ color: "var(--color-primary)" }}>
+              {summary ? t("tripCountValue", { count: summary.tripCount }) : "-"}
+            </strong>
+          </div>
+        </div>
       </Link>
 
       <section className="card" style={{ marginTop: 20 }}>

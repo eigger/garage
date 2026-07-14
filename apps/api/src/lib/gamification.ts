@@ -1,4 +1,12 @@
-import { BADGE_KEYS, XP_AMOUNTS, XP_EVENT_TYPES, levelForXp, type BadgeKey, type XpEventType } from "@garage/shared";
+import {
+  BADGE_KEYS,
+  XP_AMOUNTS,
+  XP_EVENT_TYPES,
+  levelForXp,
+  tierForCount,
+  type BadgeKey,
+  type XpEventType,
+} from "@garage/shared";
 import { prisma } from "./prisma.js";
 
 // 정시 완료·꼼꼼한 기록·좋은 연비에만 XP를 준다 — 늦은 정비를 감점하지 않는다(페널티 없음).
@@ -11,44 +19,52 @@ export async function awardXp(vehicleId: string, type: XpEventType, note?: strin
   await checkAndAwardBadges(vehicleId);
 }
 
-async function awardBadge(vehicleId: string, badgeKey: BadgeKey): Promise<void> {
-  await prisma.vehicleBadge.upsert({
+// 뱃지는 새로 딸 때 tier 1로 생기고, 이후로는 같은 뱃지의 tier만 올라간다(깃허브 업적처럼
+// x1→x5). 등급을 낮추는 일은 없다 — 이미 딴 등급 아래로 떨어뜨리지 않는다.
+async function upsertBadgeTier(vehicleId: string, badgeKey: BadgeKey, tier: number): Promise<void> {
+  const existing = await prisma.vehicleBadge.findUnique({
     where: { vehicleId_badgeKey: { vehicleId, badgeKey } },
-    update: {},
-    create: { vehicleId, badgeKey },
   });
+  if (existing) {
+    if (tier > existing.tier) {
+      await prisma.vehicleBadge.update({ where: { id: existing.id }, data: { tier } });
+    }
+  } else {
+    await prisma.vehicleBadge.create({ data: { vehicleId, badgeKey, tier } });
+  }
+}
+
+// 뱃지 등급 판정에 쓰는 원본 누적치 — 뱃지 갱신과 조회 API 둘 다 이 함수 하나로 계산해서
+// 등급 산정 로직이 두 곳에서 따로 어긋나지 않게 한다.
+export async function getBadgeCounts(vehicleId: string): Promise<Record<BadgeKey, number> | null> {
+  const [vehicle, onTimeCount, detailCount, efficiencyCount, completionCount, adminCount] = await Promise.all([
+    prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { xp: true } }),
+    prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.ON_TIME_BONUS } }),
+    prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.DETAIL_BONUS } }),
+    prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.EFFICIENCY_BONUS } }),
+    prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.COMPLETION } }),
+    prisma.maintenanceRecord.count({ where: { vehicleId, category: "ADMINISTRATIVE" } }),
+  ]);
+  if (!vehicle) return null;
+
+  return {
+    maintenance_master: completionCount,
+    on_time_pro: onTimeCount,
+    detail_master: detailCount,
+    efficiency_king: efficiencyCount,
+    admin_master: adminCount,
+    level_milestone: levelForXp(vehicle.xp).level,
+  };
 }
 
 export async function checkAndAwardBadges(vehicleId: string): Promise<void> {
-  const [vehicle, existingBadges, onTimeCount, detailCount, efficiencyCount, completionCount, adminCount] =
-    await Promise.all([
-      prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { xp: true } }),
-      prisma.vehicleBadge.findMany({ where: { vehicleId }, select: { badgeKey: true } }),
-      prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.ON_TIME_BONUS } }),
-      prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.DETAIL_BONUS } }),
-      prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.EFFICIENCY_BONUS } }),
-      prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.COMPLETION } }),
-      prisma.maintenanceRecord.count({ where: { vehicleId, category: "ADMINISTRATIVE" } }),
-    ]);
-  if (!vehicle) return;
-
-  const already = new Set(existingBadges.map((b) => b.badgeKey));
-  const level = levelForXp(vehicle.xp).level;
-
-  const qualifies: Record<BadgeKey, boolean> = {
-    first_maintenance: completionCount >= 1,
-    on_time_3: onTimeCount >= 3,
-    on_time_10: onTimeCount >= 10,
-    detail_master_5: detailCount >= 5,
-    efficiency_5: efficiencyCount >= 5,
-    level_5: level >= 5,
-    level_10: level >= 10,
-    admin_master_3: adminCount >= 3,
-  };
+  const counts = await getBadgeCounts(vehicleId);
+  if (!counts) return;
 
   for (const key of BADGE_KEYS) {
-    if (!already.has(key) && qualifies[key]) {
-      await awardBadge(vehicleId, key);
+    const tier = tierForCount(key, counts[key]);
+    if (tier > 0) {
+      await upsertBadgeTier(vehicleId, key, tier);
     }
   }
 }

@@ -8,6 +8,7 @@ import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
 import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, TripSummary, Vehicle } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
+import { formatDuration } from "../../../../lib/duration";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
 import { TripRouteMap } from "../../../../components/maps/TripRouteMap";
@@ -837,12 +838,6 @@ function MaintenanceRow({
   );
 }
 
-function formatDuration(seconds: number, t: Translator): string {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.round((seconds % 3600) / 60);
-  if (hours === 0) return `${minutes}${t("minutesShort")}`;
-  return `${hours}${t("hoursShort")} ${minutes}${t("minutesShort")}`;
-}
 
 function TripSection({
   vehicleId,
