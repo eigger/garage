@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { apiFetch } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useSettings } from "../lib/i18n/settings-context";
 import { getLastVehicleId } from "../lib/lastVehicle";
@@ -40,11 +41,24 @@ export function BottomNav() {
   const [moreOpen, setMoreOpen] = useState(false);
   const [lastVehicleId, setLastVehicleIdState] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
+  const [dueCount, setDueCount] = useState(0);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setLastVehicleIdState(getLastVehicleId());
   }, [pathname]);
+
+  // 지난 정비 스케줄 개수 — 차량 홈 화면의 배너를 없앤 대신 하단 네비 "정비 스케줄" 탭에
+  // 숫자 배지로 표시한다. 페이지 이동 시마다 다시 불러와 확인/조치 후 반영되게 한다.
+  useEffect(() => {
+    if (!user) return;
+    apiFetch("/api/reminders")
+      .then((res) => (res.ok ? res.json() : []))
+      .then((all: { isDue: boolean }[]) => {
+        setDueCount(all.filter((r) => r.isDue).length);
+      })
+      .catch(() => {});
+  }, [user, pathname]);
 
   useEffect(() => {
     if (!user) return;
@@ -93,6 +107,22 @@ export function BottomNav() {
     { key: "history", href: basePath ? `${basePath}/history` : null, label: t("navHistory"), Icon: HistoryIcon },
   ];
 
+  // 더보기 시트에서만 갈 수 있는 화면들 — 이 중 하나에 있으면 시트가 닫혀 있어도
+  // "더보기" 탭을 현재 위치로 강조한다 (다른 탭 href와 안 겹치게 정확히 일치할 때만).
+  const moreRoutes = [
+    basePath ? `${basePath}/analytics` : null,
+    basePath ? `${basePath}/access` : null,
+    basePath ? `${basePath}/integration` : null,
+    "/vehicles",
+    "/users",
+    "/maintenance-presets",
+    "/integrations",
+    "/api-explorer",
+    "/profile",
+    "/backup",
+  ].filter((r): r is string => r !== null);
+  const moreActive = moreOpen || moreRoutes.some((r) => pathname === r);
+
   return (
     <>
       <nav className="bottom-nav">
@@ -125,14 +155,37 @@ export function BottomNav() {
                 className={`${active ? "active" : ""} ${!tab.href ? "disabled" : ""}`}
                 aria-disabled={!tab.href}
               >
-                <span className="icon">
+                <span className="icon" style={{ position: "relative" }}>
                   <tab.Icon />
+                  {tab.key === "schedule" && dueCount > 0 && (
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: -6,
+                        right: -10,
+                        minWidth: 16,
+                        height: 16,
+                        padding: "0 4px",
+                        borderRadius: 8,
+                        background: "var(--color-danger)",
+                        color: "#fff",
+                        fontSize: 10,
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {dueCount > 99 ? "99+" : dueCount}
+                    </span>
+                  )}
                 </span>
                 {tab.label}
               </Link>
             );
           })}
-          <button type="button" className={`bottom-nav-more ${moreOpen ? "active" : ""}`} onClick={() => setMoreOpen((v) => !v)}>
+          <button type="button" className={`bottom-nav-more ${moreActive ? "active" : ""}`} onClick={() => setMoreOpen((v) => !v)}>
             <span className="icon" style={{ position: "relative" }}>
               <MoreDotsIcon />
               {updateInfo?.updateAvailable && (
@@ -145,7 +198,7 @@ export function BottomNav() {
                     width: 8,
                     height: 8,
                     borderRadius: "50%",
-                    backgroundColor: "#ff4d4f",
+                    backgroundColor: "var(--color-danger)",
                   }}
                 />
               )}
@@ -258,7 +311,7 @@ export function BottomNav() {
                     display: "inline-flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    backgroundColor: "#ff4d4f",
+                    backgroundColor: "var(--color-danger)",
                     color: "white",
                     fontSize: 10,
                     fontWeight: "bold",

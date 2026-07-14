@@ -10,12 +10,15 @@ import {
   ADMIN_ITEMS,
   maintenanceItemLabel,
   adminItemLabel,
+  levelForXp,
+  BADGE_KEYS,
 } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 import { syncReminders } from "../jobs/reminders.js";
+import { awardEfficiencyXpIfGood } from "../lib/gamification.js";
 
 const MAX_LIMIT = 1000;
 
@@ -229,6 +232,10 @@ export async function vehicleRoutes(app: FastifyInstance) {
 
       return log;
     });
+
+    if (parsed.data.fullTank) {
+      await awardEfficiencyXpIfGood(id);
+    }
 
     return reply.code(201).send(fuelLog);
   });
@@ -450,6 +457,31 @@ export async function vehicleRoutes(app: FastifyInstance) {
     }
     const odometer = await getLatestOdometer(id);
     return { odometer };
+  });
+
+  // 정비 관리 레벨/뱃지. 획득한 뱃지 + 아직 못 딴 뱃지 키를 함께 내려줘서
+  // 프론트가 "잠금" 상태까지 한 화면에 보여줄 수 있게 한다.
+  app.get("/:id/gamification", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const vehicle = await prisma.vehicle.findUnique({ where: { id }, select: { xp: true } });
+    if (!vehicle) return reply.code(404).send({ error: "vehicle not found" });
+
+    const [earnedBadges, recentEvents] = await Promise.all([
+      prisma.vehicleBadge.findMany({ where: { vehicleId: id }, orderBy: { earnedAt: "desc" } }),
+      prisma.xpEvent.findMany({ where: { vehicleId: id }, orderBy: { createdAt: "desc" }, take: 10 }),
+    ]);
+
+    return {
+      ...levelForXp(vehicle.xp),
+      earnedBadgeKeys: earnedBadges.map((b) => b.badgeKey),
+      allBadgeKeys: BADGE_KEYS,
+      recentEvents,
+    };
   });
 
   // 일반 사용자별 차량 접근권한 + 실시간 위치 열람 플래그 관리. 관리자 전용.

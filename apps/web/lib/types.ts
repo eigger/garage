@@ -129,3 +129,22 @@ export type Reminder = {
   currentOdometer: number;
   isDue: boolean;
 };
+
+export type XpEvent = {
+  id: string;
+  vehicleId: string;
+  type: string;
+  amount: number;
+  note: string | null;
+  createdAt: string;
+};
+
+export type VehicleGamification = {
+  level: number;
+  xp: number;
+  xpIntoLevel: number;
+  xpForNextLevel: number;
+  earnedBadgeKeys: string[];
+  allBadgeKeys: string[];
+  recentEvents: XpEvent[];
+};

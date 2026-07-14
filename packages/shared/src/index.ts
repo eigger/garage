@@ -9,3 +9,4 @@ export * from "./schemas/records.js";
 export * from "./schemas/settings.js";
 export * from "./schemas/maps.js";
 export * from "./schemas/opinet.js";
+export * from "./gamification.js";

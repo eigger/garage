@@ -4,6 +4,7 @@ import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 import { syncReminders } from "../jobs/reminders.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
+import { awardCompletionXp } from "../lib/gamification.js";
 
 export async function consumablePartRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
@@ -81,6 +82,23 @@ export async function consumablePartRoutes(app: FastifyInstance) {
     });
 
     await syncReminders(part.vehicleId);
+
+    if (recordCompletion) {
+      await awardCompletionXp({
+        vehicleId: part.vehicleId,
+        itemName: part.partType,
+        existing: {
+          installedDate: existing.installedDate,
+          installedOdometer: existing.installedOdometer,
+          expectedLifeKm: existing.expectedLifeKm,
+          expectedLifeMonths: existing.expectedLifeMonths,
+        },
+        completionOdometer: part.installedOdometer,
+        completionCost,
+        completionShop,
+        completionNotes,
+      });
+    }
 
     return part;
   });
