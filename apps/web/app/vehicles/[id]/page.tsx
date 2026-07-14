@@ -8,14 +8,13 @@ import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { useToast } from "../../../lib/toast-context";
 import { useConfirm } from "../../../lib/confirm-context";
-import type { ConsumablePart, FuelType, Reminder, TripSummary, Vehicle } from "../../../lib/types";
+import type { FuelType, TripSummary, Vehicle, VehicleGamification } from "../../../lib/types";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
-import { formatItemLabel } from "../../../lib/i18n/itemLabel";
 import { FUEL_TYPES } from "@garage/shared";
 import { useMapProviders } from "../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../lib/maps/types";
-import { countScheduleStatuses } from "../../../lib/scheduleStatus";
-import { AlertIcon, PaperclipIcon, MapPinIcon } from "../../../components/icons";
+import { PaperclipIcon, MapPinIcon } from "../../../components/icons";
+import { LevelCard } from "../../../components/LevelCard";
 import dynamic from "next/dynamic";
 
 const LastLocationMap = dynamic(
@@ -53,14 +52,12 @@ export default function VehicleOverviewPage() {
     : false;
   const isDriving = isRecent && vehicle && vehicle.speed !== null && vehicle.speed !== undefined && vehicle.speed > 0;
   const isStopped = isRecent && !isDriving;
-  const [reminders, setReminders] = useState<Reminder[]>([]);
   const [summary, setSummary] = useState<TripSummary | null>(null);
-  const [dueCount, setDueCount] = useState(0);
-  const [upcomingCount, setUpcomingCount] = useState(0);
   const [monthFuelCost, setMonthFuelCost] = useState(0);
   const [monthMaintenanceCost, setMonthMaintenanceCost] = useState(0);
-  const [lastFuelCost, setLastFuelCost] = useState<number | null>(null);
+  const [gamification, setGamification] = useState<VehicleGamification | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showDetails, setShowDetails] = useState(false);
 
   // Edit States
   const [editing, setEditing] = useState(false);
@@ -80,14 +77,12 @@ export default function VehicleOverviewPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function load() {
-    const [vehicleRes, remindersRes, summaryRes, partsRes, odoRes, fuelRes, maintenanceRes] = await Promise.all([
+    const [vehicleRes, summaryRes, fuelRes, maintenanceRes, gamificationRes] = await Promise.all([
       apiFetch(`/api/vehicles/${vehicleId}`),
-      apiFetch("/api/reminders"),
       apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=week`),
-      apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`),
-      apiFetch(`/api/vehicles/${vehicleId}/odometer`),
       apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=500`),
       apiFetch(`/api/vehicles/${vehicleId}/maintenance-records?limit=500`),
+      apiFetch(`/api/vehicles/${vehicleId}/gamification`),
     ]);
     if (vehicleRes.ok) {
       const vData = await vehicleRes.json();
@@ -101,11 +96,8 @@ export default function VehicleOverviewPage() {
       setBatteryCapacity(vData.batteryCapacity || "");
       setOdometer(vData.odometer ? String(vData.odometer) : "0");
     }
-    if (remindersRes.ok) {
-      const all: Reminder[] = await remindersRes.json();
-      setReminders(all.filter((r) => r.vehicleId === vehicleId && r.isDue));
-    }
     if (summaryRes.ok) setSummary(await summaryRes.json());
+    if (gamificationRes.ok) setGamification(await gamificationRes.json());
     if (fuelRes.ok && maintenanceRes.ok) {
       const start = new Date();
       start.setDate(1);
@@ -120,15 +112,6 @@ export default function VehicleOverviewPage() {
         .reduce((sum, record) => sum + (record.cost ?? 0), 0);
       setMonthFuelCost(fuelCost);
       setMonthMaintenanceCost(maintenanceCost);
-      setLastFuelCost(fuelLogs[0]?.cost ?? null);
-    }
-
-    if (partsRes.ok && odoRes.ok) {
-      const parts: ConsumablePart[] = await partsRes.json();
-      const odometer = (await odoRes.json()).odometer as number;
-      const { due, upcoming } = countScheduleStatuses(parts, odometer);
-      setDueCount(due);
-      setUpcomingCount(upcoming);
     }
     setLoading(false);
   }
@@ -156,11 +139,6 @@ export default function VehicleOverviewPage() {
     } finally {
       setDeletingVehicle(false);
     }
-  }
-
-  async function dismissReminder(id: string) {
-    const res = await apiFetch(`/api/reminders/${id}/dismiss`, { method: "POST" });
-    if (res.ok) setReminders((prev) => prev.filter((r) => r.id !== id));
   }
 
   async function setFuelType(fuelType: FuelType) {
@@ -240,107 +218,14 @@ export default function VehicleOverviewPage() {
         </section>
       )}
 
-      {reminders.length > 0 && (
-        <section style={{ marginBottom: 16 }}>
-          <strong style={{ fontSize: 15, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
-            <AlertIcon size={16} filled /> {t("reminderBannerTitle", { count: reminders.length })}
-          </strong>
-          <ul className="list" style={{ marginTop: 8 }}>
-            {reminders.map((r) => {
-              const borderLeftColor = r.isDue ? "var(--badge-red-accent)" : "var(--badge-amber-accent)";
-              const backgroundColor = r.isDue ? "var(--badge-red-bg)" : "var(--badge-amber-bg)";
-              const borderColor = r.isDue ? "var(--badge-red-border)" : "var(--badge-amber-border)";
-              const textColor = r.isDue ? "var(--badge-red-text)" : "var(--badge-amber-text)";
-              return (
-                <li
-                  key={r.id}
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    padding: "12px",
-                    backgroundColor,
-                    border: `1px solid ${borderColor}`,
-                    borderLeft: `4px solid ${borderLeftColor}`,
-                    borderRadius: 8,
-                    fontSize: 14,
-                    color: textColor,
-                  }}
-                >
-                  <span style={{ fontWeight: "600", display: "flex", alignItems: "flex-start", gap: 6, lineHeight: "1.4" }}>
-                    <span style={{ flexShrink: 0 }}><AlertIcon size={16} filled={r.isDue} /></span>
-                    <span style={{ wordBreak: "break-all" }}>
-                      {formatItemLabel(t, r.type)}
-                      {r.dueOdometer !== null && (
-                        <>
-                          {" — "}
-                          {t("reminderDueOdometer", { distance: formatDistance(r.dueOdometer) })}
-                        </>
-                      )}
-                    </span>
-                  </span>
-                  <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap", borderTop: "1px dashed rgba(0,0,0,0.06)", paddingTop: 8 }}>
-                    <button
-                      type="button"
-                      style={{
-                        minHeight: 28,
-                        height: 28,
-                        padding: "0 10px",
-                        fontSize: 12,
-                        borderRadius: 6,
-                        background: r.isDue ? "var(--badge-red-accent)" : "var(--badge-amber-accent)",
-                        color: "#fff",
-                        border: "none",
-                        cursor: "pointer",
-                        fontWeight: "600",
-                      }}
-                      onClick={() => dismissReminder(r.id)}
-                    >
-                      {t("dismissReminder")}
-                    </button>
-                    <Link href={`/vehicles/${vehicleId}/schedule`} style={{ fontSize: 12, fontWeight: "500", textDecoration: "underline", color: textColor }}>
-                      {t("reminderGoSchedule")}
-                    </Link>
-                    <Link
-                      href={`/vehicles/${vehicleId}/quick-log?tab=maintenance&type=${encodeURIComponent(r.type)}`}
-                      style={{ fontSize: 12, fontWeight: "500", textDecoration: "underline", color: textColor }}
-                    >
-                      {t("reminderGoQuickLog")}
-                    </Link>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
-      )}
+      {gamification && <LevelCard data={gamification} />}
 
-      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <Link href={`/vehicles/${vehicleId}/quick-log`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>
-          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("dashboardLastFuelCost")}</div>
-          <strong style={{ color: "var(--color-primary)" }}>
-            {lastFuelCost !== null ? formatCurrency(lastFuelCost) : "-"}
-          </strong>
-        </Link>
-
-        <Link href={`/vehicles/${vehicleId}/schedule`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>
-          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("navSchedule")}</div>
-          <strong style={{ color: dueCount > 0 ? "var(--color-danger)" : "var(--color-success)" }}>
-            {dueCount > 0
-              ? `${t("scheduleDueBadge")} ${dueCount}`
-              : upcomingCount > 0
-                ? `${t("scheduleUpcomingBadge")} ${upcomingCount}`
-                : t("scheduleOkBadge")}
-          </strong>
-        </Link>
-
-        <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ flex: "1 1 140px", textDecoration: "none" }}>
-          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("totalDistance")} ({t("tripPeriodWeek")})</div>
-          <strong style={{ color: "var(--color-primary)" }}>
-            {summary ? formatDistance(summary.totalDistanceKm) : "-"}
-          </strong>
-        </Link>
-      </div>
+      <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ display: "block", textDecoration: "none", marginTop: 16 }}>
+        <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("totalDistance")} ({t("tripPeriodWeek")})</div>
+        <strong style={{ color: "var(--color-primary)" }}>
+          {summary ? formatDistance(summary.totalDistanceKm) : "-"}
+        </strong>
+      </Link>
 
       <section className="card" style={{ marginTop: 20 }}>
         <h2 style={{ margin: "0 0 8px", fontSize: 16 }}>{t("monthlyCostSummary")}</h2>
@@ -498,35 +383,50 @@ export default function VehicleOverviewPage() {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12 }}>
-                <div><strong>{t("vehicleMake")} / {t("vehicleModel")}:</strong> {vehicle.make || "-"} / {vehicle.model || "-"}</div>
-                <div><strong>{t("vehiclePlate")}:</strong> {vehicle.plate || "-"}</div>
-                <div><strong>{t("vehicleYear")}:</strong> {vehicle.year || "-"}</div>
-                <div><strong>{t("vehicleFuelType")}:</strong> {vehicle.fuelType ? t(fuelTypeLabelKey(vehicle.fuelType)) : "-"}</div>
                 <div><strong>{t("dashboardOdometer")}:</strong> {vehicle.odometer !== null && vehicle.odometer !== undefined ? formatDistance(vehicle.odometer) : "-"}</div>
                 <div><strong>{t("fuelLevel")}:</strong> {vehicle.fuelLevel !== null && vehicle.fuelLevel !== undefined ? `${vehicle.fuelLevel.toFixed(1)}%` : "-"}</div>
               </div>
-              <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4, wordBreak: "break-all" }}>
-                <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
-                <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
-                <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
-              </div>
-              <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
-                <strong>{t("registrationCertificate")}:</strong>{" "}
-                {regCertificate ? (
-                  <a
-                    href={`${API_URL}/api/attachments/file/${regCertificate.filePath}${getToken() ? `?token=${getToken()}` : ""}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: 4 }}
-                  >
-                    <PaperclipIcon /> {t("registrationCertificate")} ({regCertificate.mimeType.split("/")[1]?.toUpperCase() || "FILE"})
-                  </a>
-                ) : (
-                  <span style={{ color: "var(--color-text-muted-2)" }}>미등록 (Not registered)</span>
-                )}
-              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowDetails((v) => !v)}
+                style={{ background: "transparent", color: "var(--color-primary)", alignSelf: "flex-start", padding: 0, minHeight: "auto", fontSize: 13 }}
+              >
+                {showDetails ? t("fewerFields") : t("moreFields")}
+              </button>
+
+              {showDetails && (
+                <>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
+                    <div><strong>{t("vehicleMake")} / {t("vehicleModel")}:</strong> {vehicle.make || "-"} / {vehicle.model || "-"}</div>
+                    <div><strong>{t("vehiclePlate")}:</strong> {vehicle.plate || "-"}</div>
+                    <div><strong>{t("vehicleYear")}:</strong> {vehicle.year || "-"}</div>
+                    <div><strong>{t("vehicleFuelType")}:</strong> {vehicle.fuelType ? t(fuelTypeLabelKey(vehicle.fuelType)) : "-"}</div>
+                  </div>
+                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4, wordBreak: "break-all" }}>
+                    <strong>{t("vehicleVin")}:</strong> <span style={{ fontFamily: "monospace", letterSpacing: "0.5px" }}>{vehicle.vin || "-"}</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
+                    <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
+                    <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
+                  </div>
+                  <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
+                    <strong>{t("registrationCertificate")}:</strong>{" "}
+                    {regCertificate ? (
+                      <a
+                        href={`${API_URL}/api/attachments/file/${regCertificate.filePath}${getToken() ? `?token=${getToken()}` : ""}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: 4 }}
+                      >
+                        <PaperclipIcon /> {t("registrationCertificate")} ({regCertificate.mimeType.split("/")[1]?.toUpperCase() || "FILE"})
+                      </a>
+                    ) : (
+                      <span style={{ color: "var(--color-text-muted-2)" }}>미등록 (Not registered)</span>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </section>

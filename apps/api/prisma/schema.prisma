@@ -57,6 +57,7 @@ model Vehicle {
   batteryCapacity String?
   apiToken        String?   @unique
   odometer        Int       @default(0)
+  xp              Int       @default(0)
   createdAt       DateTime  @default(now())
 
   access             UserVehicleAccess[]
@@ -67,6 +68,35 @@ model Vehicle {
   reminders          Reminder[]
   telemetry          TelemetryRaw[]
   attachments        Attachment[]
+  xpEvents           XpEvent[]
+  badges             VehicleBadge[]
+}
+
+// 관리를 잘 할수록(정시 정비, 꼼꼼한 기록, 좋은 연비) 쌓이는 경험치 내역.
+// 페널티 개념 없이 오직 긍정적 보상만 기록한다 — 뱃지 해금 조건도 이 누적 건수로 판단한다.
+model XpEvent {
+  id        String   @id @default(cuid())
+  vehicleId String
+  type      String
+  amount    Int
+  note      String?
+  createdAt DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@index([vehicleId, type])
+}
+
+// 획득한 뱃지. badgeKey는 packages/shared의 뱃지 카탈로그와 짝을 이룬다.
+model VehicleBadge {
+  id        String   @id @default(cuid())
+  vehicleId String
+  badgeKey  String
+  earnedAt  DateTime @default(now())
+
+  vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleId, badgeKey])
 }
 
 // 일반 사용자의 담당 차량 지정. 관리자는 전체 접근이라 별도 행이 필요 없다.

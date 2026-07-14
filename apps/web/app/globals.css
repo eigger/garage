@@ -632,6 +632,7 @@ button:disabled {
 .bottom-nav a.active,
 .bottom-nav .bottom-nav-more.active {
   color: var(--color-primary);
+  font-weight: 700;
 }
 
 .bottom-nav a.disabled {
@@ -643,6 +644,16 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 지금 보고 있는 화면의 탭임을 한눈에 알아보도록 아이콘 뒤에 배경 필을 깐다.
+   padding으로 커진 만큼 margin을 음수로 상쇄해서 탭 행의 레이아웃은 그대로 유지한다. */
+.bottom-nav a.active .icon,
+.bottom-nav .bottom-nav-more.active .icon {
+  background: var(--color-surface-hover);
+  border-radius: 12px;
+  padding: 4px 14px;
+  margin: -4px -14px;
 }
 
 .bottom-nav .icon svg {

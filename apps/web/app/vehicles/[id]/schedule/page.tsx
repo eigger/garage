@@ -331,15 +331,17 @@ function ScheduleRow({
               required
             />
           )}
+          {part.category !== "ADMINISTRATIVE" && (
+            <input
+              type="number"
+              placeholder={t("intervalKm")}
+              value={expectedLifeKm}
+              onChange={(e) => setExpectedLifeKm(e.target.value)}
+            />
+          )}
           <input
             type="number"
-            placeholder={t("intervalKm")}
-            value={expectedLifeKm}
-            onChange={(e) => setExpectedLifeKm(e.target.value)}
-          />
-          <input
-            type="number"
-            placeholder={t("intervalMonths")}
+            placeholder={part.category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")}
             value={expectedLifeMonths}
             onChange={(e) => setExpectedLifeMonths(e.target.value)}
           />
@@ -547,24 +549,38 @@ function AddScheduleItemForm({
 
   return (
     <form onSubmit={handleSubmit} className="form" noValidate>
-      <select value={category} onChange={(e) => setCategory(e.target.value as RecordCategory)}>
+      <select
+        value={category}
+        onChange={(e) => {
+          const next = e.target.value as RecordCategory;
+          setCategory(next);
+          if (next === "ADMINISTRATIVE") setExpectedLifeKm("");
+        }}
+      >
         <option value="MAINTENANCE">{t("recordCategoryMaintenance")}</option>
         <option value="ADMINISTRATIVE">{t("recordCategoryAdministrative")}</option>
       </select>
+      {category === "ADMINISTRATIVE" && (
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "-4px 0 0" }}>
+          {t("administrativeItemHint")}
+        </p>
+      )}
       <input
         placeholder={t("itemName")}
         value={partType}
         onChange={(e) => setPartType(e.target.value)}
       />
+      {category === "MAINTENANCE" && (
+        <input
+          type="number"
+          placeholder={t("intervalKm")}
+          value={expectedLifeKm}
+          onChange={(e) => setExpectedLifeKm(e.target.value)}
+        />
+      )}
       <input
         type="number"
-        placeholder={t("intervalKm")}
-        value={expectedLifeKm}
-        onChange={(e) => setExpectedLifeKm(e.target.value)}
-      />
-      <input
-        type="number"
-        placeholder={t("intervalMonths")}
+        placeholder={category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")}
         value={expectedLifeMonths}
         onChange={(e) => setExpectedLifeMonths(e.target.value)}
       />
