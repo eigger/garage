@@ -169,53 +169,57 @@ export function BottomNav() {
                 className={`${active ? "active" : ""} ${!tab.href ? "disabled" : ""}`}
                 aria-disabled={!tab.href}
               >
-                <span className="icon" style={{ position: "relative" }}>
-                  <tab.Icon />
-                  {tab.key === "schedule" && dueCount > 0 && (
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: -6,
-                        right: -10,
-                        minWidth: 16,
-                        height: 16,
-                        padding: "0 4px",
-                        borderRadius: 8,
-                        background: "var(--color-danger)",
-                        color: "#fff",
-                        fontSize: 10,
-                        fontWeight: 700,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        lineHeight: 1,
-                      }}
-                    >
-                      {dueCount > 99 ? "99+" : dueCount}
-                    </span>
-                  )}
+                <span className="icon">
+                  <span style={{ position: "relative", display: "flex" }}>
+                    <tab.Icon />
+                    {tab.key === "schedule" && dueCount > 0 && (
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: -6,
+                          right: -10,
+                          minWidth: 16,
+                          height: 16,
+                          padding: "0 4px",
+                          borderRadius: 8,
+                          background: "var(--color-danger)",
+                          color: "#fff",
+                          fontSize: 10,
+                          fontWeight: 700,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {dueCount > 99 ? "99+" : dueCount}
+                      </span>
+                    )}
+                  </span>
                 </span>
                 {tab.label}
               </Link>
             );
           })}
           <button type="button" className={`bottom-nav-more ${moreActive ? "active" : ""}`} onClick={() => setMoreOpen((v) => !v)}>
-            <span className="icon" style={{ position: "relative" }}>
-              <MoreDotsIcon />
-              {updateInfo?.updateAvailable && (
-                <span
-                  title={`New version v${updateInfo.latestVersion} is available!`}
-                  style={{
-                    position: "absolute",
-                    top: -2,
-                    right: -4,
-                    width: 8,
-                    height: 8,
-                    borderRadius: "50%",
-                    backgroundColor: "var(--color-danger)",
-                  }}
-                />
-              )}
+            <span className="icon">
+              <span style={{ position: "relative", display: "flex" }}>
+                <MoreDotsIcon />
+                {updateInfo?.updateAvailable && (
+                  <span
+                    title={`New version v${updateInfo.latestVersion} is available!`}
+                    style={{
+                      position: "absolute",
+                      top: -2,
+                      right: -4,
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      backgroundColor: "var(--color-danger)",
+                    }}
+                  />
+                )}
+              </span>
             </span>
             {t("navMore")}
           </button>
