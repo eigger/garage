@@ -30,7 +30,7 @@ export function levelForXp(xp: number): LevelProgress {
   return { level, xp, xpIntoLevel: xp - currentLevelXp, xpForNextLevel: nextLevelXp - currentLevelXp };
 }
 
-// XpEvent.type 값 — API가 기록하고, 뱃지 조건 판정에도 이 값으로 개수를 센다.
+// XpEvent.type 값 — API가 기록하고, 뱃지 등급 판정에도 이 값으로 개수를 센다.
 export const XP_EVENT_TYPES = {
   COMPLETION: "COMPLETION",
   ON_TIME_BONUS: "ON_TIME_BONUS",
@@ -46,35 +46,62 @@ export const XP_AMOUNTS: Record<XpEventType, number> = {
   EFFICIENCY_BONUS: 15,
 };
 
+// 깃허브 업적 뱃지처럼, 뱃지마다 "등급"이 있어서 계속 잘할수록 x1 → x5로 올라간다.
+// 초보자는 쉬운 1등급을, 고인물은 계속 오르는 등급을 목표로 삼을 수 있게 상한을 두지 않는다.
 export type BadgeKey =
-  | "first_maintenance"
-  | "on_time_3"
-  | "on_time_10"
-  | "detail_master_5"
-  | "efficiency_5"
-  | "level_5"
-  | "level_10"
-  | "admin_master_3";
+  | "maintenance_master"
+  | "on_time_pro"
+  | "detail_master"
+  | "efficiency_king"
+  | "admin_master"
+  | "level_milestone";
 
 export const BADGE_KEYS: BadgeKey[] = [
-  "first_maintenance",
-  "on_time_3",
-  "on_time_10",
-  "detail_master_5",
-  "efficiency_5",
-  "level_5",
-  "level_10",
-  "admin_master_3",
+  "maintenance_master",
+  "on_time_pro",
+  "detail_master",
+  "efficiency_king",
+  "admin_master",
+  "level_milestone",
 ];
 
-// 뱃지 자체는 순수 UI 표시용(색/아이콘)만 여기 두고, 이름/설명은 번역 파일(navBadge* 키)에 둔다.
+// 각 뱃지가 몇 등급까지 있고, 등급별로 몇 건(또는 몇 레벨)이 필요한지.
+export const BADGE_TIER_THRESHOLDS: Record<BadgeKey, number[]> = {
+  maintenance_master: [1, 5, 15, 30, 60],
+  on_time_pro: [1, 5, 15, 30, 60],
+  detail_master: [1, 5, 15, 30, 60],
+  efficiency_king: [1, 5, 15, 30, 60],
+  admin_master: [1, 3, 8, 15, 30],
+  level_milestone: [5, 10, 20, 40, 80],
+};
+
+export const MAX_BADGE_TIER: Record<BadgeKey, number> = Object.fromEntries(
+  BADGE_KEYS.map((key) => [key, BADGE_TIER_THRESHOLDS[key].length]),
+) as Record<BadgeKey, number>;
+
+// count(누적 완료 건수 등)가 badgeKey의 몇 등급에 해당하는지. 0이면 아직 미획득.
+export function tierForCount(key: BadgeKey, count: number): number {
+  const thresholds = BADGE_TIER_THRESHOLDS[key];
+  let tier = 0;
+  for (const threshold of thresholds) {
+    if (count >= threshold) tier++;
+    else break;
+  }
+  return tier;
+}
+
+// 다음 등급까지 몇 건 남았는지. 이미 최고 등급이면 null(더 이상 없음).
+export function countToNextTier(key: BadgeKey, count: number): number | null {
+  const thresholds = BADGE_TIER_THRESHOLDS[key];
+  const nextThreshold = thresholds.find((t) => count < t);
+  return nextThreshold === undefined ? null : nextThreshold - count;
+}
+
 export const BADGE_ICONS: Record<BadgeKey, string> = {
-  first_maintenance: "🔧",
-  on_time_3: "⏱️",
-  on_time_10: "🛡️",
-  detail_master_5: "📋",
-  efficiency_5: "⛽",
-  level_5: "⭐",
-  level_10: "🌟",
-  admin_master_3: "📄",
+  maintenance_master: "🔧",
+  on_time_pro: "⏱️",
+  detail_master: "📋",
+  efficiency_king: "⛽",
+  admin_master: "📄",
+  level_milestone: "⭐",
 };

@@ -139,12 +139,18 @@ export type XpEvent = {
   createdAt: string;
 };
 
+export type EarnedBadge = {
+  key: string;
+  tier: number;
+  count: number;
+};
+
 export type VehicleGamification = {
   level: number;
   xp: number;
   xpIntoLevel: number;
   xpForNextLevel: number;
-  earnedBadgeKeys: string[];
+  badges: EarnedBadge[];
   allBadgeKeys: string[];
   recentEvents: XpEvent[];
 };

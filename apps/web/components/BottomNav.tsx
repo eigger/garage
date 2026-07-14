@@ -7,6 +7,8 @@ import { apiFetch } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useSettings } from "../lib/i18n/settings-context";
 import { getLastVehicleId } from "../lib/lastVehicle";
+import { countScheduleStatuses } from "../lib/scheduleStatus";
+import type { ConsumablePart } from "../lib/types";
 import {
   HomeIcon,
   CalendarIcon,
@@ -48,17 +50,30 @@ export function BottomNav() {
     setLastVehicleIdState(getLastVehicleId());
   }, [pathname]);
 
-  // 지난 정비 스케줄 개수 — 차량 홈 화면의 배너를 없앤 대신 하단 네비 "정비 스케줄" 탭에
-  // 숫자 배지로 표시한다. 페이지 이동 시마다 다시 불러와 확인/조치 후 반영되게 한다.
+  const vehicleId = extractVehicleId(pathname) ?? lastVehicleId;
+
+  // 지난 정비 스케줄 개수 — 정비 스케줄 화면과 항상 같은 숫자가 나오도록 리마인더(dismiss
+  // 여부가 섞여 들어가는) 대신 스케줄 화면과 동일하게 소모품 데이터에서 직접 계산한다.
   useEffect(() => {
-    if (!user) return;
-    apiFetch("/api/reminders")
-      .then((res) => (res.ok ? res.json() : []))
-      .then((all: { isDue: boolean }[]) => {
-        setDueCount(all.filter((r) => r.isDue).length);
+    if (!user || !vehicleId) {
+      setDueCount(0);
+      return;
+    }
+    Promise.all([
+      apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`),
+      apiFetch(`/api/vehicles/${vehicleId}/odometer`),
+    ])
+      .then(async ([partsRes, odoRes]) => {
+        if (!partsRes.ok || !odoRes.ok) {
+          setDueCount(0);
+          return;
+        }
+        const parts: ConsumablePart[] = await partsRes.json();
+        const odometer = (await odoRes.json()).odometer as number;
+        setDueCount(countScheduleStatuses(parts, odometer).due);
       })
-      .catch(() => {});
-  }, [user, pathname]);
+      .catch(() => setDueCount(0));
+  }, [user, vehicleId]);
 
   useEffect(() => {
     if (!user) return;
@@ -92,7 +107,6 @@ export function BottomNav() {
 
   if (!user || pathname === "/login") return null;
 
-  const vehicleId = extractVehicleId(pathname) ?? lastVehicleId;
   const basePath = vehicleId ? `/vehicles/${vehicleId}` : null;
 
   function go(href: string) {

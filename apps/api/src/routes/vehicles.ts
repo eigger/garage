@@ -18,7 +18,7 @@ import { canAccessVehicle } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 import { syncReminders } from "../jobs/reminders.js";
-import { awardEfficiencyXpIfGood } from "../lib/gamification.js";
+import { awardEfficiencyXpIfGood, getBadgeCounts } from "../lib/gamification.js";
 
 const MAX_LIMIT = 1000;
 
@@ -471,14 +471,15 @@ export async function vehicleRoutes(app: FastifyInstance) {
     const vehicle = await prisma.vehicle.findUnique({ where: { id }, select: { xp: true } });
     if (!vehicle) return reply.code(404).send({ error: "vehicle not found" });
 
-    const [earnedBadges, recentEvents] = await Promise.all([
+    const [earnedBadges, recentEvents, counts] = await Promise.all([
       prisma.vehicleBadge.findMany({ where: { vehicleId: id }, orderBy: { earnedAt: "desc" } }),
       prisma.xpEvent.findMany({ where: { vehicleId: id }, orderBy: { createdAt: "desc" }, take: 10 }),
+      getBadgeCounts(id),
     ]);
 
     return {
       ...levelForXp(vehicle.xp),
-      earnedBadgeKeys: earnedBadges.map((b) => b.badgeKey),
+      badges: earnedBadges.map((b) => ({ key: b.badgeKey, tier: b.tier, count: counts?.[b.badgeKey as keyof typeof counts] ?? 0 })),
       allBadgeKeys: BADGE_KEYS,
       recentEvents,
     };
