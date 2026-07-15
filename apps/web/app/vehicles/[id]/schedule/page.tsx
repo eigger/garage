@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch } from "../../../../lib/api";
+import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
@@ -181,6 +181,8 @@ function ScheduleRow({
   const [completionCost, setCompletionCost] = useState("");
   const [completionShop, setCompletionShop] = useState("");
   const [completionNotes, setCompletionNotes] = useState("");
+  const [completionFile, setCompletionFile] = useState<File | null>(null);
+  const [completionUploadProgress, setCompletionUploadProgress] = useState<number | null>(null);
   const isCatalog = resolveCatalogKey(part.partType) !== null;
 
   const { status, dueDate } = computeStatus(part, odometer);
@@ -271,14 +273,28 @@ function ScheduleRow({
           installedDate: new Date().toISOString().slice(0, 10),
           installedOdometer: odometer,
           recordCompletion: true,
+          hasPhoto: completionFile !== null,
           ...extra,
         }),
       });
       if (res.ok) {
+        const { maintenanceRecordId } = await res.json();
+        if (completionFile && maintenanceRecordId) {
+          const formData = new FormData();
+          formData.append("file", completionFile);
+          setCompletionUploadProgress(0);
+          await uploadFileWithProgress(
+            `/api/attachments?maintenanceRecordId=${maintenanceRecordId}`,
+            formData,
+            setCompletionUploadProgress,
+          );
+          setCompletionUploadProgress(null);
+        }
         setCompleting(false);
         setCompletionCost("");
         setCompletionShop("");
         setCompletionNotes("");
+        setCompletionFile(null);
         showToast(t("toastSaved"), "success");
         onChanged();
       } else {
@@ -289,12 +305,8 @@ function ScheduleRow({
     }
   }
 
-  async function handleMarkDone() {
-    if (part.category === "ADMINISTRATIVE") {
-      setCompleting(true);
-      return;
-    }
-    await submitCompletion();
+  function handleMarkDone() {
+    setCompleting(true);
   }
 
   async function handleConfirmCompletion(e: React.FormEvent) {
@@ -463,6 +475,27 @@ function ScheduleRow({
             value={completionNotes}
             onChange={(e) => setCompletionNotes(e.target.value)}
           />
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
+              {t("completionPhotoLabel")}
+            </label>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setCompletionFile(e.target.files?.[0] || null)}
+              style={{ minHeight: "auto", padding: "4px 8px" }}
+            />
+            {completionUploadProgress !== null && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div className="upload-progress-track">
+                  <div className="upload-progress-fill" style={{ width: `${completionUploadProgress}%` }} />
+                </div>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                  {t("uploading")} {completionUploadProgress}%
+                </span>
+              </div>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}

@@ -52,5 +52,6 @@ export const consumablePartUpdateSchema = consumablePartSchema
     completionCost: z.number().int().nonnegative().optional(),
     completionShop: z.string().optional(),
     completionNotes: z.string().optional(),
+    hasPhoto: z.boolean().optional(),
   });
 export type ConsumablePartUpdateInput = z.infer<typeof consumablePartUpdateSchema>;

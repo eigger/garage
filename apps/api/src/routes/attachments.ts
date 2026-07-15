@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, createReadStream } from "node:fs";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
@@ -16,6 +16,24 @@ const ALLOWED_MIME = new Set([
   "image/heif",
   "application/pdf",
 ]);
+
+// 첨부가 fuelLog/maintenanceRecord/vehicle 중 어디에 걸려있든 소유 차량을 찾아서
+// 그 차량 접근 권한으로 판단한다 — 다운로드·삭제 두 라우트가 이 판정을 공유한다.
+async function resolveAttachmentVehicleId(attachment: {
+  fuelLogId: string | null;
+  maintenanceRecordId: string | null;
+  vehicleId: string | null;
+}): Promise<string | null> {
+  if (attachment.fuelLogId) {
+    const record = await prisma.fuelLog.findUnique({ where: { id: attachment.fuelLogId } });
+    return record?.vehicleId ?? null;
+  }
+  if (attachment.maintenanceRecordId) {
+    const record = await prisma.maintenanceRecord.findUnique({ where: { id: attachment.maintenanceRecordId } });
+    return record?.vehicleId ?? null;
+  }
+  return attachment.vehicleId;
+}
 
 export async function attachmentRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
@@ -105,18 +123,7 @@ export async function attachmentRoutes(app: FastifyInstance) {
 
     // 첨부된 리소스를 기준으로 차량 권한(사용자별 접근성) 확인
     const { sub, role } = request.user;
-    let vehicleId: string | null = null;
-    if (attachment.fuelLogId) {
-      const record = await prisma.fuelLog.findUnique({ where: { id: attachment.fuelLogId } });
-      if (record) vehicleId = record.vehicleId;
-    } else if (attachment.maintenanceRecordId) {
-      const record = await prisma.maintenanceRecord.findUnique({
-        where: { id: attachment.maintenanceRecordId },
-      });
-      if (record) vehicleId = record.vehicleId;
-    } else if (attachment.vehicleId) {
-      vehicleId = attachment.vehicleId;
-    }
+    const vehicleId = await resolveAttachmentVehicleId(attachment);
 
     if (!vehicleId || !(await canAccessVehicle(sub, role, vehicleId))) {
       return reply.code(403).send({ error: "forbidden" });
@@ -128,5 +135,29 @@ export async function attachmentRoutes(app: FastifyInstance) {
 
     reply.type(attachment.mimeType);
     return createReadStream(filePath);
+  });
+
+  // 첨부 하나만 개별 삭제 — 잘못 올린 사진/영수증을 부모 기록 전체를 지우지 않고 뗄 수 있게 한다.
+  app.delete("/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const attachment = await prisma.attachment.findUnique({ where: { id } });
+    if (!attachment) return reply.code(404).send({ error: "attachment not found" });
+
+    const { sub, role } = request.user;
+    const vehicleId = await resolveAttachmentVehicleId(attachment);
+    if (!vehicleId || !(await canAccessVehicle(sub, role, vehicleId))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    await prisma.attachment.delete({ where: { id } });
+
+    const filePath = path.join(UPLOAD_DIR, path.basename(attachment.filePath));
+    try {
+      await unlink(filePath);
+    } catch {
+      // 디스크에서 파일이 이미 사라졌어도 DB 레코드는 지워졌으니 무시한다.
+    }
+
+    return reply.code(204).send();
   });
 }

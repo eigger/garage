@@ -647,8 +647,9 @@ button:disabled {
 }
 
 /* 지금 보고 있는 화면의 탭임을 한눈에 알아보도록 아이콘 뒤에 배경 필을 깐다.
-   padding으로 커진 만큼 margin을 음수로 상쇄해서 탭 행의 레이아웃은 그대로 유지한다. */
-.bottom-nav a.active .icon,
+   padding으로 커진 만큼 margin을 음수로 상쇄해서 탭 행의 레이아웃은 그대로 유지한다.
+   빠른입력 탭(.primary-tab)은 이미 원형 배경으로 항상 강조돼 있으니 필을 겹쳐 씌우지 않는다. */
+.bottom-nav a.active:not(.primary-tab) .icon,
 .bottom-nav .bottom-nav-more.active .icon {
   background: var(--color-surface-hover);
   border-radius: 12px;
