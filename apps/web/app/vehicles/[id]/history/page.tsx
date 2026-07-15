@@ -463,6 +463,14 @@ function FuelLogRow({
             />
             {t("fullTank")}
           </label>
+          {log.attachments.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
+                {t("attachmentLabel")}
+              </label>
+              <AttachmentList attachments={log.attachments} editable onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}
@@ -585,27 +593,30 @@ function FuelLogRow({
           />
         </div>
       )}
-      <AttachmentList attachments={log.attachments} onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
+      <AttachmentList attachments={log.attachments} t={t} />
     </li>
   );
 }
 
 function AttachmentList({
   attachments,
+  editable = false,
   onDeleted,
   t,
   showToast,
   confirm,
 }: {
   attachments: { id: string; filePath: string; mimeType: string }[];
-  onDeleted: () => void;
+  editable?: boolean;
+  onDeleted?: () => void;
   t: Translator;
-  showToast: (message: string, type?: "success" | "error") => void;
-  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
+  showToast?: (message: string, type?: "success" | "error") => void;
+  confirm?: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   if (!attachments || attachments.length === 0) return null;
 
   async function handleDelete(id: string) {
+    if (!confirm || !showToast || !onDeleted) return;
     if (!(await confirm(t("confirmDelete")))) return;
     const res = await apiFetch(`/api/attachments/${id}`, { method: "DELETE" });
     if (res.ok) {
@@ -653,32 +664,34 @@ function AttachmentList({
                 </span>
               )}
             </a>
-            <button
-              type="button"
-              onClick={() => handleDelete(att.id)}
-              aria-label={t("delete")}
-              title={t("delete")}
-              style={{
-                position: "absolute",
-                top: -10,
-                right: -10,
-                width: 28,
-                height: 28,
-                minHeight: 28,
-                padding: 0,
-                borderRadius: "50%",
-                border: "2px solid var(--color-surface)",
-                background: "var(--color-danger)",
-                color: "#fff",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                cursor: "pointer",
-                boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
-              }}
-            >
-              <XIcon size={14} />
-            </button>
+            {editable && (
+              <button
+                type="button"
+                onClick={() => handleDelete(att.id)}
+                aria-label={t("delete")}
+                title={t("delete")}
+                style={{
+                  position: "absolute",
+                  top: -10,
+                  right: -10,
+                  width: 28,
+                  height: 28,
+                  minHeight: 28,
+                  padding: 0,
+                  borderRadius: "50%",
+                  border: "2px solid var(--color-surface)",
+                  background: "var(--color-danger)",
+                  color: "#fff",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+                }}
+              >
+                <XIcon size={14} />
+              </button>
+            )}
           </div>
         );
       })}
@@ -868,6 +881,14 @@ function MaintenanceRow({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
+          {record.attachments.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
+                {t("attachmentLabel")}
+              </label>
+              <AttachmentList attachments={record.attachments} editable onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
+            </div>
+          )}
           <div style={{ display: "flex", gap: 8 }}>
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}
@@ -907,7 +928,7 @@ function MaintenanceRow({
           {record.notes && <span>{record.notes}</span>}
         </div>
       )}
-      <AttachmentList attachments={record.attachments} onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
+      <AttachmentList attachments={record.attachments} t={t} />
     </li>
   );
 }
