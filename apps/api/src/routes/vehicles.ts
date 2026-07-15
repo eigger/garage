@@ -349,6 +349,58 @@ export async function vehicleRoutes(app: FastifyInstance) {
     return reply.code(201).send(record);
   });
 
+  app.get("/:id/maintenance-records/frequent-shops", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const records = await prisma.maintenanceRecord.findMany({
+      where: {
+        vehicleId: id,
+        shop: { not: null, gt: "" },
+      },
+      orderBy: { date: "desc" },
+      select: {
+        shop: true,
+        address: true,
+        latitude: true,
+        longitude: true,
+      },
+      take: 100,
+    });
+
+    const shopMap = new Map<string, { shop: string; address: string | null; latitude: number | null; longitude: number | null; count: number }>();
+    for (const r of records) {
+      if (!r.shop) continue;
+      const key = r.shop.trim();
+      const existing = shopMap.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (!existing.address && r.address) existing.address = r.address;
+        if (existing.latitude === null && r.latitude !== null) {
+          existing.latitude = r.latitude;
+          existing.longitude = r.longitude;
+        }
+      } else {
+        shopMap.set(key, {
+          shop: r.shop,
+          address: r.address,
+          latitude: r.latitude,
+          longitude: r.longitude,
+          count: 1,
+        });
+      }
+    }
+
+    const frequent = Array.from(shopMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return frequent;
+  });
+
   app.get("/:id/maintenance-records", async (request, reply) => {
     const { id } = request.params as { id: string };
     const { sub, role } = request.user;

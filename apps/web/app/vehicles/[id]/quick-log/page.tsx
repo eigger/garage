@@ -585,6 +585,13 @@ function QuickMaintenanceForm({
   const [latitude, setLatitude] = useState<number | null>(null);
   const [longitude, setLongitude] = useState<number | null>(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [frequentShops, setFrequentShops] = useState<Array<{ shop: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
+
+  useEffect(() => {
+    apiFetch(`/api/vehicles/${vehicleId}/maintenance-records/frequent-shops`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setFrequentShops(data));
+  }, [vehicleId]);
 
   useEffect(() => {
     // Load last odometer
@@ -687,6 +694,10 @@ function QuickMaintenanceForm({
       setFile(null);
       setFileKey(Date.now());
       showToast(t("toastCreated"), "success");
+
+      apiFetch(`/api/vehicles/${vehicleId}/maintenance-records/frequent-shops`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => setFrequentShops(data));
 
       // Reload consumable parts to update their schedule indicators
       apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
@@ -866,6 +877,36 @@ function QuickMaintenanceForm({
               </button>
             )}
           </div>
+          {frequentShops.length > 0 && (
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "4px 0 8px 4px" }}>
+              <span style={{ fontSize: "12px", color: "var(--color-text-muted)", alignSelf: "center" }}>자주 감:</span>
+              {frequentShops.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setShop(item.shop);
+                    setAddress(item.address || "");
+                    setLatitude(item.latitude);
+                    setLongitude(item.longitude);
+                  }}
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 8px",
+                    borderRadius: "16px",
+                    background: "var(--color-surface-secondary)",
+                    border: "1px solid var(--color-border-light)",
+                    color: "var(--color-text-secondary)",
+                    cursor: "pointer",
+                    minHeight: "auto",
+                    width: "auto",
+                  }}
+                >
+                  {item.shop}
+                </button>
+              ))}
+            </div>
+          )}
           {address && (
             <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
               {address}

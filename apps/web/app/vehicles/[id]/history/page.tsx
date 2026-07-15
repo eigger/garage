@@ -824,6 +824,7 @@ function MaintenanceRow({
   const [longitude, setLongitude] = useState<number | null>(record.longitude);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [frequentShops, setFrequentShops] = useState<Array<{ shop: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
 
   useEffect(() => {
     if (!editing) return;
@@ -855,6 +856,10 @@ function MaintenanceRow({
           setCustomType(record.type);
         }
       });
+
+    apiFetch(`/api/vehicles/${vehicleId}/maintenance-records/frequent-shops`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setFrequentShops(data));
   }, [editing, vehicleId, record]);
 
   async function handleSave(e: React.FormEvent) {
@@ -1036,6 +1041,36 @@ function MaintenanceRow({
               </button>
             )}
           </div>
+          {frequentShops.length > 0 && (
+            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "4px 0 8px 4px" }}>
+              <span style={{ fontSize: "12px", color: "var(--color-text-muted)", alignSelf: "center" }}>자주 감:</span>
+              {frequentShops.map((item, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onClick={() => {
+                    setShop(item.shop);
+                    setAddress(item.address || "");
+                    setLatitude(item.latitude);
+                    setLongitude(item.longitude);
+                  }}
+                  style={{
+                    fontSize: "11px",
+                    padding: "4px 8px",
+                    borderRadius: "16px",
+                    background: "var(--color-surface-secondary)",
+                    border: "1px solid var(--color-border-light)",
+                    color: "var(--color-text-secondary)",
+                    cursor: "pointer",
+                    minHeight: "auto",
+                    width: "auto",
+                  }}
+                >
+                  {item.shop}
+                </button>
+              ))}
+            </div>
+          )}
           {address && (
             <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
               {address}
