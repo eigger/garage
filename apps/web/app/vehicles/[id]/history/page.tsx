@@ -1008,21 +1008,31 @@ function MaintenanceRow({
             value={cost}
             onChange={(e) => setCost(e.target.value)}
           />
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
             <input
               placeholder={t("shop")}
               value={shop}
               onChange={(e) => setShop(e.target.value)}
-              style={{ flex: 1, marginBottom: 0 }}
+              style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
             />
             {(mapConfig.kakaoAppKey || mapConfig.naverClientId) && (
               <button
                 type="button"
                 className="btn-secondary"
                 onClick={() => setShowSearchModal(true)}
-                style={{ height: "42px", minHeight: "42px", padding: "0 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}
+                style={{
+                  height: "48px",
+                  minHeight: "48px",
+                  width: "48px",
+                  minWidth: "48px",
+                  padding: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
               >
-                <SearchIcon size={14} /> {t("search")}
+                <SearchIcon size={18} />
               </button>
             )}
           </div>
