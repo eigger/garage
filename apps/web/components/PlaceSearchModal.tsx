@@ -25,6 +25,7 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
   const [searching, setSearching] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [selectedResult, setSelectedResult] = useState<PlaceResult | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -54,12 +55,51 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
     };
   }, [mapConfig]);
 
+  useEffect(() => {
+    if (!selectedResult || !sdkReady) return;
+
+    const timer = setTimeout(() => {
+      if (mapConfig.kakaoAppKey) {
+        const kakao = (window as any).kakao;
+        const container = document.getElementById("modal-preview-map");
+        if (kakao?.maps && container) {
+          const loc = new kakao.maps.LatLng(selectedResult.lat, selectedResult.lon);
+          const map = new kakao.maps.Map(container, {
+            center: loc,
+            level: 3,
+          });
+          new kakao.maps.Marker({
+            position: loc,
+            map: map,
+          });
+        }
+      } else if (mapConfig.naverClientId) {
+        const naver = (window as any).naver;
+        const container = document.getElementById("modal-preview-map");
+        if (naver?.maps && container) {
+          const loc = new naver.maps.LatLng(selectedResult.lat, selectedResult.lon);
+          const map = new naver.maps.Map(container, {
+            center: loc,
+            zoom: 16,
+          });
+          new naver.maps.Marker({
+            position: loc,
+            map: map,
+          });
+        }
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [selectedResult, sdkReady, mapConfig]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (!query.trim() || !sdkReady) return;
     setSearching(true);
     setResults([]);
     setErrorMsg("");
+    setSelectedResult(null);
 
     if (mapConfig.kakaoAppKey) {
       const kakao = (window as any).kakao;
@@ -153,7 +193,7 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
           <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600" }}>
-            {mapConfig.kakaoAppKey ? "주소 및 상호 검색" : "주소 검색"}
+            {selectedResult ? "선택한 위치 확인" : (mapConfig.kakaoAppKey ? "주소 및 상호 검색" : "주소 검색")}
           </h3>
           <button
             type="button"
@@ -178,66 +218,99 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
         </div>
 
         {/* Search Input */}
-        <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-          <input
-            type="text"
-            placeholder={mapConfig.kakaoAppKey ? "상호명이나 주소를 입력하세요" : "주소를 입력하세요"}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            style={{ flex: 1, marginBottom: 0 }}
-            autoFocus
-          />
-          <button
-            type="submit"
-            disabled={!query.trim() || !sdkReady || searching}
-            style={{
-              padding: "0 16px",
-              height: "42px",
-              minHeight: "42px",
-              whiteSpace: "nowrap",
-              fontSize: "14px",
-            }}
-          >
-            {searching ? "검색 중..." : "검색"}
-          </button>
-        </form>
+        {!selectedResult && (
+          <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
+            <input
+              type="text"
+              placeholder={mapConfig.kakaoAppKey ? "상호명이나 주소를 입력하세요" : "주소를 입력하세요"}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              style={{ flex: 1, marginBottom: 0 }}
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={!query.trim() || !sdkReady || searching}
+              style={{
+                padding: "0 16px",
+                height: "42px",
+                minHeight: "42px",
+                whiteSpace: "nowrap",
+                fontSize: "14px",
+              }}
+            >
+              {searching ? "검색 중..." : "검색"}
+            </button>
+          </form>
+        )}
 
         {/* Error or Alert */}
-        {errorMsg && (
+        {!selectedResult && errorMsg && (
           <p style={{ margin: "8px 0", fontSize: "13px", color: "var(--color-danger)", textAlign: "center" }}>
             {errorMsg}
           </p>
         )}
 
-        {/* Results list */}
-        <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
-          {results.map((res, i) => (
-            <div
-              key={i}
-              onClick={() => onSelect(res)}
-              style={{
-                padding: "12px",
-                borderRadius: "8px",
-                border: "1px solid var(--color-border-light)",
-                cursor: "pointer",
-                backgroundColor: "var(--color-surface-secondary)",
-                transition: "background-color 0.2s ease",
-                textAlign: "left",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-border-light)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = "var(--color-surface-secondary)";
-              }}
-            >
-              <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--color-text)", marginBottom: "4px" }}>
-                {res.name}
+        {/* Results list or Map Preview */}
+        {!selectedResult ? (
+          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+            {results.map((res, i) => (
+              <div
+                key={i}
+                onClick={() => setSelectedResult(res)}
+                style={{
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "1px solid var(--color-border-light)",
+                  cursor: "pointer",
+                  backgroundColor: "var(--color-surface-secondary)",
+                  transition: "background-color 0.2s ease",
+                  textAlign: "left",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-border-light)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "var(--color-surface-secondary)";
+                }}
+              >
+                <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--color-text)", marginBottom: "4px" }}>
+                  {res.name}
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{res.address}</div>
               </div>
-              <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{res.address}</div>
+            ))}
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            <div style={{ padding: "12px", borderRadius: "8px", border: "1px solid var(--color-border-light)", backgroundColor: "var(--color-surface-secondary)", textAlign: "left" }}>
+              <div style={{ fontWeight: "600", fontSize: "14px", color: "var(--color-text)", marginBottom: "4px" }}>
+                {selectedResult.name}
+              </div>
+              <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>{selectedResult.address}</div>
             </div>
-          ))}
-        </div>
+
+            <div id="modal-preview-map" style={{ width: "100%", height: "200px", borderRadius: "12px", overflow: "hidden", border: "1px solid var(--color-border-light)" }} />
+
+            <div style={{ display: "flex", gap: "8px" }}>
+              <button
+                type="button"
+                onClick={() => onSelect(selectedResult)}
+                style={{ flex: 1 }}
+              >
+                선택 완료
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setSelectedResult(null)}
+                style={{ flex: 1 }}
+              >
+                이전으로
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

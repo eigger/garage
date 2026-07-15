@@ -36,6 +36,7 @@ export function KakaoTripMap({ points, appKey }: { points: SpeedPoint[]; appKey:
             path: seg.path.map((p) => new kakao.LatLng(p.lat, p.lon)),
             strokeWeight: 4,
             strokeColor: seg.color,
+            endArrow: true,
           }).setMap(map);
         }
 
@@ -90,7 +91,7 @@ type KakaoMapsApi = {
   Map: new (el: HTMLElement, opts: { center: object; level: number }) => { setBounds: (b: object) => void };
   LatLng: new (lat: number, lon: number) => object;
   LatLngBounds: new () => { extend: (ll: object) => void };
-  Polyline: new (opts: { path: object[]; strokeWeight: number; strokeColor: string }) => {
+  Polyline: new (opts: { path: object[]; strokeWeight: number; strokeColor: string; endArrow?: boolean }) => {
     setMap: (map: object) => void;
   };
   Marker: new (opts: { position: object; image?: object }) => { setMap: (map: object) => void };
