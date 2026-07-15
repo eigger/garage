@@ -57,14 +57,15 @@ export async function consumablePartRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    const { recordCompletion, completionCost, completionShop, completionNotes, ...updateData } =
+    const { recordCompletion, completionCost, completionShop, completionNotes, hasPhoto, ...updateData } =
       parsed.data;
 
-    const part = await prisma.$transaction(async (tx) => {
+    const { part, maintenanceRecordId } = await prisma.$transaction(async (tx) => {
       const updated = await tx.consumablePart.update({ where: { id }, data: updateData });
 
+      let createdRecordId: string | null = null;
       if (recordCompletion) {
-        await tx.maintenanceRecord.create({
+        const record = await tx.maintenanceRecord.create({
           data: {
             vehicleId: updated.vehicleId,
             date: updated.installedDate,
@@ -76,9 +77,10 @@ export async function consumablePartRoutes(app: FastifyInstance) {
             notes: completionNotes,
           },
         });
+        createdRecordId = record.id;
       }
 
-      return updated;
+      return { part: updated, maintenanceRecordId: createdRecordId };
     });
 
     await syncReminders(part.vehicleId);
@@ -97,10 +99,11 @@ export async function consumablePartRoutes(app: FastifyInstance) {
         completionCost,
         completionShop,
         completionNotes,
+        hasPhoto,
       });
     }
 
-    return part;
+    return { ...part, maintenanceRecordId };
   });
 
   app.delete("/:id", async (request, reply) => {

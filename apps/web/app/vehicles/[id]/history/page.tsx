@@ -18,7 +18,7 @@ import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/maps/types";
 import type { SpeedPoint } from "../../../../lib/maps/polyline";
 import { decodeRoute } from "../../../../lib/maps/polyline";
-import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon } from "../../../../components/icons";
+import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon, XIcon } from "../../../../components/icons";
 import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
 import type { FuelType } from "../../../../lib/types";
 import dynamic from "next/dynamic";
@@ -219,6 +219,7 @@ export default function HistoryPage() {
                     onChanged={() => loadFuelLogs(true)}
                     t={t}
                     formatCurrency={formatCurrency}
+                    formatDistance={formatDistance}
                     showToast={showToast}
                     confirm={confirm}
                     mapConfig={mapConfig}
@@ -310,6 +311,7 @@ export default function HistoryPage() {
                     onChanged={() => loadMaintenanceRecords(true)}
                     t={t}
                     formatCurrency={formatCurrency}
+                    formatDistance={formatDistance}
                     showToast={showToast}
                     confirm={confirm}
                   />
@@ -352,6 +354,7 @@ function FuelLogRow({
   onChanged,
   t,
   formatCurrency,
+  formatDistance,
   showToast,
   confirm,
   mapConfig,
@@ -363,6 +366,7 @@ function FuelLogRow({
   onChanged: () => void;
   t: Translator;
   formatCurrency: (amount: number) => string;
+  formatDistance: (km: number) => string;
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
   mapConfig: MapProvidersConfig;
@@ -476,8 +480,7 @@ function FuelLogRow({
     <li className="list-item" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span>
-          {log.date.slice(0, 10)} · {log.liters}{volumeUnit} · {formatCurrency(log.cost)}
-          {log.location && <span style={{ fontSize: 13, color: "var(--color-text-muted)", marginLeft: 8 }}>({log.location})</span>}
+          {log.date.slice(0, 10)} · {formatDistance(log.odometer)} · {log.liters}{volumeUnit} · {formatCurrency(log.cost)}
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
@@ -487,6 +490,11 @@ function FuelLogRow({
             {t("delete")}
           </button>
         </span>
+      </div>
+      <div style={{ fontSize: 13, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <span>{t("unitPrice")} {formatCurrency(Math.round(log.cost / log.liters))}/{volumeUnit}</span>
+        <span>· {log.fullTank ? t("fullTank") : t("partialTank")}</span>
+        {log.location && <span>· {log.location}</span>}
       </div>
       {efficiency && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6, marginBottom: 4 }}>
@@ -534,49 +542,79 @@ function FuelLogRow({
           </span>
         </div>
       )}
-      {log.address && <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{log.address}</div>}
-      {log.latitude !== null && log.longitude !== null && (
-        <>
-          <button
-            type="button"
-            onClick={() => setShowMap((v) => !v)}
-            style={{
-              minHeight: 32,
-              fontSize: 13,
-              padding: "0 10px",
-              background: showMap ? "var(--color-primary)" : "var(--color-surface)",
-              color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
-              border: "1px solid var(--color-border-light)",
-              borderRadius: 8,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 6,
-              marginTop: 4,
-            }}
-          >
-            <MapPinIcon size={14} /> {showMap ? t("hideTripMap") : t("showTripMap")}
-          </button>
-          {showMap && (
-            <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
-              <LastLocationMap
-                lat={log.latitude}
-                lon={log.longitude}
-                provider={mapProvider}
-                kakaoAppKey={mapConfig.kakaoAppKey}
-                naverClientId={mapConfig.naverClientId}
-                tmapAppKey={mapConfig.tmapAppKey}
-              />
-            </div>
+      {(log.address || (log.latitude !== null && log.longitude !== null)) && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          {log.address && (
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {log.address}
+            </span>
           )}
-        </>
+          {log.latitude !== null && log.longitude !== null && (
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              style={{
+                minHeight: 26,
+                height: 26,
+                fontSize: 12,
+                padding: "0 8px",
+                background: showMap ? "var(--color-primary)" : "var(--color-surface)",
+                color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                border: "1px solid var(--color-border-light)",
+                borderRadius: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0,
+              }}
+            >
+              <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+            </button>
+          )}
+        </div>
       )}
-      <AttachmentList attachments={log.attachments} />
+      {showMap && log.latitude !== null && log.longitude !== null && (
+        <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
+          <LastLocationMap
+            lat={log.latitude}
+            lon={log.longitude}
+            provider={mapProvider}
+            kakaoAppKey={mapConfig.kakaoAppKey}
+            naverClientId={mapConfig.naverClientId}
+            tmapAppKey={mapConfig.tmapAppKey}
+          />
+        </div>
+      )}
+      <AttachmentList attachments={log.attachments} onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
     </li>
   );
 }
 
-function AttachmentList({ attachments }: { attachments: { id: string; filePath: string; mimeType: string }[] }) {
+function AttachmentList({
+  attachments,
+  onDeleted,
+  t,
+  showToast,
+  confirm,
+}: {
+  attachments: { id: string; filePath: string; mimeType: string }[];
+  onDeleted: () => void;
+  t: Translator;
+  showToast: (message: string, type?: "success" | "error") => void;
+  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
+}) {
   if (!attachments || attachments.length === 0) return null;
+
+  async function handleDelete(id: string) {
+    if (!(await confirm(t("confirmDelete")))) return;
+    const res = await apiFetch(`/api/attachments/${id}`, { method: "DELETE" });
+    if (res.ok) {
+      showToast(t("toastDeleted"), "success");
+      onDeleted();
+    } else {
+      showToast(t("toastError"), "error");
+    }
+  }
 
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
@@ -586,35 +624,61 @@ function AttachmentList({ attachments }: { attachments: { id: string; filePath: 
         const isImage = att.mimeType.startsWith("image/");
 
         return (
-          <a
-            key={att.id}
-            href={fileUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "1px solid var(--color-border)",
-              borderRadius: 4,
-              overflow: "hidden",
-              textDecoration: "none",
-              backgroundColor: "var(--color-surface-secondary)",
-            }}
-          >
-            {isImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={fileUrl}
-                alt="Attachment"
-                style={{ width: 60, height: 60, objectFit: "cover" }}
-              />
-            ) : (
-              <span style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <FileTextIcon /> PDF
-              </span>
-            )}
-          </a>
+          <div key={att.id} style={{ position: "relative" }}>
+            <a
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid var(--color-border)",
+                borderRadius: 4,
+                overflow: "hidden",
+                textDecoration: "none",
+                backgroundColor: "var(--color-surface-secondary)",
+              }}
+            >
+              {isImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={fileUrl}
+                  alt="Attachment"
+                  style={{ width: 60, height: 60, objectFit: "cover" }}
+                />
+              ) : (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <FileTextIcon /> PDF
+                </span>
+              )}
+            </a>
+            <button
+              type="button"
+              onClick={() => handleDelete(att.id)}
+              aria-label={t("delete")}
+              title={t("delete")}
+              style={{
+                position: "absolute",
+                top: -6,
+                right: -6,
+                width: 20,
+                height: 20,
+                minHeight: 20,
+                padding: 0,
+                borderRadius: "50%",
+                border: "1px solid var(--color-surface)",
+                background: "var(--color-danger)",
+                color: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+              }}
+            >
+              <XIcon size={10} />
+            </button>
+          </div>
         );
       })}
     </div>
@@ -627,6 +691,7 @@ function MaintenanceRow({
   onChanged,
   t,
   formatCurrency,
+  formatDistance,
   showToast,
   confirm,
 }: {
@@ -635,6 +700,7 @@ function MaintenanceRow({
   onChanged: () => void;
   t: Translator;
   formatCurrency: (amount: number) => string;
+  formatDistance: (km: number) => string;
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
@@ -820,7 +886,7 @@ function MaintenanceRow({
         <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <CategoryBadge category={record.category} t={t} />
           <span>
-            {record.date.slice(0, 10)} · {formatItemLabel(t, record.type)}
+            {record.date.slice(0, 10)} · {formatDistance(record.odometer)} · {formatItemLabel(t, record.type)}
             {record.cost !== null ? ` · ${formatCurrency(record.cost)}` : ""}
           </span>
         </span>
@@ -833,7 +899,14 @@ function MaintenanceRow({
           </button>
         </span>
       </div>
-      <AttachmentList attachments={record.attachments} />
+      {(record.shop || record.notes) && (
+        <div style={{ fontSize: 13, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {record.shop && <span>{t("shop")}: {record.shop}</span>}
+          {record.shop && record.notes && <span>·</span>}
+          {record.notes && <span>{record.notes}</span>}
+        </div>
+      )}
+      <AttachmentList attachments={record.attachments} onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
     </li>
   );
 }

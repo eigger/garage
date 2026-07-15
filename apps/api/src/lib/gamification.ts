@@ -79,9 +79,18 @@ export async function awardCompletionXp(params: {
   completionCost?: number | null;
   completionShop?: string | null;
   completionNotes?: string | null;
+  hasPhoto?: boolean;
 }): Promise<void> {
-  const { vehicleId, itemName, existing, completionOdometer, completionCost, completionShop, completionNotes } =
-    params;
+  const {
+    vehicleId,
+    itemName,
+    existing,
+    completionOdometer,
+    completionCost,
+    completionShop,
+    completionNotes,
+    hasPhoto,
+  } = params;
 
   await awardXp(vehicleId, XP_EVENT_TYPES.COMPLETION, itemName);
 
@@ -98,8 +107,11 @@ export async function awardCompletionXp(params: {
     await awardXp(vehicleId, XP_EVENT_TYPES.ON_TIME_BONUS, itemName);
   }
 
-  const isDetailed = Boolean(completionCost) && Boolean(completionShop?.trim()) && Boolean(completionNotes?.trim());
-  if (isDetailed) {
+  // 비용·업체·메모·사진 중 최소 2가지를 채우면 "꼼꼼한 기록" 보너스 — 사진만 붙이거나
+  // 텍스트만 다 채우거나, 어느 쪽으로도 달성할 수 있게 열어둔다.
+  const filledCount = [Boolean(completionCost), Boolean(completionShop?.trim()), Boolean(completionNotes?.trim()), Boolean(hasPhoto)]
+    .filter(Boolean).length;
+  if (filledCount >= 2) {
     await awardXp(vehicleId, XP_EVENT_TYPES.DETAIL_BONUS, itemName);
   }
 }
