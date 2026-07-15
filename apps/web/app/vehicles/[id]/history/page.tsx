@@ -385,6 +385,10 @@ function FuelLogRow({
   const [submitting, setSubmitting] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const mapProvider = pickDefaultProvider(mapConfig);
+  const [address, setAddress] = useState(log.address || "");
+  const [latitude, setLatitude] = useState<number | null>(log.latitude);
+  const [longitude, setLongitude] = useState<number | null>(log.longitude);
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   const [attachments, setAttachments] = useState(log.attachments);
   const [deletedAttachmentIds, setDeletedAttachmentIds] = useState<string[]>([]);
@@ -403,6 +407,9 @@ function FuelLogRow({
       setDeletedAttachmentIds([]);
       setNewFile(null);
       setUploadProgress(null);
+      setAddress(log.address || "");
+      setLatitude(log.latitude);
+      setLongitude(log.longitude);
     }
   }, [editing, log]);
 
@@ -419,6 +426,9 @@ function FuelLogRow({
           cost: Number(cost),
           fullTank,
           location: location || undefined,
+          latitude: latitude !== null ? latitude : undefined,
+          longitude: longitude !== null ? longitude : undefined,
+          address: address || undefined,
         }),
       });
       if (res.ok) {
@@ -468,94 +478,138 @@ function FuelLogRow({
 
   if (editing) {
     return (
-      <li className="list-item">
-        <form onSubmit={handleSave} className="form">
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
-          <input
-            type="number"
-            placeholder={t("odometer")}
-            value={odometer}
-            onChange={(e) => setOdometer(e.target.value)}
-            required
-          />
-          <input
-            type="number"
-            step="0.01"
-            placeholder={fuelType === "ELECTRIC" ? t("chargeAmount") : t("liters")}
-            value={liters}
-            onChange={(e) => setLiters(e.target.value)}
-            required
-          />
-          <input
-            type="number"
-            placeholder={t("cost")}
-            value={cost}
-            onChange={(e) => setCost(e.target.value)}
-            required
-          />
-          <input
-            placeholder={t("gasStation")}
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-          />
-          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+      <>
+        <li className="list-item">
+          <form onSubmit={handleSave} className="form">
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <input
-              type="checkbox"
-              checked={fullTank}
-              onChange={(e) => setFullTank(e.target.checked)}
-              style={{ minHeight: "auto", width: "auto" }}
+              type="number"
+              placeholder={t("odometer")}
+              value={odometer}
+              onChange={(e) => setOdometer(e.target.value)}
+              required
             />
-            {t("fullTank")}
-          </label>
-          {(log.attachments.length > 0 || attachments.length > 0) && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
-                {t("attachmentLabel")}
-              </label>
-              <AttachmentList
-                attachments={attachments}
-                editable
-                onRemove={(id) => {
-                  setAttachments((prev) => prev.filter((a) => a.id !== id));
-                  setDeletedAttachmentIds((prev) => [...prev, id]);
-                }}
-                t={t}
-                showToast={showToast}
-                confirm={confirm}
+            <input
+              type="number"
+              step="0.01"
+              placeholder={fuelType === "ELECTRIC" ? t("chargeAmount") : t("liters")}
+              value={liters}
+              onChange={(e) => setLiters(e.target.value)}
+              required
+            />
+            <input
+              type="number"
+              placeholder={t("cost")}
+              value={cost}
+              onChange={(e) => setCost(e.target.value)}
+              required
+            />
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
+              <input
+                placeholder={t("gasStation")}
+                value={location}
+                onChange={(e) => setLocation(e.target.value)}
+                style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
               />
+              {(mapConfig.kakaoAppKey || mapConfig.naverClientId) && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowSearchModal(true)}
+                  style={{
+                    height: "48px",
+                    minHeight: "48px",
+                    width: "48px",
+                    minWidth: "48px",
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <SearchIcon size={18} />
+                </button>
+              )}
             </div>
-          )}
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
-              {t("completionPhotoLabel")}
+            {address && (
+              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
+                {address}
+              </p>
+            )}
+            <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={fullTank}
+                onChange={(e) => setFullTank(e.target.checked)}
+                style={{ minHeight: "auto", width: "auto" }}
+              />
+              {t("fullTank")}
             </label>
-            <input
-              type="file"
-              accept="image/*,application/pdf"
-              onChange={(e) => setNewFile(e.target.files?.[0] || null)}
-              style={{ minHeight: "auto", padding: "4px 8px" }}
-            />
-            {uploadProgress !== null && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <div className="upload-progress-track">
-                  <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
-                </div>
-                <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
-                  {t("uploading")} {uploadProgress}%
-                </span>
+            {(log.attachments.length > 0 || attachments.length > 0) && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
+                  {t("attachmentLabel")}
+                </label>
+                <AttachmentList
+                  attachments={attachments}
+                  editable
+                  onRemove={(id) => {
+                    setAttachments((prev) => prev.filter((a) => a.id !== id));
+                    setDeletedAttachmentIds((prev) => [...prev, id]);
+                  }}
+                  t={t}
+                  showToast={showToast}
+                  confirm={confirm}
+                />
               </div>
             )}
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button type="submit" disabled={submitting}>
-              {submitting ? t("saving") : t("save")}
-            </button>
-            <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
-              {t("cancel")}
-            </button>
-          </div>
-        </form>
-      </li>
+            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+              <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
+                {t("completionPhotoLabel")}
+              </label>
+              <input
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={(e) => setNewFile(e.target.files?.[0] || null)}
+                style={{ minHeight: "auto", padding: "4px 8px" }}
+              />
+              {uploadProgress !== null && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                  <div className="upload-progress-track">
+                    <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+                  </div>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                    {t("uploading")} {uploadProgress}%
+                  </span>
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="submit" disabled={submitting}>
+                {submitting ? t("saving") : t("save")}
+              </button>
+              <button type="button" className="btn-secondary" onClick={() => setEditing(false)}>
+                {t("cancel")}
+              </button>
+            </div>
+          </form>
+        </li>
+        {showSearchModal && (
+          <PlaceSearchModal
+            mapConfig={mapConfig}
+            onSelect={(res) => {
+              setLocation(res.name);
+              setAddress(res.address);
+              setLatitude(res.lat);
+              setLongitude(res.lon);
+              setShowSearchModal(false);
+            }}
+            onClose={() => setShowSearchModal(false)}
+            t={t}
+          />
+        )}
+      </>
     );
   }
 
