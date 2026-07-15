@@ -139,6 +139,8 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const [unitPrice, setUnitPrice] = useState("");
   const [locLoading, setLocLoading] = useState(false);
   const [frequentStations, setFrequentStations] = useState<Array<{ location: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
+  const mapConfig = useMapProviders();
+  const [showSearchModal, setShowSearchModal] = useState(false);
 
   useEffect(() => {
     // Load vehicle details to know fuelType
@@ -367,16 +369,39 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       )}
 
       {stations.length === 0 && (
-        <input
-          placeholder={t("gasStation")}
-          value={location}
-          onChange={(e) => {
-            setLocation(e.target.value);
-            setStationAddress(null);
-            setStationCoords(null);
-            setSelectedStationId("");
-          }}
-        />
+        <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
+          <input
+            placeholder={t("gasStation")}
+            value={location}
+            onChange={(e) => {
+              setLocation(e.target.value);
+              setStationAddress(null);
+              setStationCoords(null);
+              setSelectedStationId("");
+            }}
+            style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
+          />
+          {(mapConfig.kakaoAppKey || mapConfig.naverClientId) && (
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setShowSearchModal(true)}
+              style={{
+                height: "48px",
+                minHeight: "48px",
+                width: "48px",
+                minWidth: "48px",
+                padding: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <SearchIcon size={18} />
+            </button>
+          )}
+        </div>
       )}
       {stations.length === 0 && frequentStations.length > 0 && (
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "-4px 0 8px 4px" }}>
@@ -588,6 +613,25 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         {submitting ? t("saving") : t("save")}
       </button>
       {error && <p className="field-error">{error}</p>}
+      {showSearchModal && (
+        <PlaceSearchModal
+          mapConfig={mapConfig}
+          onSelect={(res) => {
+            setLocation(res.name);
+            setStationAddress(res.address);
+            setStationCoords({
+              lat: res.lat,
+              lon: res.lon,
+              name: res.name,
+            });
+            setSelectedStationId("");
+            setShowSearchModal(false);
+          }}
+          onClose={() => setShowSearchModal(false)}
+          t={t}
+          isGasStation={true}
+        />
+      )}
     </form>
   );
 }

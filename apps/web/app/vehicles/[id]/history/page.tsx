@@ -68,9 +68,10 @@ export default function HistoryPage() {
   // 뒤에 붙어버림). 요청마다 순번을 매겨서 이후에 더 최신 요청이 있었으면 그 응답은 버린다.
   const maintenanceRequestSeq = useRef(0);
 
-  async function loadFuelLogs(reset = false) {
+  async function loadFuelLogs(reset = false, searchOverride?: string) {
     const currentOffset = reset ? 0 : fuelOffset;
-    const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=${CHUNK_SIZE}&offset=${currentOffset}`);
+    const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
+    const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(effectiveSearch)}`);
     if (res.ok) {
       const data: FuelLog[] = await res.json();
       if (reset) {
@@ -142,9 +143,9 @@ export default function HistoryPage() {
   useEffect(() => {
     if (subTab === "fuel") {
       setFuelLoading(true);
-      loadFuelLogs(true).then(() => setFuelLoading(false));
+      loadFuelLogs(true, debouncedSearch).then(() => setFuelLoading(false));
     }
-  }, [vehicleId, subTab]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vehicleId, subTab, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load maintenance records when active tab is maintenance
   useEffect(() => {
@@ -203,30 +204,49 @@ export default function HistoryPage() {
       {subTab === "fuel" && (
         <section>
           <h2>{t("fuelLogsHeading")}</h2>
+          <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              placeholder={t("searchFuelPlaceholder")}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{
+                flex: 1,
+                minHeight: 38,
+                fontSize: 13,
+                borderRadius: 8,
+                border: "1px solid var(--color-border-light)",
+                padding: "0 12px",
+                outline: "none",
+              }}
+            />
+          </div>
           {fuelLoading ? (
             <p>{t("loading")}</p>
-          ) : fuelLogs.length === 0 ? (
-            <p>{t("noFuelLogs")}</p>
           ) : (
             <>
-              <ul className="list">
-                {fuelLogs.map((f) => (
-                  <FuelLogRow
-                    key={f.id}
-                    vehicleId={vehicleId}
-                    log={f}
-                    efficiency={fuelEfficiencyById[f.id] ?? null}
-                    fuelType={vehicle?.fuelType ?? null}
-                    onChanged={() => loadFuelLogs(true)}
-                    t={t}
-                    formatCurrency={formatCurrency}
-                    formatDistance={formatDistance}
-                    showToast={showToast}
-                    confirm={confirm}
-                    mapConfig={mapConfig}
-                  />
-                ))}
-              </ul>
+              {fuelLogs.length === 0 ? (
+                <p>{t("noFuelLogs")}</p>
+              ) : (
+                <ul className="list">
+                  {fuelLogs.map((f) => (
+                    <FuelLogRow
+                      key={f.id}
+                      vehicleId={vehicleId}
+                      log={f}
+                      efficiency={fuelEfficiencyById[f.id] ?? null}
+                      fuelType={vehicle?.fuelType ?? null}
+                      onChanged={() => loadFuelLogs(true)}
+                      t={t}
+                      formatCurrency={formatCurrency}
+                      formatDistance={formatDistance}
+                      showToast={showToast}
+                      confirm={confirm}
+                      mapConfig={mapConfig}
+                    />
+                  ))}
+                </ul>
+              )}
               {hasMoreFuel && (
                 <button
                   type="button"
