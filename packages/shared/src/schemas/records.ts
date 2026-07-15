@@ -27,6 +27,9 @@ export const maintenanceRecordSchema = z.object({
   cost: z.number().int().nonnegative().optional(),
   shop: z.string().optional(),
   notes: z.string().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
+  address: z.string().nullable().optional(),
 });
 export type MaintenanceRecordInput = z.infer<typeof maintenanceRecordSchema>;
 export const maintenanceRecordUpdateSchema = maintenanceRecordSchema

@@ -10,9 +10,11 @@ import type { RecordCategory } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
-import { AlertIcon, TrashIcon } from "../../../../components/icons";
+import { AlertIcon, TrashIcon, SearchIcon } from "../../../../components/icons";
 import { fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
 import type { OpinetStationSummary } from "@garage/shared";
+import { useMapProviders } from "../../../../lib/maps/useMapProviders";
+import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type Tab = "fuel" | "maintenance";
@@ -578,6 +580,12 @@ function QuickMaintenanceForm({
   const [selectedPartTypes, setSelectedPartTypes] = useState<string[]>([]);
   const [customType, setCustomType] = useState("");
 
+  const mapConfig = useMapProviders();
+  const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+
   useEffect(() => {
     // Load last odometer
     apiFetch(`/api/vehicles/${vehicleId}/odometer`)
@@ -641,6 +649,9 @@ function QuickMaintenanceForm({
             cost: cost ? Number(cost) : undefined,
             shop: shop || undefined,
             notes: notes || undefined,
+            latitude: latitude !== null ? latitude : undefined,
+            longitude: longitude !== null ? longitude : undefined,
+            address: address || undefined,
           }),
         });
         if (res.ok) {
@@ -670,9 +681,12 @@ function QuickMaintenanceForm({
       setCost("");
       setShop("");
       setNotes("");
+      setAddress("");
+      setLatitude(null);
+      setLongitude(null);
       setFile(null);
       setFileKey(Date.now());
-      showToast(t("toastSaved"), "success");
+      showToast(t("toastCreated"), "success");
 
       // Reload consumable parts to update their schedule indicators
       apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
@@ -824,9 +838,46 @@ function QuickMaintenanceForm({
       {showMore && (
         <>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <input placeholder={t("shop")} value={shop} onChange={(e) => setShop(e.target.value)} />
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <input
+              placeholder={t("shop")}
+              value={shop}
+              onChange={(e) => setShop(e.target.value)}
+              style={{ flex: 1, marginBottom: 0 }}
+            />
+            {(mapConfig.kakaoAppKey || mapConfig.naverClientId) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowSearchModal(true)}
+                style={{ height: "42px", minHeight: "42px", padding: "0 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}
+              >
+                <SearchIcon size={14} /> {t("search")}
+              </button>
+            )}
+          </div>
+          {address && (
+            <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
+              {address}
+            </p>
+          )}
           <input placeholder={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
         </>
+      )}
+
+      {showSearchModal && (
+        <PlaceSearchModal
+          mapConfig={mapConfig}
+          onSelect={(res) => {
+            setShop(res.name);
+            setAddress(res.address);
+            setLatitude(res.lat);
+            setLongitude(res.lon);
+            setShowSearchModal(false);
+          }}
+          onClose={() => setShowSearchModal(false)}
+          t={t}
+        />
       )}
 
       <button type="submit" disabled={submitting}>

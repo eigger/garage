@@ -181,6 +181,9 @@ model MaintenanceRecord {
   cost      Int?
   shop      String?
   notes     String?
+  latitude  Float?
+  longitude Float?
+  address   String?
 
   vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   attachments Attachment[]
