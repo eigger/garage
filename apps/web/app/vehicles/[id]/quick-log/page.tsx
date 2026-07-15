@@ -138,20 +138,17 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const [stationCoords, setStationCoords] = useState<{ lat: number; lon: number; name: string } | null>(null);
   const [unitPrice, setUnitPrice] = useState("");
   const [locLoading, setLocLoading] = useState(false);
+  const [frequentStations, setFrequentStations] = useState<Array<{ location: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
 
   useEffect(() => {
     // Load vehicle details to know fuelType
     apiFetch(`/api/vehicles/${vehicleId}`)
       .then((res) => (res.ok ? res.json() : null))
-      .then(setVehicle);
-
-    // Load last odometer
-    apiFetch(`/api/vehicles/${vehicleId}/odometer`)
-      .then((res) => (res.ok ? res.json() : { odometer: 0 }))
       .then((data) => {
-        if (data.odometer > 0) {
-          setOdometer(String(data.odometer));
+        setVehicle(data);
+        if (data) {
           setBaseOdometer(data.odometer);
+          setOdometer(data.odometer > 0 ? String(data.odometer) : "");
         }
       });
 
@@ -160,6 +157,10 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
     apiFetch("/api/opinet/configured")
       .then((res) => (res.ok ? res.json() : { configured: false }))
       .then((data) => setOpinetConfigured(!!data.configured));
+
+    apiFetch(`/api/vehicles/${vehicleId}/fuel-logs/frequent-stations`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((data) => setFrequentStations(data));
   }, [vehicleId]);
 
   // 오피넷은 sort=2(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
@@ -304,6 +305,10 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         setFile(null);
         setFileKey(Date.now());
         showToast(t("toastSaved"), "success");
+
+        apiFetch(`/api/vehicles/${vehicleId}/fuel-logs/frequent-stations`)
+          .then((res) => (res.ok ? res.json() : []))
+          .then((data) => setFrequentStations(data));
       } else {
         showToast(t("toastError"), "error");
       }
@@ -372,6 +377,44 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             setSelectedStationId("");
           }}
         />
+      )}
+      {stations.length === 0 && frequentStations.length > 0 && (
+        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "-4px 0 8px 4px" }}>
+          <span style={{ fontSize: "12px", color: "var(--color-text-muted)", alignSelf: "center" }}>자주 감:</span>
+          {frequentStations.map((item, idx) => (
+            <button
+              key={idx}
+              type="button"
+              onClick={() => {
+                setLocation(item.location);
+                setStationAddress(item.address);
+                if (item.latitude !== null && item.longitude !== null) {
+                  setStationCoords({
+                    lat: item.latitude,
+                    lon: item.longitude,
+                    name: item.location,
+                  });
+                } else {
+                  setStationCoords(null);
+                }
+                setSelectedStationId("");
+              }}
+              style={{
+                fontSize: "11px",
+                padding: "4px 8px",
+                borderRadius: "16px",
+                background: "var(--color-surface-secondary)",
+                border: "1px solid var(--color-border-light)",
+                color: "var(--color-text-secondary)",
+                cursor: "pointer",
+                minHeight: "auto",
+                width: "auto",
+              }}
+            >
+              {item.location}
+            </button>
+          ))}
+        </div>
       )}
 
       {stationAddress && (

@@ -261,6 +261,58 @@ export async function vehicleRoutes(app: FastifyInstance) {
     });
   });
 
+  app.get("/:id/fuel-logs/frequent-stations", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, id))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const records = await prisma.fuelLog.findMany({
+      where: {
+        vehicleId: id,
+        location: { not: null, gt: "" },
+      },
+      orderBy: { date: "desc" },
+      select: {
+        location: true,
+        address: true,
+        latitude: true,
+        longitude: true,
+      },
+      take: 100,
+    });
+
+    const stationMap = new Map<string, { location: string; address: string | null; latitude: number | null; longitude: number | null; count: number }>();
+    for (const r of records) {
+      if (!r.location) continue;
+      const key = r.location.trim();
+      const existing = stationMap.get(key);
+      if (existing) {
+        existing.count += 1;
+        if (!existing.address && r.address) existing.address = r.address;
+        if (existing.latitude === null && r.latitude !== null) {
+          existing.latitude = r.latitude;
+          existing.longitude = r.longitude;
+        }
+      } else {
+        stationMap.set(key, {
+          location: r.location,
+          address: r.address,
+          latitude: r.latitude,
+          longitude: r.longitude,
+          count: 1,
+        });
+      }
+    }
+
+    const frequent = Array.from(stationMap.values())
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return frequent;
+  });
+
   app.patch("/:id/fuel-logs/:logId", async (request, reply) => {
     const { id, logId } = request.params as { id: string; logId: string };
     const parsed = fuelLogSchema.omit({ vehicleId: true }).partial().safeParse(request.body);

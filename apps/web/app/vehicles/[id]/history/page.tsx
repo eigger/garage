@@ -389,6 +389,7 @@ function FuelLogRow({
   const [latitude, setLatitude] = useState<number | null>(log.latitude);
   const [longitude, setLongitude] = useState<number | null>(log.longitude);
   const [showSearchModal, setShowSearchModal] = useState(false);
+  const [frequentStations, setFrequentStations] = useState<Array<{ location: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
 
   const [attachments, setAttachments] = useState(log.attachments);
   const [deletedAttachmentIds, setDeletedAttachmentIds] = useState<string[]>([]);
@@ -410,6 +411,10 @@ function FuelLogRow({
       setAddress(log.address || "");
       setLatitude(log.latitude);
       setLongitude(log.longitude);
+
+      apiFetch(`/api/vehicles/${vehicleId}/fuel-logs/frequent-stations`)
+        .then((res) => (res.ok ? res.json() : []))
+        .then((data) => setFrequentStations(data));
     }
   }, [editing, log]);
 
@@ -532,6 +537,36 @@ function FuelLogRow({
                 </button>
               )}
             </div>
+            {frequentStations.length > 0 && (
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "4px 0 8px 4px" }}>
+                <span style={{ fontSize: "12px", color: "var(--color-text-muted)", alignSelf: "center" }}>자주 감:</span>
+                {frequentStations.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setLocation(item.location);
+                      setAddress(item.address || "");
+                      setLatitude(item.latitude);
+                      setLongitude(item.longitude);
+                    }}
+                    style={{
+                      fontSize: "11px",
+                      padding: "4px 8px",
+                      borderRadius: "16px",
+                      background: "var(--color-surface-secondary)",
+                      border: "1px solid var(--color-border-light)",
+                      color: "var(--color-text-secondary)",
+                      cursor: "pointer",
+                      minHeight: "auto",
+                      width: "auto",
+                    }}
+                  >
+                    {item.location}
+                  </button>
+                ))}
+              </div>
+            )}
             {address && (
               <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
                 {address}
