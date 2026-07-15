@@ -660,23 +660,24 @@ function AttachmentList({
               title={t("delete")}
               style={{
                 position: "absolute",
-                top: -6,
-                right: -6,
-                width: 20,
-                height: 20,
-                minHeight: 20,
+                top: -10,
+                right: -10,
+                width: 28,
+                height: 28,
+                minHeight: 28,
                 padding: 0,
                 borderRadius: "50%",
-                border: "1px solid var(--color-surface)",
+                border: "2px solid var(--color-surface)",
                 background: "var(--color-danger)",
                 color: "#fff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
               }}
             >
-              <XIcon size={10} />
+              <XIcon size={14} />
             </button>
           </div>
         );
