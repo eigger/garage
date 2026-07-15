@@ -251,7 +251,10 @@ export async function vehicleRoutes(app: FastifyInstance) {
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
     return prisma.fuelLog.findMany({
       where: { vehicleId: id },
-      orderBy: { date: "desc" },
+      orderBy: [
+        { date: "desc" },
+        { id: "desc" },
+      ],
       include: { attachments: true },
       take: parsedLimit,
       skip: parsedOffset,
@@ -434,7 +437,10 @@ export async function vehicleRoutes(app: FastifyInstance) {
     }
     return prisma.maintenanceRecord.findMany({
       where: whereClause,
-      orderBy: { date: "desc" },
+      orderBy: [
+        { date: "desc" },
+        { id: "desc" },
+      ],
       include: { attachments: true },
       take: parsedLimit,
       skip: parsedOffset,
