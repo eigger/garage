@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch, API_URL, getToken } from "../../../../lib/api";
+import { apiFetch, API_URL, getToken, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
@@ -18,10 +18,11 @@ import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/maps/types";
 import type { SpeedPoint } from "../../../../lib/maps/polyline";
 import { decodeRoute } from "../../../../lib/maps/polyline";
-import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon, XIcon } from "../../../../components/icons";
+import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon, XIcon, SearchIcon } from "../../../../components/icons";
 import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
 import type { FuelType } from "../../../../lib/types";
 import dynamic from "next/dynamic";
+import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
 
 const LastLocationMap = dynamic(
   () => import("../../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
@@ -314,6 +315,7 @@ export default function HistoryPage() {
                     formatDistance={formatDistance}
                     showToast={showToast}
                     confirm={confirm}
+                    mapConfig={mapConfig}
                   />
                 ))}
               </ul>
@@ -384,6 +386,26 @@ function FuelLogRow({
   const [showMap, setShowMap] = useState(false);
   const mapProvider = pickDefaultProvider(mapConfig);
 
+  const [attachments, setAttachments] = useState(log.attachments);
+  const [deletedAttachmentIds, setDeletedAttachmentIds] = useState<string[]>([]);
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (editing) {
+      setDate(log.date.slice(0, 10));
+      setOdometer(String(log.odometer));
+      setLiters(String(log.liters));
+      setCost(String(log.cost));
+      setFullTank(log.fullTank);
+      setLocation(log.location || "");
+      setAttachments(log.attachments);
+      setDeletedAttachmentIds([]);
+      setNewFile(null);
+      setUploadProgress(null);
+    }
+  }, [editing, log]);
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -400,12 +422,34 @@ function FuelLogRow({
         }),
       });
       if (res.ok) {
+        if (deletedAttachmentIds.length > 0) {
+          await Promise.all(
+            deletedAttachmentIds.map((id) =>
+              apiFetch(`/api/attachments/${id}`, { method: "DELETE" }),
+            ),
+          );
+        }
+
+        if (newFile) {
+          const formData = new FormData();
+          formData.append("file", newFile);
+          setUploadProgress(0);
+          await uploadFileWithProgress(
+            `/api/attachments?fuelLogId=${log.id}`,
+            formData,
+            setUploadProgress,
+          );
+          setUploadProgress(null);
+        }
+
         setEditing(false);
         showToast(t("toastSaved"), "success");
         onChanged();
       } else {
         showToast(t("toastError"), "error");
       }
+    } catch (err) {
+      showToast(t("toastError"), "error");
     } finally {
       setSubmitting(false);
     }
@@ -463,14 +507,45 @@ function FuelLogRow({
             />
             {t("fullTank")}
           </label>
-          {log.attachments.length > 0 && (
+          {(log.attachments.length > 0 || attachments.length > 0) && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
                 {t("attachmentLabel")}
               </label>
-              <AttachmentList attachments={log.attachments} editable onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
+              <AttachmentList
+                attachments={attachments}
+                editable
+                onRemove={(id) => {
+                  setAttachments((prev) => prev.filter((a) => a.id !== id));
+                  setDeletedAttachmentIds((prev) => [...prev, id]);
+                }}
+                t={t}
+                showToast={showToast}
+                confirm={confirm}
+              />
             </div>
           )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
+              {t("completionPhotoLabel")}
+            </label>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setNewFile(e.target.files?.[0] || null)}
+              style={{ minHeight: "auto", padding: "4px 8px" }}
+            />
+            {uploadProgress !== null && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div className="upload-progress-track">
+                  <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                  {t("uploading")} {uploadProgress}%
+                </span>
+              </div>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}
@@ -601,6 +676,7 @@ function FuelLogRow({
 function AttachmentList({
   attachments,
   editable = false,
+  onRemove,
   onDeleted,
   t,
   showToast,
@@ -608,6 +684,7 @@ function AttachmentList({
 }: {
   attachments: { id: string; filePath: string; mimeType: string }[];
   editable?: boolean;
+  onRemove?: (id: string) => void;
   onDeleted?: () => void;
   t: Translator;
   showToast?: (message: string, type?: "success" | "error") => void;
@@ -616,6 +693,10 @@ function AttachmentList({
   if (!attachments || attachments.length === 0) return null;
 
   async function handleDelete(id: string) {
+    if (onRemove) {
+      onRemove(id);
+      return;
+    }
     if (!confirm || !showToast || !onDeleted) return;
     if (!(await confirm(t("confirmDelete")))) return;
     const res = await apiFetch(`/api/attachments/${id}`, { method: "DELETE" });
@@ -708,6 +789,7 @@ function MaintenanceRow({
   formatDistance,
   showToast,
   confirm,
+  mapConfig,
 }: {
   vehicleId: string;
   record: MaintenanceRecord;
@@ -717,6 +799,7 @@ function MaintenanceRow({
   formatDistance: (km: number) => string;
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
+  mapConfig: MapProvidersConfig;
 }) {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(record.date.slice(0, 10));
@@ -731,8 +814,33 @@ function MaintenanceRow({
 
   const [parts, setParts] = useState<ConsumablePart[]>([]);
 
+  const [attachments, setAttachments] = useState(record.attachments);
+  const [deletedAttachmentIds, setDeletedAttachmentIds] = useState<string[]>([]);
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const [address, setAddress] = useState(record.address || "");
+  const [latitude, setLatitude] = useState<number | null>(record.latitude);
+  const [longitude, setLongitude] = useState<number | null>(record.longitude);
+  const [showSearchModal, setShowSearchModal] = useState(false);
+  const [showMap, setShowMap] = useState(false);
+
   useEffect(() => {
     if (!editing) return;
+
+    setDate(record.date.slice(0, 10));
+    setOdometer(String(record.odometer));
+    setCategory(record.category);
+    setCost(record.cost !== null ? String(record.cost) : "");
+    setShop(record.shop ?? "");
+    setNotes(record.notes ?? "");
+    setAttachments(record.attachments);
+    setDeletedAttachmentIds([]);
+    setNewFile(null);
+    setUploadProgress(null);
+    setAddress(record.address || "");
+    setLatitude(record.latitude);
+    setLongitude(record.longitude);
 
     apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`)
       .then((res) => (res.ok ? res.json() : []))
@@ -747,7 +855,7 @@ function MaintenanceRow({
           setCustomType(record.type);
         }
       });
-  }, [editing, vehicleId, record.type, record.category]);
+  }, [editing, vehicleId, record]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -772,15 +880,40 @@ function MaintenanceRow({
           cost: cost ? Number(cost) : undefined,
           shop: shop || undefined,
           notes: notes || undefined,
+          latitude: latitude !== null ? latitude : undefined,
+          longitude: longitude !== null ? longitude : undefined,
+          address: address || undefined,
         }),
       });
       if (res.ok) {
+        if (deletedAttachmentIds.length > 0) {
+          await Promise.all(
+            deletedAttachmentIds.map((id) =>
+              apiFetch(`/api/attachments/${id}`, { method: "DELETE" }),
+            ),
+          );
+        }
+
+        if (newFile) {
+          const formData = new FormData();
+          formData.append("file", newFile);
+          setUploadProgress(0);
+          await uploadFileWithProgress(
+            `/api/attachments?maintenanceRecordId=${record.id}`,
+            formData,
+            setUploadProgress,
+          );
+          setUploadProgress(null);
+        }
+
         setEditing(false);
         showToast(t("toastSaved"), "success");
         onChanged();
       } else {
         showToast(t("toastError"), "error");
       }
+    } catch (err) {
+      showToast(t("toastError"), "error");
     } finally {
       setSubmitting(false);
     }
@@ -875,20 +1008,88 @@ function MaintenanceRow({
             value={cost}
             onChange={(e) => setCost(e.target.value)}
           />
-          <input placeholder={t("shop")} value={shop} onChange={(e) => setShop(e.target.value)} />
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <input
+              placeholder={t("shop")}
+              value={shop}
+              onChange={(e) => setShop(e.target.value)}
+              style={{ flex: 1, marginBottom: 0 }}
+            />
+            {(mapConfig.kakaoAppKey || mapConfig.naverClientId) && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setShowSearchModal(true)}
+                style={{ height: "42px", minHeight: "42px", padding: "0 12px", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: "4px" }}
+              >
+                <SearchIcon size={14} /> {t("search")}
+              </button>
+            )}
+          </div>
+          {address && (
+            <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
+              {address}
+            </p>
+          )}
           <input
             placeholder={t("notes")}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
-          {record.attachments.length > 0 && (
+
+          {showSearchModal && (
+            <PlaceSearchModal
+              mapConfig={mapConfig}
+              onSelect={(res) => {
+                setShop(res.name);
+                setAddress(res.address);
+                setLatitude(res.lat);
+                setLongitude(res.lon);
+                setShowSearchModal(false);
+              }}
+              onClose={() => setShowSearchModal(false)}
+              t={t}
+            />
+          )}
+          {(record.attachments.length > 0 || attachments.length > 0) && (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
                 {t("attachmentLabel")}
               </label>
-              <AttachmentList attachments={record.attachments} editable onDeleted={onChanged} t={t} showToast={showToast} confirm={confirm} />
+              <AttachmentList
+                attachments={attachments}
+                editable
+                onRemove={(id) => {
+                  setAttachments((prev) => prev.filter((a) => a.id !== id));
+                  setDeletedAttachmentIds((prev) => [...prev, id]);
+                }}
+                t={t}
+                showToast={showToast}
+                confirm={confirm}
+              />
             </div>
           )}
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>
+              {t("completionPhotoLabel")}
+            </label>
+            <input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setNewFile(e.target.files?.[0] || null)}
+              style={{ minHeight: "auto", padding: "4px 8px" }}
+            />
+            {uploadProgress !== null && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <div className="upload-progress-track">
+                  <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+                </div>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>
+                  {t("uploading")} {uploadProgress}%
+                </span>
+              </div>
+            )}
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button type="submit" disabled={submitting}>
               {submitting ? t("saving") : t("save")}
@@ -926,6 +1127,49 @@ function MaintenanceRow({
           {record.shop && <span>{t("shop")}: {record.shop}</span>}
           {record.shop && record.notes && <span>·</span>}
           {record.notes && <span>{record.notes}</span>}
+        </div>
+      )}
+      {(record.address || (record.latitude !== null && record.longitude !== null)) && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 4 }}>
+          {record.address ? (
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {record.address}
+            </span>
+          ) : <span />}
+          {record.latitude !== null && record.longitude !== null && (
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              style={{
+                minHeight: 26,
+                height: 26,
+                fontSize: 12,
+                padding: "0 8px",
+                background: showMap ? "var(--color-primary)" : "var(--color-surface)",
+                color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                border: "1px solid var(--color-border-light)",
+                borderRadius: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0,
+              }}
+            >
+              <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+            </button>
+          )}
+        </div>
+      )}
+      {showMap && record.latitude !== null && record.longitude !== null && (
+        <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
+          <LastLocationMap
+            lat={record.latitude}
+            lon={record.longitude}
+            provider={pickDefaultProvider(mapConfig)}
+            kakaoAppKey={mapConfig.kakaoAppKey}
+            naverClientId={mapConfig.naverClientId}
+            tmapAppKey={mapConfig.tmapAppKey}
+          />
         </div>
       )}
       <AttachmentList attachments={record.attachments} t={t} />

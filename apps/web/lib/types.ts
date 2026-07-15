@@ -78,6 +78,9 @@ export type MaintenanceRecord = {
   cost: number | null;
   shop: string | null;
   notes: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  address: string | null;
   attachments: Attachment[];
 };
 

@@ -17,7 +17,7 @@ export function loadScript(src: string, id: string): Promise<void> {
 export async function loadKakaoMaps(appKey: string): Promise<void> {
   const id = "kakao-maps-sdk";
   if (!(window as KakaoWindow).kakao?.maps) {
-    await loadScript(`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false`, id);
+    await loadScript(`https://dapi.kakao.com/v2/maps/sdk.js?appkey=${appKey}&autoload=false&libraries=services`, id);
   }
   const kakao = (window as KakaoWindow).kakao;
   if (!kakao?.maps) throw new Error("Kakao maps SDK unavailable");
@@ -28,7 +28,7 @@ export async function loadNaverMaps(clientId: string): Promise<void> {
   const id = "naver-maps-sdk";
   if (!(window as NaverWindow).naver?.maps) {
     await loadScript(
-      `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}`,
+      `https://oapi.map.naver.com/openapi/v3/maps.js?ncpClientId=${clientId}&submodules=geocoder`,
       id,
     );
   }

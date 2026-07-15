@@ -230,7 +230,12 @@ function SettingRow({
       {meta && <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "4px 0 8px" }}>{t(meta.helpKey)}</p>}
       {meta?.signupUrl && meta.signupLabelKey && (
         <p style={{ fontSize: 13, margin: "0 0 8px" }}>
-          <a href={meta.signupUrl} target="_blank" rel="noopener noreferrer">
+          <a
+            href={meta.signupUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "var(--color-primary)", textDecoration: "underline" }}
+          >
             {t(meta.signupLabelKey)}
           </a>
         </p>
