@@ -17,15 +17,35 @@ interface PlaceSearchModalProps {
   onSelect: (result: PlaceResult) => void;
   onClose: () => void;
   t: (key: any) => string;
+  isGasStation?: boolean;
 }
 
-export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearchModalProps) {
+export function PlaceSearchModal({ mapConfig, onSelect, onClose, t, isGasStation }: PlaceSearchModalProps) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<PlaceResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [sdkReady, setSdkReady] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [selectedResult, setSelectedResult] = useState<PlaceResult | null>(null);
+  const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [filterGas, setFilterGas] = useState(isGasStation || false);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCoords({
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+          });
+        },
+        (err) => {
+          console.warn("Geolocation query failed:", err);
+        },
+        { enableHighAccuracy: true, timeout: 5000 }
+      );
+    }
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -105,6 +125,13 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
       const kakao = (window as any).kakao;
       if (kakao?.maps?.services) {
         const ps = new kakao.maps.services.Places();
+        const options: any = {};
+        if (coords) {
+          options.location = new kakao.maps.LatLng(coords.lat, coords.lon);
+        }
+        if (filterGas) {
+          options.category_group_code = "OL7";
+        }
         ps.keywordSearch(query, (data: any[], status: any) => {
           setSearching(false);
           if (status === kakao.maps.services.Status.OK) {
@@ -120,7 +147,7 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
           } else {
             setErrorMsg("검색 중 오류가 발생했습니다.");
           }
-        });
+        }, options);
       } else {
         setSearching(false);
         setErrorMsg("검색 모듈을 불러오지 못했습니다.");
@@ -136,7 +163,7 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
           }
           const items = response.v2.addresses;
           if (!items || items.length === 0) {
-            setErrorMsg("검색 결과가 없습니다.");
+            setErrorMsg(t("naverGeocodeNoResult"));
             return;
           }
           const mapped = items.map((item: any) => ({
@@ -219,29 +246,45 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t }: PlaceSearc
 
         {/* Search Input */}
         {!selectedResult && (
-          <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", marginBottom: "16px" }}>
-            <input
-              type="text"
-              placeholder={mapConfig.kakaoAppKey ? "상호명이나 주소를 입력하세요" : "주소를 입력하세요"}
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              style={{ flex: 1, marginBottom: 0 }}
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={!query.trim() || !sdkReady || searching}
-              style={{
-                padding: "0 16px",
-                height: "42px",
-                minHeight: "42px",
-                whiteSpace: "nowrap",
-                fontSize: "14px",
-              }}
-            >
-              {searching ? "검색 중..." : "검색"}
-            </button>
-          </form>
+          <>
+            <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+              <input
+                type="text"
+                placeholder={mapConfig.kakaoAppKey ? "상호명이나 주소를 입력하세요" : "주소를 입력하세요"}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                style={{ flex: 1, marginBottom: 0 }}
+                autoFocus
+              />
+              <button
+                type="submit"
+                disabled={!query.trim() || !sdkReady || searching}
+                style={{
+                  padding: "0 16px",
+                  height: "42px",
+                  minHeight: "42px",
+                  whiteSpace: "nowrap",
+                  fontSize: "14px",
+                }}
+              >
+                {searching ? "검색 중..." : "검색"}
+              </button>
+            </form>
+            {mapConfig.kakaoAppKey && (
+              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginBottom: "16px" }}>
+                <input
+                  type="checkbox"
+                  id="filter-gas-checkbox"
+                  checked={filterGas}
+                  onChange={(e) => setFilterGas(e.target.checked)}
+                  style={{ margin: 0, width: "16px", height: "16px", cursor: "pointer" }}
+                />
+                <label htmlFor="filter-gas-checkbox" style={{ fontSize: "13px", color: "var(--color-text-secondary)", cursor: "pointer", userSelect: "none" }}>
+                  {t("filterGasStationLabel")}
+                </label>
+              </div>
+            )}
+          </>
         )}
 
         {/* Error or Alert */}

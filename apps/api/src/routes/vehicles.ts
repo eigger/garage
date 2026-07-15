@@ -246,11 +246,28 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!(await canAccessVehicle(sub, role, id))) {
       return reply.code(403).send({ error: "forbidden" });
     }
-    const { limit, offset } = request.query as { limit?: string; offset?: string };
+    const { limit, offset, search } = request.query as {
+      limit?: string;
+      offset?: string;
+      search?: string;
+    };
     const parsedLimit = Math.min(limit ? parseInt(limit, 10) : MAX_LIMIT, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
+
+    const whereClause: {
+      vehicleId: string;
+      OR?: Array<Record<string, unknown>>;
+    } = { vehicleId: id };
+
+    if (search) {
+      whereClause.OR = [
+        { location: { contains: search, mode: "insensitive" } },
+        { address: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
     return prisma.fuelLog.findMany({
-      where: { vehicleId: id },
+      where: whereClause,
       orderBy: [
         { date: "desc" },
         { id: "desc" },
