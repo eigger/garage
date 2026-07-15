@@ -709,212 +709,218 @@ function QuickMaintenanceForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="form" noValidate>
-      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
-        <input
-          type="number"
-          inputMode="numeric"
-          placeholder={t("odometer")}
-          value={odometer}
-          onChange={(e) => setOdometer(e.target.value)}
-          style={{ width: "100%", paddingRight: 40 }}
-        />
-        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
-          {distanceUnit}
-        </span>
-      </div>
-      {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
-        <p style={{ color: "var(--badge-amber-accent)", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
-          <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
-        </p>
-      )}
-
-      <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-        {(
-          [
-            ["MAINTENANCE", "recordCategoryMaintenance"],
-            ["ADMINISTRATIVE", "recordCategoryAdministrative"],
-          ] as const
-        ).map(([value, labelKey]) => (
-          <button
-            key={value}
-            type="button"
-            onClick={() => {
-              setCategory(value);
-              setSelectedPartTypes([]);
-              setCustomType("");
-            }}
-            style={{
-              flex: 1,
-              fontSize: 13,
-              minHeight: 36,
-              background: category === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
-              color: category === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
-            }}
-          >
-            {t(labelKey)}
-          </button>
-        ))}
-      </div>
-
-      {/* 다중 선택 체크박스 그리드 */}
-      {parts.filter((p) => p.category === category).length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
-          {parts
-            .filter((p) => p.category === category)
-            .map((p) => {
-              const checked = selectedPartTypes.includes(p.partType);
-              return (
-                <label
-                  key={p.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: `1px solid ${checked ? "var(--color-primary)" : "var(--color-border-light)"}`,
-                    background: checked ? "var(--color-surface-hover)" : "var(--color-surface)",
-                    cursor: "pointer",
-                    fontSize: 13,
-                    fontWeight: checked ? "600" : "400",
-                    color: checked ? "var(--color-primary)" : "var(--color-text-on-secondary)",
-                    minHeight: "auto",
-                  }}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedPartTypes((prev) => [...prev, p.partType]);
-                      } else {
-                        setSelectedPartTypes((prev) => prev.filter((t) => t !== p.partType));
-                      }
-                    }}
-                    style={{ minHeight: "auto", width: "auto", accentColor: "var(--color-primary)" }}
-                  />
-                  {formatItemLabel(t, p.partType)}
-                </label>
-              );
-            })}
+    <>
+      <form onSubmit={handleSubmit} className="form" noValidate>
+        <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder={t("odometer")}
+            value={odometer}
+            onChange={(e) => setOdometer(e.target.value)}
+            style={{ width: "100%", paddingRight: 40 }}
+          />
+          <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
+            {distanceUnit}
+          </span>
         </div>
-      )}
+        {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
+          <p style={{ color: "var(--badge-amber-accent)", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
+            <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
+          </p>
+        )}
 
-      {/* 직접 입력 */}
-      <input
-        placeholder={t("maintenanceType")}
-        value={customType}
-        onChange={(e) => setCustomType(e.target.value)}
-      />
+        <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+          {(
+            [
+              ["MAINTENANCE", "recordCategoryMaintenance"],
+              ["ADMINISTRATIVE", "recordCategoryAdministrative"],
+            ] as const
+          ).map(([value, labelKey]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => {
+                setCategory(value);
+                setSelectedPartTypes([]);
+                setCustomType("");
+              }}
+              style={{
+                flex: 1,
+                fontSize: 13,
+                minHeight: 36,
+                background: category === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
+                color: category === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
+              }}
+            >
+              {t(labelKey)}
+            </button>
+          ))}
+        </div>
 
-
-      <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
-        <input
-          type="number"
-          inputMode="numeric"
-          placeholder={t("cost")}
-          value={cost}
-          onChange={(e) => setCost(e.target.value)}
-          style={{ width: "100%", paddingRight: 40 }}
-        />
-        <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
-          {currencyUnit}
-        </span>
-      </div>
-
-      <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "8px 0" }}>
-        <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("attachmentLabel")}</label>
-        <input
-          key={fileKey}
-          type="file"
-          accept="image/*,application/pdf"
-          onChange={(e) => setFile(e.target.files?.[0] || null)}
-          style={{ minHeight: "auto", padding: "4px 8px" }}
-        />
-        {uploadProgress !== null && (
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <div className="upload-progress-track">
-              <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
-            </div>
-            <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("uploading")} {uploadProgress}%</span>
+        {/* 다중 선택 체크박스 그리드 */}
+        {parts.filter((p) => p.category === category).length > 0 && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginBottom: 8 }}>
+            {parts
+              .filter((p) => p.category === category)
+              .map((p) => {
+                const checked = selectedPartTypes.includes(p.partType);
+                return (
+                  <label
+                    key={p.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      padding: "8px 10px",
+                      borderRadius: 8,
+                      border: `1px solid ${checked ? "var(--color-primary)" : "var(--color-border-light)"}`,
+                      background: checked ? "var(--color-surface-hover)" : "var(--color-surface)",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: checked ? "600" : "400",
+                      color: checked ? "var(--color-primary)" : "var(--color-text-on-secondary)",
+                      minHeight: "auto",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedPartTypes((prev) => [...prev, p.partType]);
+                        } else {
+                          setSelectedPartTypes((prev) => prev.filter((t) => t !== p.partType));
+                        }
+                      }}
+                      style={{ minHeight: "auto", width: "auto", accentColor: "var(--color-primary)" }}
+                    />
+                    {formatItemLabel(t, p.partType)}
+                  </label>
+                );
+              })}
           </div>
         )}
-      </div>
 
-      <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "var(--color-primary)" }}>
-        {showMore ? t("fewerFields") : t("moreFields")}
-      </button>
+        {/* 직접 입력 */}
+        <input
+          placeholder={t("maintenanceType")}
+          value={customType}
+          onChange={(e) => setCustomType(e.target.value)}
+        />
 
-      {showMore && (
-        <>
-          <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
-            <input
-              placeholder={t("shop")}
-              value={shop}
-              onChange={(e) => setShop(e.target.value)}
-              style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
-            />
-            {(mapConfig.kakaoAppKey || mapConfig.naverClientId) && (
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setShowSearchModal(true)}
-                style={{
-                  height: "48px",
-                  minHeight: "48px",
-                  width: "48px",
-                  minWidth: "48px",
-                  padding: 0,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
-                }}
-              >
-                <SearchIcon size={18} />
-              </button>
-            )}
-          </div>
-          {frequentShops.length > 0 && (
-            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "4px 0 8px 4px" }}>
-              <span style={{ fontSize: "12px", color: "var(--color-text-muted)", alignSelf: "center" }}>자주 감:</span>
-              {frequentShops.map((item, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  onClick={() => {
-                    setShop(item.shop);
-                    setAddress(item.address || "");
-                    setLatitude(item.latitude);
-                    setLongitude(item.longitude);
-                  }}
-                  style={{
-                    fontSize: "11px",
-                    padding: "4px 8px",
-                    borderRadius: "16px",
-                    background: "var(--color-surface-secondary)",
-                    border: "1px solid var(--color-border-light)",
-                    color: "var(--color-text-secondary)",
-                    cursor: "pointer",
-                    minHeight: "auto",
-                    width: "auto",
-                  }}
-                >
-                  {item.shop}
-                </button>
-              ))}
+        <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder={t("cost")}
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            style={{ width: "100%", paddingRight: 40 }}
+          />
+          <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
+            {currencyUnit}
+          </span>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, margin: "8px 0" }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("attachmentLabel")}</label>
+          <input
+            key={fileKey}
+            type="file"
+            accept="image/*,application/pdf"
+            onChange={(e) => setFile(e.target.files?.[0] || null)}
+            style={{ minHeight: "auto", padding: "4px 8px" }}
+          />
+          {uploadProgress !== null && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <div className="upload-progress-track">
+                <div className="upload-progress-fill" style={{ width: `${uploadProgress}%` }} />
+              </div>
+              <span style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("uploading")} {uploadProgress}%</span>
             </div>
           )}
-          {address && (
-            <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
-              {address}
-            </p>
-          )}
-          <input placeholder={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
-        </>
-      )}
+        </div>
+
+        <button type="button" onClick={() => setShowMore((v) => !v)} style={{ background: "transparent", color: "var(--color-primary)" }}>
+          {showMore ? t("fewerFields") : t("moreFields")}
+        </button>
+
+        {showMore && (
+          <>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+            <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
+              <input
+                placeholder={t("shop")}
+                value={shop}
+                onChange={(e) => setShop(e.target.value)}
+                style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
+              />
+              {(mapConfig.kakaoAppKey || mapConfig.naverClientId) && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setShowSearchModal(true)}
+                  style={{
+                    height: "48px",
+                    minHeight: "48px",
+                    width: "48px",
+                    minWidth: "48px",
+                    padding: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
+                  <SearchIcon size={18} />
+                </button>
+              )}
+            </div>
+            {frequentShops.length > 0 && (
+              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", margin: "4px 0 8px 4px" }}>
+                <span style={{ fontSize: "12px", color: "var(--color-text-muted)", alignSelf: "center" }}>자주 감:</span>
+                {frequentShops.map((item, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setShop(item.shop);
+                      setAddress(item.address || "");
+                      setLatitude(item.latitude);
+                      setLongitude(item.longitude);
+                    }}
+                    style={{
+                      fontSize: "11px",
+                      padding: "4px 8px",
+                      borderRadius: "16px",
+                      background: "var(--color-surface-secondary)",
+                      border: "1px solid var(--color-border-light)",
+                      color: "var(--color-text-secondary)",
+                      cursor: "pointer",
+                      minHeight: "auto",
+                      width: "auto",
+                    }}
+                  >
+                    {item.shop}
+                  </button>
+                ))}
+              </div>
+            )}
+            {address && (
+              <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
+                {address}
+              </p>
+            )}
+            <input placeholder={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </>
+        )}
+
+        <button type="submit" disabled={submitting}>
+          {submitting ? t("saving") : t("save")}
+        </button>
+        {error && <p className="field-error">{error}</p>}
+      </form>
 
       {showSearchModal && (
         <PlaceSearchModal
@@ -930,11 +936,6 @@ function QuickMaintenanceForm({
           t={t}
         />
       )}
-
-      <button type="submit" disabled={submitting}>
-        {submitting ? t("saving") : t("save")}
-      </button>
-      {error && <p className="field-error">{error}</p>}
-    </form>
+    </>
   );
 }
