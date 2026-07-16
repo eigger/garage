@@ -8,7 +8,7 @@ import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { useToast } from "../../../lib/toast-context";
 import { useConfirm } from "../../../lib/confirm-context";
-import type { FuelType, TripSummary, Vehicle, VehicleGamification } from "../../../lib/types";
+import type { FuelType, Trip, TripSummary, Vehicle, VehicleGamification } from "../../../lib/types";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
 import { FUEL_TYPES } from "@garage/shared";
 import { useMapProviders } from "../../../lib/maps/useMapProviders";
@@ -54,6 +54,7 @@ export default function VehicleOverviewPage() {
   const isDriving = isRecent && vehicle && vehicle.speed !== null && vehicle.speed !== undefined && vehicle.speed > 0;
   const isStopped = isRecent && !isDriving;
   const [summary, setSummary] = useState<TripSummary | null>(null);
+  const [lastTrip, setLastTrip] = useState<Trip | null>(null);
   const [monthFuelCost, setMonthFuelCost] = useState(0);
   const [monthMaintenanceCost, setMonthMaintenanceCost] = useState(0);
   const [gamification, setGamification] = useState<VehicleGamification | null>(null);
@@ -76,12 +77,13 @@ export default function VehicleOverviewPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function load() {
-    const [vehicleRes, summaryRes, fuelRes, maintenanceRes, gamificationRes] = await Promise.all([
+    const [vehicleRes, summaryRes, fuelRes, maintenanceRes, gamificationRes, lastTripRes] = await Promise.all([
       apiFetch(`/api/vehicles/${vehicleId}`),
       apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=week`),
       apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=500`),
       apiFetch(`/api/vehicles/${vehicleId}/maintenance-records?limit=500`),
       apiFetch(`/api/vehicles/${vehicleId}/gamification`),
+      apiFetch(`/api/trips?vehicleId=${vehicleId}&limit=1`),
     ]);
     if (vehicleRes.ok) {
       const vData = await vehicleRes.json();
@@ -97,6 +99,14 @@ export default function VehicleOverviewPage() {
     }
     if (summaryRes.ok) setSummary(await summaryRes.json());
     if (gamificationRes.ok) setGamification(await gamificationRes.json());
+    if (lastTripRes.ok) {
+      const trips = await lastTripRes.json();
+      if (trips && trips.length > 0) {
+        setLastTrip(trips[0]);
+      } else {
+        setLastTrip(null);
+      }
+    }
     if (fuelRes.ok && maintenanceRes.ok) {
       const start = new Date();
       start.setDate(1);
@@ -200,7 +210,7 @@ export default function VehicleOverviewPage() {
 
       {gamification && <LevelCard data={gamification} />}
 
-      <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ display: "block", textDecoration: "none", marginTop: 16 }}>
+      <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ display: "block", textDecoration: "none", marginTop: 12 }}>
         <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
           {t("tripPeriodWeek")}
         </div>
@@ -226,7 +236,7 @@ export default function VehicleOverviewPage() {
         </div>
       </Link>
 
-      <section className="card" style={{ marginTop: 20 }}>
+      <section className="card" style={{ marginTop: 12 }}>
         <h2 style={{ margin: "0 0 8px", fontSize: 16 }}>{t("monthlyCostSummary")}</h2>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
           <div>
@@ -246,7 +256,7 @@ export default function VehicleOverviewPage() {
 
       {/* Vehicle Metadata & Registration Certificate Card */}
       {vehicle && (
-        <section className="card" style={{ marginTop: 20 }}>
+        <section className="card" style={{ marginTop: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16 }}>{t("vehiclesHeading")}</h2>
             {isAdmin && (
@@ -421,7 +431,7 @@ export default function VehicleOverviewPage() {
       )}
 
       {vehicle && vehicle.latitude !== null && vehicle.latitude !== undefined && vehicle.longitude !== null && vehicle.longitude !== undefined && (
-        <section className="card" style={{ marginTop: 16 }}>
+        <section className="card" style={{ marginTop: 12 }}>
           <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><MapPinIcon /> {t("lastKnownLocation")}</span>
             {vehicle.locationUpdatedAt && (
@@ -465,16 +475,98 @@ export default function VehicleOverviewPage() {
             `}</style>
           </div>
 
-          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }}>
-            <LastLocationMap
-              lat={vehicle.latitude}
-              lon={vehicle.longitude}
-              provider={mapProvider}
-              kakaoAppKey={mapConfig.kakaoAppKey}
-              naverClientId={mapConfig.naverClientId}
-              tmapAppKey={mapConfig.tmapAppKey}
-            />
-          </div>
+          {(() => {
+            const startTimeStr = lastTrip
+              ? new Date(lastTrip.startTime).toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
+                  month: "short",
+                  day: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "";
+            const endTimeStr = lastTrip && lastTrip.endTime
+              ? new Date(lastTrip.endTime).toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "";
+            const durationSec = lastTrip && lastTrip.endTime
+              ? Math.round((new Date(lastTrip.endTime).getTime() - new Date(lastTrip.startTime).getTime()) / 1000)
+              : null;
+
+            let fuelDiffStr = "";
+            if (lastTrip && lastTrip.startFuelLevel !== null && lastTrip.startFuelLevel !== undefined && lastTrip.endFuelLevel !== null && lastTrip.endFuelLevel !== undefined) {
+              const diff = lastTrip.startFuelLevel - lastTrip.endFuelLevel;
+              if (diff > 0) {
+                fuelDiffStr = vehicle?.fuelType === "ELECTRIC"
+                  ? `${t("batteryConsumed", { value: diff.toFixed(1) })}`
+                  : `${t("fuelConsumed", { value: diff.toFixed(1) })}`;
+              } else if (diff < 0) {
+                fuelDiffStr = vehicle?.fuelType === "ELECTRIC"
+                  ? `${t("batteryCharged", { value: Math.abs(diff).toFixed(1) })}`
+                  : `${t("fuelIncreased", { value: Math.abs(diff).toFixed(1) })}`;
+              }
+            }
+
+            return (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
+                <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }}>
+                  <LastLocationMap
+                    lat={vehicle.latitude}
+                    lon={vehicle.longitude}
+                    provider={mapProvider}
+                    kakaoAppKey={mapConfig.kakaoAppKey}
+                    naverClientId={mapConfig.naverClientId}
+                    tmapAppKey={mapConfig.tmapAppKey}
+                  />
+                </div>
+                {lastTrip ? (
+                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 10, padding: "8px 0" }}>
+                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: "700", color: "var(--color-primary)" }}>
+                      {t("lastTripHeading")}
+                    </h3>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
+                      <div>
+                        <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("timeLabel")}:</span>
+                        <strong>{startTimeStr} {endTimeStr && `~ ${endTimeStr}`}</strong>
+                      </div>
+                      {lastTrip.distanceKm !== null && (
+                        <div>
+                          <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("distanceLabel")}:</span>
+                          <strong>
+                            {formatDistance(lastTrip.distanceKm)}
+                            {durationSec !== null && ` (${formatDuration(durationSec, t)})`}
+                          </strong>
+                        </div>
+                      )}
+                      {lastTrip.avgSpeed !== null && (
+                        <div>
+                          <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("avgSpeedLabel")}:</span>
+                          <strong>{lastTrip.avgSpeed.toFixed(1)} km/h</strong>
+                        </div>
+                      )}
+                      {fuelDiffStr && (
+                        <div>
+                          <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("fuelConsumedLabel")}:</span>
+                          <strong>{fuelDiffStr}</strong>
+                        </div>
+                      )}
+                      {lastTrip.notes && (
+                        <div style={{ borderTop: "1px dashed var(--color-border-light)", paddingTop: 6, marginTop: 4 }}>
+                          <span style={{ color: "var(--color-text-muted)", display: "block", fontSize: 11, marginBottom: 2 }}>{t("notes")}:</span>
+                          <p style={{ margin: 0, fontSize: 12, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>{lastTrip.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, color: "var(--color-text-muted)", fontSize: 13 }}>
+                    주행 기록이 없습니다.
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </section>
       )}
     </>
