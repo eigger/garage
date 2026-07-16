@@ -699,10 +699,10 @@ function FuelLogRow({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span>{log.date.slice(0, 10)}</span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+          <button type="button" className="btn-action" onClick={() => setEditing(true)}>
             {t("edit")}
           </button>
-          <button type="button" className="btn-danger" onClick={handleDelete}>
+          <button type="button" className="btn-action btn-action-danger" onClick={handleDelete}>
             {t("delete")}
           </button>
         </span>
@@ -1318,10 +1318,10 @@ function MaintenanceRow({
           <span>{record.date.slice(0, 10)}</span>
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+          <button type="button" className="btn-action" onClick={() => setEditing(true)}>
             {t("edit")}
           </button>
-          <button type="button" className="btn-danger" onClick={handleDelete}>
+          <button type="button" className="btn-action btn-action-danger" onClick={handleDelete}>
             {t("delete")}
           </button>
         </span>
@@ -1755,11 +1755,11 @@ function TripRow({
           <span>{formatDateTime(trip.startTime)}</span>
           <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
             {!editing && (
-              <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+              <button type="button" className="btn-action" onClick={() => setEditing(true)}>
                 {t("edit")}
               </button>
             )}
-            <button type="button" className="btn-danger" onClick={onDelete}>
+            <button type="button" className="btn-action btn-action-danger" onClick={onDelete}>
               {t("delete")}
             </button>
           </div>
