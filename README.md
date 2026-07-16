@@ -11,7 +11,7 @@
 
 Self-hosted family car management — maintenance schedules, fuel logs, reminders, OBD/GPS trips, and optional Home Assistant integrations.
 
-> Current release: **v0.2.16**
+> Current release: **v0.2.28**
 
 Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · [`docs/PROGRESS.md`](./docs/PROGRESS.md)
 
@@ -26,7 +26,7 @@ Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md
 - Fuel-type maintenance presets and global admin/legal presets
 - Fuel logging with receipt attachments; Opinet nearby stations (optional)
 - OBD ingest (Torque Pro) and REST/WebSocket telemetry; auto trip segmentation
-- Trip reports, route maps (OSM / Kakao / Naver / T map)
+- Trip reports, route maps (OSM / Kakao / Naver / T map); inline trip notes editing and reverse geocoding
 - Dashboard reminder badges and vehicle summary cards (including last fuel cost)
 - Consolidated navigation (removed top header bar, version indicator in More sheet)
 - Admin backup/restore, PWA, ko/en i18n
@@ -44,7 +44,7 @@ Home screen after login. If the user only has a single vehicle, they skip this a
 
 ### 2. Vehicle overview
 
-Per-vehicle hub: summary cards (including the new "last fuel cost" card), monthly expense chart, and tab views for **Overview**, **Schedule**, and **History**. The gear icon opens vehicle settings and OBD/GPS. The header bar has been consolidated into the bottom nav layout, and administrative features are placed under the **More** sheet.
+Per-vehicle hub: summary cards (including the new "last fuel cost" card), monthly expense chart, last trip details (time, distance, speed, fuel/battery consumed, notes) next to the map, and tab views for **Overview**, **Schedule**, and **History**. The gear icon opens vehicle settings and OBD/GPS. The header bar has been consolidated into the bottom nav layout, and administrative features are placed under the **More** sheet.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle.png" alt="Vehicle overview" width="960" />
 
@@ -62,7 +62,7 @@ Distance- and time-based maintenance / administrative items (oil, inspection, in
 
 ### 5. History
 
-Trips, fuel logs, and maintenance history in one place. Fuel efficiency is calculated between full-tank fills (`km/L` / `L/100km`).
+Trips, fuel logs, and maintenance history in one place. Fuel efficiency is calculated between full-tank fills (`km/L` / `L/100km`). Individual trip rows support editing and adding custom notes. List items also feature cleaner, more compact edit/delete action buttons.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/05-history.png" alt="History" width="960" />
 
