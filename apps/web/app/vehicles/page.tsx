@@ -6,6 +6,7 @@ import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
+import { useConfirm } from "../../lib/confirm-context";
 import type { FuelType, Vehicle } from "../../lib/types";
 import { fuelTypeLabelKey } from "../../lib/fuelType";
 import { FUEL_TYPES } from "@garage/shared";
@@ -14,8 +15,10 @@ export default function VehiclesPage() {
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
   const { t } = useSettings();
   const { showToast } = useToast();
+  const confirm = useConfirm();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deletingVehicleId, setDeletingVehicleId] = useState<string | null>(null);
 
   const [name, setName] = useState("");
   const [plate, setPlate] = useState("");
@@ -39,6 +42,24 @@ export default function VehiclesPage() {
   useEffect(() => {
     if (user) loadVehicles();
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleDeleteVehicle(id: string) {
+    if (!(await confirm(t("deleteVehicleConfirm")))) return;
+    setDeletingVehicleId(id);
+    try {
+      const res = await apiFetch(`/api/vehicles/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        showToast(t("toastDeleted"), "success");
+        await loadVehicles();
+      } else {
+        showToast(t("toastError"), "error");
+      }
+    } catch {
+      showToast(t("toastError"), "error");
+    } finally {
+      setDeletingVehicleId(null);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -94,11 +115,21 @@ export default function VehiclesPage() {
 
       <ul className="list">
         {vehicles.map((v) => (
-          <li key={v.id} className="list-item">
-            <Link href={`/vehicles/${v.id}`}>
+          <li key={v.id} className="list-item" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+            <Link href={`/vehicles/${v.id}`} style={{ flex: 1 }}>
               {v.name} {v.plate ? `(${v.plate})` : ""}
               {v.fuelType ? ` · ${t(fuelTypeLabelKey(v.fuelType))}` : ""}
             </Link>
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn-action btn-action-danger"
+                onClick={() => handleDeleteVehicle(v.id)}
+                disabled={deletingVehicleId === v.id}
+              >
+                {t("delete")}
+              </button>
+            )}
           </li>
         ))}
       </ul>

@@ -73,8 +73,6 @@ export default function VehicleOverviewPage() {
   const [regFile, setRegFile] = useState<File | null>(null);
   const [savingState, setSavingState] = useState(false);
   const [saveError, setSaveError] = useState("");
-  const [deletingVehicle, setDeletingVehicle] = useState(false);
-  const [deleteVehicleError, setDeleteVehicleError] = useState("");
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function load() {
@@ -121,26 +119,7 @@ export default function VehicleOverviewPage() {
     load();
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleDeleteVehicle() {
-    if (!(await confirm(t("deleteVehicleConfirm")))) return;
-    setDeletingVehicle(true);
-    setDeleteVehicleError("");
-    try {
-      const res = await apiFetch(`/api/vehicles/${vehicleId}`, { method: "DELETE" });
-      if (res.ok) {
-        showToast(t("toastDeleted"), "success");
-        router.push("/vehicles");
-      } else {
-        setDeleteVehicleError(t("deleteError"));
-        showToast(t("toastError"), "error");
-      }
-    } catch {
-      setDeleteVehicleError(t("connectionError"));
-      showToast(t("toastError"), "error");
-    } finally {
-      setDeletingVehicle(false);
-    }
-  }
+
 
   async function setFuelType(fuelType: FuelType) {
     const res = await apiFetch(`/api/vehicles/${vehicleId}`, {
@@ -282,20 +261,9 @@ export default function VehicleOverviewPage() {
                 >
                   {editing ? t("cancel") : t("edit")}
                 </button>
-                <button
-                  type="button"
-                  onClick={handleDeleteVehicle}
-                  disabled={deletingVehicle}
-                  style={{ fontSize: 12, padding: "4px 8px", minHeight: "auto", background: "var(--color-danger)", color: "#fff" }}
-                >
-                  {t("delete")}
-                </button>
               </div>
             )}
           </div>
-          {deleteVehicleError && (
-            <p style={{ color: "var(--color-danger)", fontSize: 13, margin: "0 0 8px" }}>{deleteVehicleError}</p>
-          )}
 
           {editing ? (
             <form onSubmit={handleSave} className="form" style={{ marginTop: 12 }}>
