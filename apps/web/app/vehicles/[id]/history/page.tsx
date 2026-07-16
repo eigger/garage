@@ -662,6 +662,7 @@ function FuelLogRow({
             }}
             onClose={() => setShowSearchModal(false)}
             t={t}
+            isGasStation
           />
         )}
       </>

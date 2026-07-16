@@ -213,6 +213,7 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t, isGasStation
           display: "flex",
           flexDirection: "column",
           maxHeight: "80vh",
+          overflow: "hidden",
           position: "relative",
         }}
         onClick={(e) => e.stopPropagation()}
@@ -296,7 +297,7 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t, isGasStation
 
         {/* Results list or Map Preview */}
         {!selectedResult ? (
-          <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ flex: 1, minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", display: "flex", flexDirection: "column", gap: "8px" }}>
             {results.map((res, i) => (
               <div
                 key={i}
