@@ -110,4 +110,18 @@ export async function tripRoutes(app: FastifyInstance) {
       select: { lat: true, lon: true, speed: true },
     });
   });
+
+  app.delete("/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const trip = await prisma.trip.findUnique({ where: { id }, select: { vehicleId: true } });
+    if (!trip) return reply.code(404).send({ error: "trip not found" });
+
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, trip.vehicleId))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    await prisma.trip.delete({ where: { id } });
+    return reply.code(204).send();
+  });
 }
