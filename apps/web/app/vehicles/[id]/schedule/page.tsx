@@ -513,10 +513,10 @@ function ScheduleRow({
             {t("markDone")}
           </button>
         )}
-        <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+        <button type="button" className="btn-action" onClick={() => setEditing(true)}>
           {t("edit")}
         </button>
-        <button type="button" className="btn-danger" onClick={handleDelete}>
+        <button type="button" className="btn-action btn-action-danger" onClick={handleDelete}>
           {t("delete")}
         </button>
       </div>

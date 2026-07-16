@@ -16,7 +16,7 @@ import { CategoryBadge } from "../../../../components/CategoryBadge";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/maps/types";
-import { geocodeAddress } from "../../../../lib/maps/geocode";
+import { geocodeAddress, reverseGeocode } from "../../../../lib/maps/geocode";
 import type { SpeedPoint } from "../../../../lib/maps/polyline";
 import { decodeRoute } from "../../../../lib/maps/polyline";
 import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon, XIcon, SearchIcon } from "../../../../components/icons";
@@ -699,10 +699,10 @@ function FuelLogRow({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
         <span>{log.date.slice(0, 10)}</span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+          <button type="button" className="btn-action" onClick={() => setEditing(true)}>
             {t("edit")}
           </button>
-          <button type="button" className="btn-danger" onClick={handleDelete}>
+          <button type="button" className="btn-action btn-action-danger" onClick={handleDelete}>
             {t("delete")}
           </button>
         </span>
@@ -1318,10 +1318,10 @@ function MaintenanceRow({
           <span>{record.date.slice(0, 10)}</span>
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-          <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+          <button type="button" className="btn-action" onClick={() => setEditing(true)}>
             {t("edit")}
           </button>
-          <button type="button" className="btn-danger" onClick={handleDelete}>
+          <button type="button" className="btn-action btn-action-danger" onClick={handleDelete}>
             {t("delete")}
           </button>
         </span>
@@ -1411,8 +1411,32 @@ function TripSection({
   const [summary, setSummary] = useState<TripSummary | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [tripPointsCache, setTripPointsCache] = useState<Record<string, SpeedPoint[]>>({});
+  const [tripAddressCache, setTripAddressCache] = useState<Record<string, string | null>>({});
   const [mapProvider, setMapProvider] = useState<MapProvider>("osm");
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [tripSearch, setTripSearch] = useState("");
+  const [debouncedTripSearch, setDebouncedTripSearch] = useState("");
+  const [tripDateFilter, setTripDateFilter] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedTripSearch(tripSearch), 300);
+    return () => clearTimeout(timer);
+  }, [tripSearch]);
+
+  // 도착 위치 주소는 트립 목록이 로드된 뒤 좌표를 역지오코딩해서 채운다.
+  useEffect(() => {
+    if (!mapConfig.kakaoAppKey && !mapConfig.naverClientId) return;
+    trips.forEach((trip) => {
+      if (trip.id in tripAddressCache) return;
+      if (trip.endLatitude === null || trip.endLatitude === undefined || trip.endLongitude === null || trip.endLongitude === undefined) {
+        return;
+      }
+      setTripAddressCache((prev) => ({ ...prev, [trip.id]: undefined as unknown as string | null }));
+      reverseGeocode(mapConfig, trip.endLatitude, trip.endLongitude).then((address) => {
+        setTripAddressCache((prev) => ({ ...prev, [trip.id]: address }));
+      });
+    });
+  }, [trips, mapConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     setMapProvider(pickDefaultProvider(mapConfig));
@@ -1446,9 +1470,18 @@ function TripSection({
     setTripPointsCache((prev) => ({ ...prev, [trip.id]: points }));
   }
 
-  async function loadTrips(reset = false) {
+  async function loadTrips(reset = false, searchOverride?: string, dateOverride?: string) {
     const currentOffset = reset ? 0 : tripOffset;
-    const res = await apiFetch(`/api/trips?vehicleId=${vehicleId}&limit=${CHUNK_SIZE}&offset=${currentOffset}`);
+    const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedTripSearch;
+    const effectiveDate = dateOverride !== undefined ? dateOverride : tripDateFilter;
+    const params = new URLSearchParams({
+      vehicleId,
+      limit: String(CHUNK_SIZE),
+      offset: String(currentOffset),
+    });
+    if (effectiveSearch) params.set("search", effectiveSearch);
+    if (effectiveDate) params.set("date", effectiveDate);
+    const res = await apiFetch(`/api/trips?${params.toString()}`);
     if (res.ok) {
       const data: Trip[] = await res.json();
       if (reset) {
@@ -1464,8 +1497,8 @@ function TripSection({
   }
 
   useEffect(() => {
-    loadTrips(true);
-  }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
+    loadTrips(true, debouncedTripSearch, tripDateFilter);
+  }, [vehicleId, debouncedTripSearch, tripDateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadSummary() {
     apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=${period}`)
@@ -1486,6 +1519,10 @@ function TripSection({
     }
   }
 
+  function handleTripNotesUpdated(tripId: string, notes: string | null) {
+    setTrips((prev) => prev.map((trip) => (trip.id === tripId ? { ...trip, notes } : trip)));
+  }
+
   useEffect(() => {
     loadSummary();
   }, [vehicleId, period]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -1503,6 +1540,48 @@ function TripSection({
           <option value="week">{t("tripPeriodWeek")}</option>
           <option value="month">{t("tripPeriodMonth")}</option>
         </select>
+      </div>
+
+      <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <input
+          type="text"
+          placeholder={t("searchTripPlaceholder")}
+          value={tripSearch}
+          onChange={(e) => setTripSearch(e.target.value)}
+          style={{
+            flex: 1,
+            minWidth: 160,
+            minHeight: 38,
+            fontSize: 13,
+            borderRadius: 8,
+            border: "1px solid var(--color-border-light)",
+            padding: "0 12px",
+            outline: "none",
+          }}
+        />
+        <input
+          type="date"
+          value={tripDateFilter}
+          onChange={(e) => setTripDateFilter(e.target.value)}
+          style={{
+            minHeight: 38,
+            fontSize: 13,
+            borderRadius: 8,
+            border: "1px solid var(--color-border-light)",
+            padding: "0 12px",
+            outline: "none",
+          }}
+        />
+        {tripDateFilter && (
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setTripDateFilter("")}
+            style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
+          >
+            {t("tripDateFilterClear")}
+          </button>
+        )}
       </div>
 
       {summary && (
@@ -1526,117 +1605,29 @@ function TripSection({
       ) : (
         <>
           <ul className="list">
-            {trips.map((trip) => {
-              const isSelected = selectedTripId === trip.id;
-              return (
-                <li key={trip.id} className="list-item" style={{ display: "block" }}>
-                  <div
-                    style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      gap: 4,
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-                      <span>{formatDateTime(trip.startTime)}</span>
-                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const next = isSelected ? null : trip.id;
-                            setSelectedTripId(next);
-                            if (next) loadTripPoints(trip);
-                          }}
-                          style={{
-                            minHeight: 26,
-                            height: 26,
-                            fontSize: 12,
-                            padding: "0 8px",
-                            background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
-                            color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
-                            border: "1px solid var(--color-border-light)",
-                            borderRadius: 6,
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            flexShrink: 0,
-                          }}
-                        >
-                          <MapPinIcon size={12} /> {isSelected ? t("hideTripMap") : t("showTripMap")}
-                        </button>
-                        <button
-                          type="button"
-                          className="btn-danger"
-                          onClick={() => handleDeleteTrip(trip.id)}
-                        >
-                          {t("delete")}
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      {(() => {
-                        const durationSec = trip.endTime
-                          ? Math.round((new Date(trip.endTime).getTime() - new Date(trip.startTime).getTime()) / 1000)
-                          : null;
-                        const durationStr = durationSec !== null ? `${formatDuration(durationSec, t)} · ` : "";
-
-                        let fuelConsumedStr = "";
-                        if (trip.startFuelLevel !== null && trip.startFuelLevel !== undefined && trip.endFuelLevel !== null && trip.endFuelLevel !== undefined) {
-                          const fuelDiff = trip.startFuelLevel - trip.endFuelLevel;
-                          if (fuelDiff > 0) {
-                            const isEv = vehicle?.fuelType === "ELECTRIC";
-                            if (isEv) {
-                              const capacity = parseFloat(vehicle?.batteryCapacity || "");
-                              if (!isNaN(capacity) && capacity > 0) {
-                                const kwh = (fuelDiff / 100) * capacity;
-                                fuelConsumedStr = ` · ${t("batteryConsumed", { value: fuelDiff.toFixed(1) })} (${kwh.toFixed(1)} kWh)`;
-                              } else {
-                                fuelConsumedStr = ` · ${t("batteryConsumed", { value: fuelDiff.toFixed(1) })}`;
-                              }
-                            } else {
-                              fuelConsumedStr = ` · ${t("fuelConsumed", { value: fuelDiff.toFixed(1) })}`;
-                            }
-                          } else if (fuelDiff < 0) {
-                            const isEv = vehicle?.fuelType === "ELECTRIC";
-                            if (isEv) {
-                              fuelConsumedStr = ` · ${t("batteryCharged", { value: Math.abs(fuelDiff).toFixed(1) })}`;
-                            } else {
-                              fuelConsumedStr = ` · ${t("fuelIncreased", { value: Math.abs(fuelDiff).toFixed(1) })}`;
-                            }
-                          }
-                        }
-
-                        return (
-                          <>
-                            {durationStr}
-                            {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
-                            {fuelConsumedStr}
-                          </>
-                        );
-                      })()}
-                    </div>
-                  </div>
-                  {isSelected && (
-                    !trip.routePolyline ? (
-                      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "8px 0 0" }}>{t("noRouteData")}</p>
-                    ) : tripPointsCache[trip.id] === undefined ? (
-                      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "8px 0 0" }}>{t("loading")}</p>
-                    ) : (
-                      <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
-                        <TripRouteMap
-                          points={tripPointsCache[trip.id]}
-                          provider={mapProvider}
-                          kakaoAppKey={mapConfig.kakaoAppKey}
-                          naverClientId={mapConfig.naverClientId}
-                          tmapAppKey={mapConfig.tmapAppKey}
-                          noRouteLabel={t("noRouteData")}
-                        />
-                      </div>
-                    )
-                  )}
-                </li>
-              );
-            })}
+            {trips.map((trip) => (
+              <TripRow
+                key={trip.id}
+                trip={trip}
+                vehicle={vehicle}
+                isSelected={selectedTripId === trip.id}
+                onToggleMap={() => {
+                  const next = selectedTripId === trip.id ? null : trip.id;
+                  setSelectedTripId(next);
+                  if (next) loadTripPoints(trip);
+                }}
+                tripPoints={tripPointsCache[trip.id]}
+                tripAddress={tripAddressCache[trip.id]}
+                mapProvider={mapProvider}
+                mapConfig={mapConfig}
+                t={t}
+                formatDistance={formatDistance}
+                formatDateTime={formatDateTime}
+                onDelete={() => handleDeleteTrip(trip.id)}
+                onNotesUpdated={handleTripNotesUpdated}
+                showToast={showToast}
+              />
+            ))}
           </ul>
           {hasMoreTrips && (
             <button
@@ -1662,5 +1653,200 @@ function TripSection({
         </>
       )}
     </section>
+  );
+}
+
+function TripRow({
+  trip,
+  vehicle,
+  isSelected,
+  onToggleMap,
+  tripPoints,
+  tripAddress,
+  mapProvider,
+  mapConfig,
+  t,
+  formatDistance,
+  formatDateTime,
+  onDelete,
+  onNotesUpdated,
+  showToast,
+}: {
+  trip: Trip;
+  vehicle: Vehicle | null;
+  isSelected: boolean;
+  onToggleMap: () => void;
+  tripPoints: SpeedPoint[] | undefined;
+  tripAddress: string | null | undefined;
+  mapProvider: MapProvider;
+  mapConfig: MapProvidersConfig;
+  t: Translator;
+  formatDistance: (km: number) => string;
+  formatDateTime: (iso: string) => string;
+  onDelete: () => void;
+  onNotesUpdated: (tripId: string, notes: string | null) => void;
+  showToast: (message: string, type?: "success" | "error") => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [notes, setNotes] = useState(trip.notes || "");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setNotes(trip.notes || "");
+  }, [trip.notes]);
+
+  async function handleSaveNotes(e: React.FormEvent) {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const res = await apiFetch(`/api/trips/${trip.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ notes: notes.trim() === "" ? null : notes }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        onNotesUpdated(trip.id, updated.notes);
+        setEditing(false);
+        showToast(t("toastSaved"), "success");
+      } else {
+        showToast(t("toastError"), "error");
+      }
+    } catch {
+      showToast(t("toastError"), "error");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  const durationSec = trip.endTime
+    ? Math.round((new Date(trip.endTime).getTime() - new Date(trip.startTime).getTime()) / 1000)
+    : null;
+
+  let fuelConsumedStr = "";
+  if (trip.startFuelLevel !== null && trip.startFuelLevel !== undefined && trip.endFuelLevel !== null && trip.endFuelLevel !== undefined) {
+    const fuelDiff = trip.startFuelLevel - trip.endFuelLevel;
+    if (fuelDiff > 0) {
+      const isEv = vehicle?.fuelType === "ELECTRIC";
+      if (isEv) {
+        const capacity = parseFloat(vehicle?.batteryCapacity || "");
+        if (!isNaN(capacity) && capacity > 0) {
+          const kwh = (fuelDiff / 100) * capacity;
+          fuelConsumedStr = `${t("batteryConsumed", { value: fuelDiff.toFixed(1) })} (${kwh.toFixed(1)} kWh)`;
+        } else {
+          fuelConsumedStr = t("batteryConsumed", { value: fuelDiff.toFixed(1) });
+        }
+      } else {
+        fuelConsumedStr = t("fuelConsumed", { value: fuelDiff.toFixed(1) });
+      }
+    } else if (fuelDiff < 0) {
+      const isEv = vehicle?.fuelType === "ELECTRIC";
+      if (isEv) {
+        fuelConsumedStr = t("batteryCharged", { value: Math.abs(fuelDiff).toFixed(1) });
+      } else {
+        fuelConsumedStr = t("fuelIncreased", { value: Math.abs(fuelDiff).toFixed(1) });
+      }
+    }
+  }
+
+  return (
+    <li className="list-item" style={{ display: "block" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+          <span>{formatDateTime(trip.startTime)}</span>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            {!editing && (
+              <button type="button" className="btn-action" onClick={() => setEditing(true)}>
+                {t("edit")}
+              </button>
+            )}
+            <button type="button" className="btn-action btn-action-danger" onClick={onDelete}>
+              {t("delete")}
+            </button>
+          </div>
+        </div>
+        <div>
+          {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
+          {durationSec !== null && ` · ${formatDuration(durationSec, t)}`}
+        </div>
+        {fuelConsumedStr && (
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{fuelConsumedStr}</div>
+        )}
+        {editing ? (
+          <form onSubmit={handleSaveNotes} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            <textarea
+              placeholder={t("tripNotesPlaceholder")}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+              style={{ fontSize: 13, resize: "vertical" }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button type="submit" disabled={submitting}>
+                {submitting ? t("saving") : t("save")}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setEditing(false);
+                  setNotes(trip.notes || "");
+                }}
+              >
+                {t("cancel")}
+              </button>
+            </div>
+          </form>
+        ) : (
+          trip.notes && (
+            <div style={{ fontSize: 13, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>{trip.notes}</div>
+          )
+        )}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+          {tripAddress ? (
+            <span style={{ fontSize: 12, color: "var(--color-text-muted)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+              {tripAddress}
+            </span>
+          ) : <span />}
+          <button
+            type="button"
+            onClick={onToggleMap}
+            style={{
+              minHeight: 26,
+              height: 26,
+              fontSize: 12,
+              padding: "0 8px",
+              background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
+              color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
+              border: "1px solid var(--color-border-light)",
+              borderRadius: 6,
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              flexShrink: 0,
+            }}
+          >
+            <MapPinIcon size={12} /> {isSelected ? t("hideTripMap") : t("showTripMap")}
+          </button>
+        </div>
+      </div>
+      {isSelected && (
+        !trip.routePolyline ? (
+          <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "8px 0 0" }}>{t("noRouteData")}</p>
+        ) : tripPoints === undefined ? (
+          <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "8px 0 0" }}>{t("loading")}</p>
+        ) : (
+          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
+            <TripRouteMap
+              points={tripPoints}
+              provider={mapProvider}
+              kakaoAppKey={mapConfig.kakaoAppKey}
+              naverClientId={mapConfig.naverClientId}
+              tmapAppKey={mapConfig.tmapAppKey}
+              noRouteLabel={t("noRouteData")}
+            />
+          </div>
+        )
+      )}
+    </li>
   );
 }

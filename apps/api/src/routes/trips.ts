@@ -1,17 +1,25 @@
 import type { FastifyInstance } from "fastify";
+import polyline from "@mapbox/polyline";
+import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 
 const MAX_LIMIT = 100;
 
+const tripUpdateSchema = z.object({
+  notes: z.string().nullable().optional(),
+});
+
 export async function tripRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/", async (request, reply) => {
-    const { vehicleId, limit, offset } = request.query as {
+    const { vehicleId, limit, offset, search, date } = request.query as {
       vehicleId?: string;
       limit?: string;
       offset?: string;
+      search?: string;
+      date?: string;
     };
     if (!vehicleId) return reply.code(400).send({ error: "vehicleId is required" });
 
@@ -23,8 +31,24 @@ export async function tripRoutes(app: FastifyInstance) {
     const parsedLimit = Math.min(limit ? parseInt(limit, 10) : 20, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
 
+    const whereClause: {
+      vehicleId: string;
+      notes?: { contains: string; mode: "insensitive" };
+      startTime?: { gte: Date; lt: Date };
+    } = { vehicleId };
+
+    if (search) {
+      whereClause.notes = { contains: search, mode: "insensitive" };
+    }
+
+    if (date) {
+      const dayStart = new Date(`${date}T00:00:00.000Z`);
+      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+      whereClause.startTime = { gte: dayStart, lt: dayEnd };
+    }
+
     const trips = await prisma.trip.findMany({
-      where: { vehicleId },
+      where: whereClause,
       orderBy: { startTime: "desc" },
       take: parsedLimit,
       skip: parsedOffset,
@@ -43,10 +67,31 @@ export async function tripRoutes(app: FastifyInstance) {
           select: { fuelLevel: true },
         });
 
+        let endLatitude: number | null = null;
+        let endLongitude: number | null = null;
+        const lastLocationPoint = await prisma.telemetryRaw.findFirst({
+          where: { tripId: trip.id, lat: { not: null }, lon: { not: null } },
+          orderBy: { time: "desc" },
+          select: { lat: true, lon: true },
+        });
+        if (lastLocationPoint) {
+          endLatitude = lastLocationPoint.lat;
+          endLongitude = lastLocationPoint.lon;
+        } else if (trip.routePolyline) {
+          const decoded = polyline.decode(trip.routePolyline);
+          const last = decoded[decoded.length - 1];
+          if (last) {
+            endLatitude = last[0];
+            endLongitude = last[1];
+          }
+        }
+
         return {
           ...trip,
           startFuelLevel: firstPoint?.fuelLevel ?? null,
           endFuelLevel: lastPoint?.fuelLevel ?? null,
+          endLatitude,
+          endLongitude,
         };
       })
     );
@@ -109,6 +154,22 @@ export async function tripRoutes(app: FastifyInstance) {
       orderBy: { time: "asc" },
       select: { lat: true, lon: true, speed: true },
     });
+  });
+
+  app.patch("/:id", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsed = tripUpdateSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const trip = await prisma.trip.findUnique({ where: { id }, select: { vehicleId: true } });
+    if (!trip) return reply.code(404).send({ error: "trip not found" });
+
+    const { sub, role } = request.user;
+    if (!(await canAccessVehicle(sub, role, trip.vehicleId))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    return prisma.trip.update({ where: { id }, data: parsed.data });
   });
 
   app.delete("/:id", async (request, reply) => {

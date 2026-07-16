@@ -146,6 +146,7 @@ model Trip {
   avgSpeed      Float?
   idleTimeSec   Int?
   routePolyline String?
+  notes         String?
 
   vehicle   Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   telemetry TelemetryRaw[]
