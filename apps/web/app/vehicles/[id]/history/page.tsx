@@ -16,6 +16,7 @@ import { CategoryBadge } from "../../../../components/CategoryBadge";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/maps/types";
+import { geocodeAddress } from "../../../../lib/maps/geocode";
 import type { SpeedPoint } from "../../../../lib/maps/polyline";
 import { decodeRoute } from "../../../../lib/maps/polyline";
 import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon, XIcon, SearchIcon } from "../../../../components/icons";
@@ -198,7 +199,7 @@ export default function HistoryPage() {
       </div>
 
       {subTab === "trips" && (
-        <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} formatDateTime={formatDateTime} mapConfig={mapConfig} />
+        <TripSection vehicleId={vehicleId} t={t} formatDistance={formatDistance} formatDateTime={formatDateTime} mapConfig={mapConfig} showToast={showToast} confirm={confirm} />
       )}
 
       {subTab === "fuel" && (
@@ -410,6 +411,23 @@ function FuelLogRow({
   const [longitude, setLongitude] = useState<number | null>(log.longitude);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [frequentStations, setFrequentStations] = useState<Array<{ location: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
+  const [geocoding, setGeocoding] = useState(false);
+
+  async function handleAddressBlur() {
+    if (!address.trim() || !(mapConfig.kakaoAppKey || mapConfig.naverClientId)) return;
+    setGeocoding(true);
+    try {
+      const result = await geocodeAddress(mapConfig, address);
+      if (result) {
+        setLatitude(result.lat);
+        setLongitude(result.lon);
+      }
+    } catch (err) {
+      console.error("Geocoding failed:", err);
+    } finally {
+      setGeocoding(false);
+    }
+  }
 
   const [attachments, setAttachments] = useState(log.attachments);
   const [deletedAttachmentIds, setDeletedAttachmentIds] = useState<string[]>([]);
@@ -587,9 +605,16 @@ function FuelLogRow({
                 ))}
               </div>
             )}
-            {address && (
+            <input
+              placeholder={t("addressOptional")}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              onBlur={handleAddressBlur}
+              style={{ fontSize: "13px", height: "40px", minHeight: "40px" }}
+            />
+            {geocoding && (
               <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
-                {address}
+                {t("geocoding")}
               </p>
             )}
             <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
@@ -662,6 +687,7 @@ function FuelLogRow({
             }}
             onClose={() => setShowSearchModal(false)}
             t={t}
+            isGasStation
           />
         )}
       </>
@@ -671,9 +697,7 @@ function FuelLogRow({
   return (
     <li className="list-item" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <span>
-          {log.date.slice(0, 10)} · {formatDistance(log.odometer)} · {log.liters}{volumeUnit} · {formatCurrency(log.cost)}
-        </span>
+        <span>{log.date.slice(0, 10)}</span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
             {t("edit")}
@@ -682,6 +706,9 @@ function FuelLogRow({
             {t("delete")}
           </button>
         </span>
+      </div>
+      <div>
+        {formatDistance(log.odometer)} · {log.liters}{volumeUnit} · {formatCurrency(log.cost)}
       </div>
       <div style={{ fontSize: 13, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
         <span>{t("unitPrice")} {formatCurrency(Math.round(log.cost / log.liters))}/{volumeUnit}</span>
@@ -934,6 +961,23 @@ function MaintenanceRow({
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [frequentShops, setFrequentShops] = useState<Array<{ shop: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
+  const [geocoding, setGeocoding] = useState(false);
+
+  async function handleAddressBlur() {
+    if (!address.trim() || !(mapConfig.kakaoAppKey || mapConfig.naverClientId)) return;
+    setGeocoding(true);
+    try {
+      const result = await geocodeAddress(mapConfig, address);
+      if (result) {
+        setLatitude(result.lat);
+        setLongitude(result.lon);
+      }
+    } catch (err) {
+      console.error("Geocoding failed:", err);
+    } finally {
+      setGeocoding(false);
+    }
+  }
 
   useEffect(() => {
     if (!editing) return;
@@ -1181,9 +1225,16 @@ function MaintenanceRow({
                 ))}
               </div>
             )}
-            {address && (
+            <input
+              placeholder={t("addressOptional")}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              onBlur={handleAddressBlur}
+              style={{ fontSize: "13px", height: "40px", minHeight: "40px" }}
+            />
+            {geocoding && (
               <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
-                {address}
+                {t("geocoding")}
               </p>
             )}
             <input
@@ -1262,12 +1313,9 @@ function MaintenanceRow({
   return (
     <li className="list-item" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <span style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <CategoryBadge category={record.category} t={t} />
-          <span>
-            {record.date.slice(0, 10)} · {formatDistance(record.odometer)} · {formatItemLabel(t, record.type)}
-            {record.cost !== null ? ` · ${formatCurrency(record.cost)}` : ""}
-          </span>
+          <span>{record.date.slice(0, 10)}</span>
         </span>
         <span style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
@@ -1277,6 +1325,10 @@ function MaintenanceRow({
             {t("delete")}
           </button>
         </span>
+      </div>
+      <div>
+        {formatDistance(record.odometer)} · {formatItemLabel(t, record.type)}
+        {record.cost !== null ? ` · ${formatCurrency(record.cost)}` : ""}
       </div>
       {(record.shop || record.notes) && (
         <div style={{ fontSize: 13, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -1340,12 +1392,16 @@ function TripSection({
   formatDistance,
   formatDateTime,
   mapConfig,
+  showToast,
+  confirm,
 }: {
   vehicleId: string;
   t: Translator;
   formatDistance: (km: number) => string;
   formatDateTime: (iso: string) => string;
   mapConfig: MapProvidersConfig;
+  showToast: (message: string, type?: "success" | "error") => void;
+  confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   const CHUNK_SIZE = 5;
   const [period, setPeriod] = useState<"week" | "month">("week");
@@ -1411,10 +1467,27 @@ function TripSection({
     loadTrips(true);
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  useEffect(() => {
+  function loadSummary() {
     apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=${period}`)
       .then((res) => (res.ok ? res.json() : null))
       .then(setSummary);
+  }
+
+  async function handleDeleteTrip(tripId: string) {
+    if (!(await confirm(t("confirmDelete")))) return;
+    const res = await apiFetch(`/api/trips/${tripId}`, { method: "DELETE" });
+    if (res.ok) {
+      showToast(t("toastDeleted"), "success");
+      if (selectedTripId === tripId) setSelectedTripId(null);
+      setTrips((prev) => prev.filter((trip) => trip.id !== tripId));
+      loadSummary();
+    } else {
+      showToast(t("toastError"), "error");
+    }
+  }
+
+  useEffect(() => {
+    loadSummary();
   }, [vehicleId, period]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
@@ -1460,18 +1533,48 @@ function TripSection({
                   <div
                     style={{
                       display: "flex",
-                      justifyContent: "space-between",
-                      alignItems: "center",
-                      gap: 8,
+                      flexDirection: "column",
+                      gap: 4,
                     }}
                   >
-                    <span>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                      <span>{formatDateTime(trip.startTime)}</span>
+                      <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = isSelected ? null : trip.id;
+                            setSelectedTripId(next);
+                            if (next) loadTripPoints(trip);
+                          }}
+                          style={{
+                            minHeight: 36,
+                            fontSize: 13,
+                            padding: "0 10px",
+                            background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
+                            color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                            border: "1px solid var(--color-border-light)",
+                            borderRadius: 8,
+                          }}
+                        >
+                          {isSelected ? t("hideTripMap") : t("showTripMap")}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-danger"
+                          onClick={() => handleDeleteTrip(trip.id)}
+                        >
+                          {t("delete")}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
                       {(() => {
                         const durationSec = trip.endTime
                           ? Math.round((new Date(trip.endTime).getTime() - new Date(trip.startTime).getTime()) / 1000)
                           : null;
                         const durationStr = durationSec !== null ? `${formatDuration(durationSec, t)} · ` : "";
-                        
+
                         let fuelConsumedStr = "";
                         if (trip.startFuelLevel !== null && trip.startFuelLevel !== undefined && trip.endFuelLevel !== null && trip.endFuelLevel !== undefined) {
                           const fuelDiff = trip.startFuelLevel - trip.endFuelLevel;
@@ -1500,34 +1603,12 @@ function TripSection({
 
                         return (
                           <>
-                            {formatDateTime(trip.startTime)} · {durationStr}
+                            {durationStr}
                             {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
                             {fuelConsumedStr}
                           </>
                         );
                       })()}
-                    </span>
-                    <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const next = isSelected ? null : trip.id;
-                          setSelectedTripId(next);
-                          if (next) loadTripPoints(trip);
-                        }}
-                        style={{
-                          minHeight: 36,
-                          fontSize: 13,
-                          padding: "0 10px",
-                          background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
-                          color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
-                          border: "1px solid var(--color-border-light)",
-                          borderRadius: 8,
-                        }}
-                      >
-                        {isSelected ? t("hideTripMap") : t("showTripMap")}
-                      </button>
-
                     </div>
                   </div>
                   {isSelected && (

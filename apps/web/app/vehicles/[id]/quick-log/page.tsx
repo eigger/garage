@@ -14,6 +14,7 @@ import { AlertIcon, TrashIcon, SearchIcon } from "../../../../components/icons";
 import { fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
 import type { OpinetStationSummary } from "@garage/shared";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
+import { geocodeAddress } from "../../../../lib/maps/geocode";
 import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
@@ -234,6 +235,23 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
     if (station) void applyStation(station);
   }
 
+  const [geocoding, setGeocoding] = useState(false);
+
+  async function handleAddressBlur() {
+    if (!stationAddress?.trim() || !(mapConfig.kakaoAppKey || mapConfig.naverClientId)) return;
+    setGeocoding(true);
+    try {
+      const result = await geocodeAddress(mapConfig, stationAddress);
+      if (result) {
+        setStationCoords({ lat: result.lat, lon: result.lon, name: location });
+      }
+    } catch (err) {
+      console.error("Geocoding failed:", err);
+    } finally {
+      setGeocoding(false);
+    }
+  }
+
   function handleLitersChange(val: string) {
     setLiters(val);
     if (unitPrice && val && Number(val) > 0 && Number(unitPrice) > 0) {
@@ -442,8 +460,15 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         </div>
       )}
 
-      {stationAddress && (
-        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>{stationAddress}</p>
+      <input
+        placeholder={t("addressOptional")}
+        value={stationAddress || ""}
+        onChange={(e) => setStationAddress(e.target.value)}
+        onBlur={handleAddressBlur}
+        style={{ fontSize: "13px", height: "40px", minHeight: "40px" }}
+      />
+      {geocoding && (
+        <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>{t("geocoding")}</p>
       )}
 
       {stationCoords && (
@@ -673,6 +698,23 @@ function QuickMaintenanceForm({
   const [longitude, setLongitude] = useState<number | null>(null);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [frequentShops, setFrequentShops] = useState<Array<{ shop: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
+  const [geocoding, setGeocoding] = useState(false);
+
+  async function handleAddressBlur() {
+    if (!address.trim() || !(mapConfig.kakaoAppKey || mapConfig.naverClientId)) return;
+    setGeocoding(true);
+    try {
+      const result = await geocodeAddress(mapConfig, address);
+      if (result) {
+        setLatitude(result.lat);
+        setLongitude(result.lon);
+      }
+    } catch (err) {
+      console.error("Geocoding failed:", err);
+    } finally {
+      setGeocoding(false);
+    }
+  }
 
   useEffect(() => {
     apiFetch(`/api/vehicles/${vehicleId}/maintenance-records/frequent-shops`)
@@ -994,9 +1036,16 @@ function QuickMaintenanceForm({
                 ))}
               </div>
             )}
-            {address && (
+            <input
+              placeholder={t("addressOptional")}
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              onBlur={handleAddressBlur}
+              style={{ fontSize: "13px", height: "40px", minHeight: "40px" }}
+            />
+            {geocoding && (
               <p style={{ fontSize: "12px", color: "var(--color-text-muted)", margin: "-4px 0 8px 4px" }}>
-                {address}
+                {t("geocoding")}
               </p>
             )}
             <input placeholder={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
