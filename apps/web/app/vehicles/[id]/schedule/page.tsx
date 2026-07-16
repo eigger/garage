@@ -509,7 +509,7 @@ function ScheduleRow({
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {!completing && (
-          <button type="button" onClick={handleMarkDone} disabled={submitting}>
+          <button type="button" className="btn-action btn-action-primary" onClick={handleMarkDone} disabled={submitting}>
             {t("markDone")}
           </button>
         )}

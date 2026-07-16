@@ -509,8 +509,8 @@ export default function VehicleOverviewPage() {
             }
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: 16 }}>
-                <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12, alignItems: "stretch" }}>
+                <div style={{ position: "relative", width: "100%", height: 160, borderRadius: 8, overflow: "hidden" }}>
                   <LastLocationMap
                     lat={vehicle.latitude}
                     lon={vehicle.longitude}
@@ -521,18 +521,18 @@ export default function VehicleOverviewPage() {
                   />
                 </div>
                 {lastTrip ? (
-                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 10, padding: "8px 0" }}>
-                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: "700", color: "var(--color-primary)" }}>
+                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, minWidth: 0 }}>
+                    <h3 style={{ margin: 0, fontSize: 12, fontWeight: "700", color: "var(--color-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {t("lastTripHeading")}
                     </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13 }}>
-                      <div>
-                        <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("timeLabel")}:</span>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11 }}>
+                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("timeLabel")}:</span>
                         <strong>{startTimeStr} {endTimeStr && `~ ${endTimeStr}`}</strong>
                       </div>
                       {lastTrip.distanceKm !== null && (
-                        <div>
-                          <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("distanceLabel")}:</span>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("distanceLabel")}:</span>
                           <strong>
                             {formatDistance(lastTrip.distanceKm)}
                             {durationSec !== null && ` (${formatDuration(durationSec, t)})`}
@@ -541,20 +541,20 @@ export default function VehicleOverviewPage() {
                       )}
                       {lastTrip.avgSpeed !== null && (
                         <div>
-                          <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("avgSpeedLabel")}:</span>
+                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("avgSpeedLabel")}:</span>
                           <strong>{lastTrip.avgSpeed.toFixed(1)} km/h</strong>
                         </div>
                       )}
                       {fuelDiffStr && (
-                        <div>
-                          <span style={{ color: "var(--color-text-muted)", marginRight: 8 }}>{t("fuelConsumedLabel")}:</span>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("fuelConsumedLabel")}:</span>
                           <strong>{fuelDiffStr}</strong>
                         </div>
                       )}
                       {lastTrip.notes && (
-                        <div style={{ borderTop: "1px dashed var(--color-border-light)", paddingTop: 6, marginTop: 4 }}>
-                          <span style={{ color: "var(--color-text-muted)", display: "block", fontSize: 11, marginBottom: 2 }}>{t("notes")}:</span>
-                          <p style={{ margin: 0, fontSize: 12, color: "var(--color-text)", whiteSpace: "pre-wrap" }}>{lastTrip.notes}</p>
+                        <div style={{ borderTop: "1px dashed var(--color-border-light)", paddingTop: 4, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", textOverflow: "ellipsis", fontSize: 11, lineHeight: "1.3" }}>
+                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("notes")}:</span>
+                          <span style={{ color: "var(--color-text)" }}>{lastTrip.notes}</span>
                         </div>
                       )}
                     </div>

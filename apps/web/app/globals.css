@@ -552,6 +552,17 @@ button:disabled {
   color: var(--badge-red-text);
 }
 
+.btn-action-primary {
+  background: var(--color-primary);
+  color: var(--color-text-on-primary);
+  border: none;
+}
+
+.btn-action-primary:hover {
+  opacity: 0.9;
+}
+
+
 
 /* Upload progress */
 .upload-progress-track {
