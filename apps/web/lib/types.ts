@@ -104,8 +104,11 @@ export type Trip = {
   avgSpeed: number | null;
   idleTimeSec: number | null;
   routePolyline: string | null;
+  notes: string | null;
   startFuelLevel?: number | null;
   endFuelLevel?: number | null;
+  endLatitude?: number | null;
+  endLongitude?: number | null;
 };
 
 export type TripSummary = {
