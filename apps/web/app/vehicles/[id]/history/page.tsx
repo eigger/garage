@@ -468,10 +468,10 @@ function FuelLogRow({
           liters: Number(liters),
           cost: Number(cost),
           fullTank,
-          location: location || undefined,
+          location: location.trim() === "" ? null : location,
           latitude: latitude !== null ? latitude : undefined,
           longitude: longitude !== null ? longitude : undefined,
-          address: address || undefined,
+          address: address.trim() === "" ? null : address,
         }),
       });
       if (res.ok) {
@@ -1036,11 +1036,11 @@ function MaintenanceRow({
           type: finalType,
           category: recordCategory,
           cost: cost ? Number(cost) : undefined,
-          shop: shop || undefined,
-          notes: notes || undefined,
+          shop: shop.trim() === "" ? null : shop,
+          notes: notes.trim() === "" ? null : notes,
           latitude: latitude !== null ? latitude : undefined,
           longitude: longitude !== null ? longitude : undefined,
-          address: address || undefined,
+          address: address.trim() === "" ? null : address,
         }),
       });
       if (res.ok) {
@@ -1548,16 +1548,21 @@ function TripSection({
                             if (next) loadTripPoints(trip);
                           }}
                           style={{
-                            minHeight: 36,
-                            fontSize: 13,
-                            padding: "0 10px",
+                            minHeight: 26,
+                            height: 26,
+                            fontSize: 12,
+                            padding: "0 8px",
                             background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
                             color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
                             border: "1px solid var(--color-border-light)",
-                            borderRadius: 8,
+                            borderRadius: 6,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            flexShrink: 0,
                           }}
                         >
-                          {isSelected ? t("hideTripMap") : t("showTripMap")}
+                          <MapPinIcon size={12} /> {isSelected ? t("hideTripMap") : t("showTripMap")}
                         </button>
                         <button
                           type="button"
@@ -1612,12 +1617,12 @@ function TripSection({
                     </div>
                   </div>
                   {isSelected && (
-                    <div style={{ marginTop: 12 }}>
-                      {!trip.routePolyline ? (
-                        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("noRouteData")}</p>
-                      ) : tripPointsCache[trip.id] === undefined ? (
-                        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("loading")}</p>
-                      ) : (
+                    !trip.routePolyline ? (
+                      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "8px 0 0" }}>{t("noRouteData")}</p>
+                    ) : tripPointsCache[trip.id] === undefined ? (
+                      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "8px 0 0" }}>{t("loading")}</p>
+                    ) : (
+                      <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
                         <TripRouteMap
                           points={tripPointsCache[trip.id]}
                           provider={mapProvider}
@@ -1626,8 +1631,8 @@ function TripSection({
                           tmapAppKey={mapConfig.tmapAppKey}
                           noRouteLabel={t("noRouteData")}
                         />
-                      )}
-                    </div>
+                      </div>
+                    )
                   )}
                 </li>
               );
