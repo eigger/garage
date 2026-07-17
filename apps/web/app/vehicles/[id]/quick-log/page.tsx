@@ -9,7 +9,6 @@ import type { ConsumablePart, Vehicle } from "../../../../lib/types";
 import type { RecordCategory } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
-import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
 import { AlertIcon, TrashIcon, SearchIcon } from "../../../../components/icons";
 import { fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
 import type { OpinetStationSummary } from "@garage/shared";
@@ -469,18 +468,6 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       />
       {geocoding && (
         <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>{t("geocoding")}</p>
-      )}
-
-      {stationCoords && (
-        <NavLaunchButtons
-          destination={stationCoords}
-          heading={t("navLaunchHeading")}
-          labels={{
-            tmap: t("navLaunchTmap"),
-            kakao: t("navLaunchKakao"),
-            naver: t("navLaunchNaver"),
-          }}
-        />
       )}
 
       <div style={{ position: "relative", display: "flex", alignItems: "center", width: "100%" }}>
