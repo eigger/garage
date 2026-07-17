@@ -432,10 +432,38 @@ export default function VehicleOverviewPage() {
 
       {vehicle && vehicle.latitude !== null && vehicle.latitude !== undefined && vehicle.longitude !== null && vehicle.longitude !== undefined && (
         <section className="card" style={{ marginTop: 12 }}>
-          <h2 style={{ fontSize: 16, fontWeight: "600", marginTop: 0, marginBottom: 8, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><MapPinIcon /> {t("lastKnownLocation")}</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 16, fontWeight: "600", minWidth: 0 }}>
+              <MapPinIcon />
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t("lastKnownLocation")}</span>
+              <span
+                style={{
+                  display: "inline-block",
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                  backgroundColor: isDriving ? "var(--live-driving-dot)" : isStopped ? "var(--live-stopped-dot)" : "var(--live-idle-dot)",
+                  animation: isDriving ? "statusPulse 1.5s infinite ease-in-out" : "none",
+                }}
+              />
+              <span style={{ fontSize: 13, fontWeight: "600", whiteSpace: "nowrap", color: isDriving ? "var(--live-driving-text)" : isStopped ? "var(--live-stopped-text)" : "var(--live-idle-text)" }}>
+                {isDriving
+                  ? t("statusDriving")
+                  : isStopped
+                  ? t("statusStopped")
+                  : `${t("statusParked")} (${formatRelativeTime(vehicle.locationUpdatedAt || "", t)})`}
+              </span>
+            </span>
+            <style>{`
+              @keyframes statusPulse {
+                0% { transform: scale(0.9); opacity: 0.6; }
+                50% { transform: scale(1.2); opacity: 1; }
+                100% { transform: scale(0.9); opacity: 0.6; }
+              }
+            `}</style>
             {vehicle.locationUpdatedAt && (
-              <span style={{ fontSize: 12, fontWeight: "normal", color: "var(--color-text-muted)" }}>
+              <span style={{ fontSize: 12, fontWeight: "normal", color: "var(--color-text-muted)", flexShrink: 0 }}>
                 {t("locationUpdatedAtLabel", {
                   time: new Date(vehicle.locationUpdatedAt).toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
                     month: "short",
@@ -446,70 +474,27 @@ export default function VehicleOverviewPage() {
                 })}
               </span>
             )}
-          </h2>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
-            <span
-              style={{
-                display: "inline-block",
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                backgroundColor: isDriving ? "var(--live-driving-dot)" : isStopped ? "var(--live-stopped-dot)" : "var(--live-idle-dot)",
-                animation: isDriving ? "statusPulse 1.5s infinite ease-in-out" : "none",
-              }}
-            />
-            <span style={{ fontSize: 13, fontWeight: "600", color: isDriving ? "var(--live-driving-text)" : isStopped ? "var(--live-stopped-text)" : "var(--live-idle-text)" }}>
-              {isDriving
-                ? t("statusDriving")
-                : isStopped
-                ? t("statusStopped")
-                : `${t("statusParked")} (${formatRelativeTime(vehicle.locationUpdatedAt || "", t)})`}
-            </span>
-            <style>{`
-              @keyframes statusPulse {
-                0% { transform: scale(0.9); opacity: 0.6; }
-                50% { transform: scale(1.2); opacity: 1; }
-                100% { transform: scale(0.9); opacity: 0.6; }
-              }
-            `}</style>
           </div>
 
           {(() => {
-            const startTimeStr = lastTrip
-              ? new Date(lastTrip.startTime).toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
-                  month: "short",
-                  day: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "";
-            const endTimeStr = lastTrip && lastTrip.endTime
-              ? new Date(lastTrip.endTime).toLocaleString(locale === "ko" ? "ko-KR" : "en-US", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "";
             const durationSec = lastTrip && lastTrip.endTime
               ? Math.round((new Date(lastTrip.endTime).getTime() - new Date(lastTrip.startTime).getTime()) / 1000)
               : null;
 
-            let fuelDiffStr = "";
-            if (lastTrip && lastTrip.startFuelLevel !== null && lastTrip.startFuelLevel !== undefined && lastTrip.endFuelLevel !== null && lastTrip.endFuelLevel !== undefined) {
-              const diff = lastTrip.startFuelLevel - lastTrip.endFuelLevel;
-              if (diff > 0) {
-                fuelDiffStr = vehicle?.fuelType === "ELECTRIC"
-                  ? `${t("batteryConsumed", { value: diff.toFixed(1) })}`
-                  : `${t("fuelConsumed", { value: diff.toFixed(1) })}`;
-              } else if (diff < 0) {
-                fuelDiffStr = vehicle?.fuelType === "ELECTRIC"
-                  ? `${t("batteryCharged", { value: Math.abs(diff).toFixed(1) })}`
-                  : `${t("fuelIncreased", { value: Math.abs(diff).toFixed(1) })}`;
-              }
-            }
+            const summary = lastTrip
+              ? [
+                  lastTrip.distanceKm !== null ? formatDistance(lastTrip.distanceKm) : null,
+                  durationSec !== null ? formatDuration(durationSec, t) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : t("noLastTripShort");
 
             return (
-              <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12, alignItems: "stretch" }}>
+              <>
+                <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {summary}
+                </div>
                 <div style={{ position: "relative", width: "100%", height: 160, borderRadius: 12, overflow: "hidden", border: "1px solid var(--color-border)" }}>
                   <LastLocationMap
                     lat={vehicle.latitude}
@@ -520,54 +505,7 @@ export default function VehicleOverviewPage() {
                     tmapAppKey={mapConfig.tmapAppKey}
                   />
                 </div>
-                {lastTrip ? (
-                  <div
-                    className="card"
-                    style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 6, minWidth: 0, padding: 12 }}
-                  >
-                    <h3 style={{ margin: 0, fontSize: 12, fontWeight: "700", color: "var(--color-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {t("lastTripHeading")}
-                    </h3>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 4, fontSize: 11 }}>
-                      <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("timeLabel")}:</span>
-                        <strong>{startTimeStr} {endTimeStr && `~ ${endTimeStr}`}</strong>
-                      </div>
-                      {lastTrip.distanceKm !== null && (
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("distanceLabel")}:</span>
-                          <strong>
-                            {formatDistance(lastTrip.distanceKm)}
-                            {durationSec !== null && ` (${formatDuration(durationSec, t)})`}
-                          </strong>
-                        </div>
-                      )}
-                      {lastTrip.avgSpeed !== null && (
-                        <div>
-                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("avgSpeedLabel")}:</span>
-                          <strong>{lastTrip.avgSpeed.toFixed(1)} km/h</strong>
-                        </div>
-                      )}
-                      {fuelDiffStr && (
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("fuelConsumedLabel")}:</span>
-                          <strong>{fuelDiffStr}</strong>
-                        </div>
-                      )}
-                      {lastTrip.notes && (
-                        <div style={{ borderTop: "1px dashed var(--color-border-light)", paddingTop: 4, marginTop: 2, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", textOverflow: "ellipsis", fontSize: 11, lineHeight: "1.3" }}>
-                          <span style={{ color: "var(--color-text-muted)", marginRight: 4 }}>{t("notes")}:</span>
-                          <span style={{ color: "var(--color-text)" }}>{lastTrip.notes}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: 13 }}>
-                    주행 기록이 없습니다.
-                  </div>
-                )}
-              </div>
+              </>
             );
           })()}
         </section>

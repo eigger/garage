@@ -770,46 +770,48 @@ function FuelLogRow({
             </span>
           )}
           {log.latitude !== null && log.longitude !== null && (
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => setShowMap((v) => !v)}
-                style={{
-                  minHeight: 26,
-                  height: 26,
-                  fontSize: 12,
-                  padding: "0 8px",
-                  background: showMap ? "var(--color-primary)" : "var(--color-surface)",
-                  color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
-                  border: "1px solid var(--color-border-light)",
-                  borderRadius: 6,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  flexShrink: 0,
-                }}
-              >
-                <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
-              </button>
-              <NavLaunchButtons
-                compact
-                destination={{ lat: log.latitude, lon: log.longitude, name: log.location || log.address || "" }}
-                labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              style={{
+                minHeight: 26,
+                height: 26,
+                fontSize: 12,
+                padding: "0 8px",
+                background: showMap ? "var(--color-primary)" : "var(--color-surface)",
+                color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                border: "1px solid var(--color-border-light)",
+                borderRadius: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0,
+              }}
+            >
+              <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+            </button>
           )}
         </div>
       )}
       {showMap && log.latitude !== null && log.longitude !== null && (
-        <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
-          <LastLocationMap
-            lat={log.latitude}
-            lon={log.longitude}
-            provider={mapProvider}
-            kakaoAppKey={mapConfig.kakaoAppKey}
-            naverClientId={mapConfig.naverClientId}
-            tmapAppKey={mapConfig.tmapAppKey}
-          />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }}>
+            <LastLocationMap
+              lat={log.latitude}
+              lon={log.longitude}
+              provider={mapProvider}
+              kakaoAppKey={mapConfig.kakaoAppKey}
+              naverClientId={mapConfig.naverClientId}
+              tmapAppKey={mapConfig.tmapAppKey}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <NavLaunchButtons
+              compact
+              destination={{ lat: log.latitude, lon: log.longitude, name: log.location || log.address || "" }}
+              labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
+            />
+          </div>
         </div>
       )}
       <AttachmentList attachments={log.attachments} t={t} />
@@ -1353,46 +1355,48 @@ function MaintenanceRow({
             </span>
           ) : <span />}
           {record.latitude !== null && record.longitude !== null && (
-            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => setShowMap((v) => !v)}
-                style={{
-                  minHeight: 26,
-                  height: 26,
-                  fontSize: 12,
-                  padding: "0 8px",
-                  background: showMap ? "var(--color-primary)" : "var(--color-surface)",
-                  color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
-                  border: "1px solid var(--color-border-light)",
-                  borderRadius: 6,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  flexShrink: 0,
-                }}
-              >
-                <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
-              </button>
-              <NavLaunchButtons
-                compact
-                destination={{ lat: record.latitude, lon: record.longitude, name: record.shop || record.address || "" }}
-                labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
-              />
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowMap((v) => !v)}
+              style={{
+                minHeight: 26,
+                height: 26,
+                fontSize: 12,
+                padding: "0 8px",
+                background: showMap ? "var(--color-primary)" : "var(--color-surface)",
+                color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                border: "1px solid var(--color-border-light)",
+                borderRadius: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0,
+              }}
+            >
+              <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+            </button>
           )}
         </div>
       )}
       {showMap && record.latitude !== null && record.longitude !== null && (
-        <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
-          <LastLocationMap
-            lat={record.latitude}
-            lon={record.longitude}
-            provider={pickDefaultProvider(mapConfig)}
-            kakaoAppKey={mapConfig.kakaoAppKey}
-            naverClientId={mapConfig.naverClientId}
-            tmapAppKey={mapConfig.tmapAppKey}
-          />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }}>
+            <LastLocationMap
+              lat={record.latitude}
+              lon={record.longitude}
+              provider={pickDefaultProvider(mapConfig)}
+              kakaoAppKey={mapConfig.kakaoAppKey}
+              naverClientId={mapConfig.naverClientId}
+              tmapAppKey={mapConfig.tmapAppKey}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <NavLaunchButtons
+              compact
+              destination={{ lat: record.latitude, lon: record.longitude, name: record.shop || record.address || "" }}
+              labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
+            />
+          </div>
         </div>
       )}
       <AttachmentList attachments={record.attachments} t={t} />
@@ -1843,13 +1847,6 @@ function TripRow({
             >
               <MapPinIcon size={12} /> {isSelected ? t("hideTripMap") : t("showTripMap")}
             </button>
-            {trip.endLatitude !== null && trip.endLatitude !== undefined && trip.endLongitude !== null && trip.endLongitude !== undefined && (
-              <NavLaunchButtons
-                compact
-                destination={{ lat: trip.endLatitude, lon: trip.endLongitude, name: tripAddress || "" }}
-                labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
-              />
-            )}
           </div>
         </div>
       </div>
@@ -1859,15 +1856,26 @@ function TripRow({
         ) : tripPoints === undefined ? (
           <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "8px 0 0" }}>{t("loading")}</p>
         ) : (
-          <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden", marginTop: 8 }}>
-            <TripRouteMap
-              points={tripPoints}
-              provider={mapProvider}
-              kakaoAppKey={mapConfig.kakaoAppKey}
-              naverClientId={mapConfig.naverClientId}
-              tmapAppKey={mapConfig.tmapAppKey}
-              noRouteLabel={t("noRouteData")}
-            />
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 8 }}>
+            <div style={{ position: "relative", width: "100%", height: 220, borderRadius: 8, overflow: "hidden" }}>
+              <TripRouteMap
+                points={tripPoints}
+                provider={mapProvider}
+                kakaoAppKey={mapConfig.kakaoAppKey}
+                naverClientId={mapConfig.naverClientId}
+                tmapAppKey={mapConfig.tmapAppKey}
+                noRouteLabel={t("noRouteData")}
+              />
+            </div>
+            {trip.endLatitude !== null && trip.endLatitude !== undefined && trip.endLongitude !== null && trip.endLongitude !== undefined && (
+              <div style={{ display: "flex", gap: 8 }}>
+                <NavLaunchButtons
+                  compact
+                  destination={{ lat: trip.endLatitude, lon: trip.endLongitude, name: tripAddress || "" }}
+                  labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
+                />
+              </div>
+            )}
           </div>
         )
       )}
