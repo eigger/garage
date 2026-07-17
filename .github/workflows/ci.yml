@@ -30,6 +30,22 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: garage
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: garage_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://garage:test@localhost:5432/garage_test
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -45,6 +61,9 @@ jobs:
 
       - name: Run Prisma Generate
         run: npm run prisma:generate -w apps/api
+
+      - name: Run Prisma Migrate
+        run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
 
       - name: Run Tests
         run: npm run test

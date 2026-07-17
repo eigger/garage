@@ -24,6 +24,7 @@ import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } fro
 import type { FuelType } from "../../../../lib/types";
 import dynamic from "next/dynamic";
 import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
+import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
 
 const LastLocationMap = dynamic(
   () => import("../../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
@@ -769,26 +770,33 @@ function FuelLogRow({
             </span>
           )}
           {log.latitude !== null && log.longitude !== null && (
-            <button
-              type="button"
-              onClick={() => setShowMap((v) => !v)}
-              style={{
-                minHeight: 26,
-                height: 26,
-                fontSize: 12,
-                padding: "0 8px",
-                background: showMap ? "var(--color-primary)" : "var(--color-surface)",
-                color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
-                border: "1px solid var(--color-border-light)",
-                borderRadius: 6,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                flexShrink: 0,
-              }}
-            >
-              <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setShowMap((v) => !v)}
+                style={{
+                  minHeight: 26,
+                  height: 26,
+                  fontSize: 12,
+                  padding: "0 8px",
+                  background: showMap ? "var(--color-primary)" : "var(--color-surface)",
+                  color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                  border: "1px solid var(--color-border-light)",
+                  borderRadius: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  flexShrink: 0,
+                }}
+              >
+                <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+              </button>
+              <NavLaunchButtons
+                compact
+                destination={{ lat: log.latitude, lon: log.longitude, name: log.location || log.address || "" }}
+                labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
+              />
+            </div>
           )}
         </div>
       )}
@@ -1345,26 +1353,33 @@ function MaintenanceRow({
             </span>
           ) : <span />}
           {record.latitude !== null && record.longitude !== null && (
-            <button
-              type="button"
-              onClick={() => setShowMap((v) => !v)}
-              style={{
-                minHeight: 26,
-                height: 26,
-                fontSize: 12,
-                padding: "0 8px",
-                background: showMap ? "var(--color-primary)" : "var(--color-surface)",
-                color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
-                border: "1px solid var(--color-border-light)",
-                borderRadius: 6,
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 4,
-                flexShrink: 0,
-              }}
-            >
-              <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
-            </button>
+            <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => setShowMap((v) => !v)}
+                style={{
+                  minHeight: 26,
+                  height: 26,
+                  fontSize: 12,
+                  padding: "0 8px",
+                  background: showMap ? "var(--color-primary)" : "var(--color-surface)",
+                  color: showMap ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                  border: "1px solid var(--color-border-light)",
+                  borderRadius: 6,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  flexShrink: 0,
+                }}
+              >
+                <MapPinIcon size={12} /> {showMap ? t("hideTripMap") : t("showTripMap")}
+              </button>
+              <NavLaunchButtons
+                compact
+                destination={{ lat: record.latitude, lon: record.longitude, name: record.shop || record.address || "" }}
+                labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
+              />
+            </div>
           )}
         </div>
       )}
@@ -1807,26 +1822,35 @@ function TripRow({
               {tripAddress}
             </span>
           ) : <span />}
-          <button
-            type="button"
-            onClick={onToggleMap}
-            style={{
-              minHeight: 26,
-              height: 26,
-              fontSize: 12,
-              padding: "0 8px",
-              background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
-              color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
-              border: "1px solid var(--color-border-light)",
-              borderRadius: 6,
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 4,
-              flexShrink: 0,
-            }}
-          >
-            <MapPinIcon size={12} /> {isSelected ? t("hideTripMap") : t("showTripMap")}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={onToggleMap}
+              style={{
+                minHeight: 26,
+                height: 26,
+                fontSize: 12,
+                padding: "0 8px",
+                background: isSelected ? "var(--color-primary)" : "var(--color-surface)",
+                color: isSelected ? "var(--color-text-on-primary)" : "var(--color-primary)",
+                border: "1px solid var(--color-border-light)",
+                borderRadius: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                flexShrink: 0,
+              }}
+            >
+              <MapPinIcon size={12} /> {isSelected ? t("hideTripMap") : t("showTripMap")}
+            </button>
+            {trip.endLatitude !== null && trip.endLatitude !== undefined && trip.endLongitude !== null && trip.endLongitude !== undefined && (
+              <NavLaunchButtons
+                compact
+                destination={{ lat: trip.endLatitude, lon: trip.endLongitude, name: tripAddress || "" }}
+                labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
+              />
+            )}
+          </div>
         </div>
       </div>
       {isSelected && (

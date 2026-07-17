@@ -510,7 +510,7 @@ export default function VehicleOverviewPage() {
 
             return (
               <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: 12, alignItems: "stretch" }}>
-                <div style={{ position: "relative", width: "100%", height: 160, borderRadius: 8, overflow: "hidden" }}>
+                <div style={{ position: "relative", width: "100%", height: 160, borderRadius: 12, overflow: "hidden", border: "1px solid var(--color-border)" }}>
                   <LastLocationMap
                     lat={vehicle.latitude}
                     lon={vehicle.longitude}
@@ -521,7 +521,10 @@ export default function VehicleOverviewPage() {
                   />
                 </div>
                 {lastTrip ? (
-                  <div style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 6, minWidth: 0 }}>
+                  <div
+                    className="card"
+                    style={{ display: "flex", flexDirection: "column", justifyContent: "flex-start", gap: 6, minWidth: 0, padding: 12 }}
+                  >
                     <h3 style={{ margin: 0, fontSize: 12, fontWeight: "700", color: "var(--color-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       {t("lastTripHeading")}
                     </h3>
@@ -560,7 +563,7 @@ export default function VehicleOverviewPage() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 20, color: "var(--color-text-muted)", fontSize: 13 }}>
+                  <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "center", color: "var(--color-text-muted)", fontSize: 13 }}>
                     주행 기록이 없습니다.
                   </div>
                 )}
