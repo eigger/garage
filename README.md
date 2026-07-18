@@ -11,7 +11,7 @@
 
 Self-hosted family car management — maintenance schedules, fuel logs, reminders, OBD/GPS trips, and optional Home Assistant integrations.
 
-> Current release: **v0.2.28**
+> See [GitHub Releases](https://github.com/eigger/garage/releases) for the latest version.
 
 Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · [`docs/PROGRESS.md`](./docs/PROGRESS.md)
 
@@ -25,9 +25,11 @@ Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md
 - Maintenance + administrative schedules with distance/time dual reminders
 - Fuel-type maintenance presets and global admin/legal presets
 - Fuel logging with receipt attachments; Opinet nearby stations (optional)
+- EV charging station finder (K-eco API, optional) — same distance/price search as gas stations, numbered markers on the map
 - OBD ingest (Torque Pro) and REST/WebSocket telemetry; auto trip segmentation
-- Trip reports, route maps (OSM / Kakao / Naver / T map); inline trip notes editing and reverse geocoding
+- Trip reports, route maps (OSM / Kakao / Naver / T map) with direction arrows; inline trip notes editing and reverse geocoding
 - Dashboard reminder badges and vehicle summary cards (including last fuel cost)
+- Per-vehicle care level & badges (gamification) screen
 - Consolidated navigation (removed top header bar, version indicator in More sheet)
 - Admin backup/restore, PWA, ko/en i18n
 - First-run admin bootstrap when the user table is empty
@@ -44,7 +46,7 @@ Home screen after login. If the user only has a single vehicle, they skip this a
 
 ### 2. Vehicle overview
 
-Per-vehicle hub: summary cards (including the new "last fuel cost" card), monthly expense chart, last trip details (time, distance, speed, fuel/battery consumed, notes) next to the map, and tab views for **Overview**, **Schedule**, and **History**. The gear icon opens vehicle settings and OBD/GPS. The header bar has been consolidated into the bottom nav layout, and administrative features are placed under the **More** sheet.
+Per-vehicle hub: summary cards (including the new "last fuel cost" card), monthly expense chart, last trip details (time, distance, speed, fuel/battery consumed, notes) next to the map, and tab views for **Overview**, **Schedule**, and **History**. Right below the last-location map, find nearby gas stations or charging stations by distance or price and launch turn-by-turn navigation directly. The gear icon opens vehicle settings and OBD/GPS. The header bar has been consolidated into the bottom nav layout, and administrative features are placed under the **More** sheet.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle.png" alt="Vehicle overview" width="960" />
 
@@ -68,9 +70,15 @@ Trips, fuel logs, and maintenance history in one place. Fuel efficiency is calcu
 
 ### 6. API Integrations
 
-Admin page for Opinet, Kakao Map, Naver Map, and T map keys. Values apply immediately (no restart) and are not included in backup archives. Accessed via the **More** sheet on the bottom navigation bar.
+Admin page for Opinet, EV charging stations (K-eco), Kakao Map, Naver Map, and T map keys, grouped into **Fuel & Charging / Maps / Notifications**. Values apply immediately (no restart) and are not included in backup archives. Accessed via the **More** sheet on the bottom navigation bar. The EV charger key expires automatically after 2 years (a data.go.kr policy) — enter the expiry date to get a warning starting 30 days out.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/06-integrations.png" alt="API Integrations" width="960" />
+
+### 7. Vehicle care level
+
+Gamification screen — logging fuel and maintenance consistently levels up the vehicle and earns badges. Tracked independently per vehicle, accessed via the bottom nav **More** sheet → that vehicle's menu.
+
+<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/07-level.png" alt="Vehicle care level" width="960" />
 
 ---
 
@@ -129,12 +137,14 @@ Garage copies maintenance presets for that fuel type and administrative/legal sc
 Telemetry uses the vehicle `apiToken` (not the login JWT):
 
 ```http
-POST /api/ingest/telemetry/<vehicleId>
+POST /api/ingest/telemetry
 Authorization: Bearer <apiToken>
 Content-Type: application/json
 
 { "speed": 65, "lat": 37.56, "lon": 126.97, "odometer": 45230, "inVehicle": true }
 ```
+
+The `apiToken` alone identifies the vehicle — no `vehicleId` in the URL needed.
 
 Fuel / maintenance record APIs: [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md).  
 Copy the ingest URL and token from **Vehicles → OBD & GPS**.

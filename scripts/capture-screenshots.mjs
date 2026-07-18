@@ -81,6 +81,9 @@ async function captureLocale(locale) {
 
     await page.goto(`${BASE}/vehicles/${vehicleId}/history`, { waitUntil: "domcontentloaded" });
     await shot(page, path.join(dir, "05-history.png"));
+
+    await page.goto(`${BASE}/vehicles/${vehicleId}/level`, { waitUntil: "domcontentloaded" });
+    await shot(page, path.join(dir, "07-level.png"));
   }
 
   await page.goto(`${BASE}/integrations`, { waitUntil: "domcontentloaded" });

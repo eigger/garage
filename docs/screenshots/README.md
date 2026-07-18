@@ -13,6 +13,7 @@
 | `04-schedule.png` | Maintenance schedule |
 | `05-history.png` | History |
 | `06-integrations.png` | API Integrations |
+| `07-level.png` | Vehicle level & badges |
 
 ```sh
 # both locales

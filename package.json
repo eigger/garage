@@ -20,5 +20,8 @@
     "@prisma/engines@5.22.0": true,
     "esbuild@0.28.1": true,
     "prisma@5.22.0": true
+  },
+  "devDependencies": {
+    "playwright": "^1.61.1"
   }
 }

@@ -11,7 +11,7 @@
 
 가족·홈랩용 셀프호스팅 차량 관리 — 정비 스케줄, 주유 기록, 알림, OBD/GPS 주행, Home Assistant 연동(선택).
 
-> 현재 릴리스: **v0.2.28**
+> 최신 릴리스는 [GitHub Releases](https://github.com/eigger/garage/releases)에서 확인하세요.
 
 문서: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · [`docs/PROGRESS.md`](./docs/PROGRESS.md)
 
@@ -25,9 +25,11 @@
 - 정비 + 행정·법정 스케줄, 거리·시간 이중 알림
 - 연료 타입별 정비 프리셋, 전역 행정·법정 프리셋
 - 주유 기록·영수증 첨부, 오피넷 주변 주유소(선택)
+- 전기차 충전소 찾기(한국환경공단 API, 선택) — 주유소와 마찬가지로 거리순/가격순 검색, 지도에 번호 마커로 표시
 - OBD 수집(Torque Pro), REST/WebSocket 텔레메트리, 자동 트립 분할
-- 주행 리포트, 경로 지도 (OSM / 카카오 / 네이버 / T맵), 주행 개별 메모 추가/편집 및 역지오코딩
+- 주행 리포트, 경로 지도 (OSM / 카카오 / 네이버 / T맵) 및 진행 방향 화살표, 주행 개별 메모 추가/편집 및 역지오코딩
 - 대시보드 알림 배지 및 차량 요약 카드 (최근 주유 비용 포함)
+- 차량별 관리 레벨·뱃지(게이미피케이션) 전용 화면
 - 네비게이션 구조 단일화 (상단 헤더 제거 및 버전 표시 더보기 시트 이동)
 - 관리자 백업/복원, PWA, 한/영 i18n
 - 사용자 없을 때 최초 관리자 부트스트랩
@@ -44,7 +46,7 @@
 
 ### 2. 차량 개요
 
-차량별 허브입니다. 최근 주유 비용을 포함한 요약 카드, 월간 비용 차트, 지도 옆에 표시되는 마지막 주행 정보 패널(시간, 거리, 속도, 소모량, 메모 등), 그리고 **개요 / 정비 스케줄 / 내역** 탭이 제공됩니다. 톱니바퀴 아이콘에서 차량 설정과 OBD/GPS를 열 수 있습니다. 기존의 상단 헤더 바가 하단 네비게이션 구조로 단일화되었으며, 관리 기능은 하단 네비게이션의 **더보기** 시트 안에 깔끔하게 모여 있습니다.
+차량별 허브입니다. 최근 주유 비용을 포함한 요약 카드, 월간 비용 차트, 지도 옆에 표시되는 마지막 주행 정보 패널(시간, 거리, 속도, 소모량, 메모 등), 그리고 **개요 / 정비 스케줄 / 내역** 탭이 제공됩니다. 마지막 주행 위치 지도 바로 아래에서 주변 주유소/충전소를 거리순·가격순으로 찾아 네비게이션 앱으로 바로 연동할 수 있습니다. 톱니바퀴 아이콘에서 차량 설정과 OBD/GPS를 열 수 있습니다. 기존의 상단 헤더 바가 하단 네비게이션 구조로 단일화되었으며, 관리 기능은 하단 네비게이션의 **더보기** 시트 안에 깔끔하게 모여 있습니다.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/02-vehicle.png" alt="차량 개요" width="960" />
 
@@ -68,9 +70,15 @@
 
 ### 6. API 연동 관리
 
-오피넷, 카카오맵, 네이버 지도, T맵 키를 관리하는 관리자 화면입니다. 하단 네비게이션 바의 **더보기** 시트를 통해 진입할 수 있으며, 설정값은 저장 즉시 적용되며(재시작 불필요), 백업 파일에는 포함되지 않습니다.
+오피넷, 전기차 충전소(한국환경공단), 카카오맵, 네이버 지도, T맵 키를 관리하는 관리자 화면입니다. **연료·충전 / 지도 / 알림**으로 성격이 비슷한 연동끼리 묶여 있습니다. 하단 네비게이션 바의 **더보기** 시트를 통해 진입할 수 있으며, 설정값은 저장 즉시 적용되며(재시작 불필요), 백업 파일에는 포함되지 않습니다. 전기차 충전소 API 키는 data.go.kr 특성상 2년 후 자동 만료되는데, 만료일을 입력해두면 30일 전부터 경고가 표시됩니다.
 
 <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/06-integrations.png" alt="API 연동 관리" width="960" />
+
+### 7. 차량 관리 레벨
+
+주유·정비를 꾸준히 기록할수록 레벨이 오르고 뱃지를 획득하는 게이미피케이션 화면입니다. 차량별로 독립적으로 집계되며, 하단 네비게이션의 **더보기** 시트 → 해당 차량 메뉴에서 진입합니다.
+
+<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/07-level.png" alt="차량 관리 레벨" width="960" />
 
 ---
 
@@ -129,12 +137,14 @@ docker compose -f docker-compose.prod.yml up -d
 텔레메트리는 로그인 JWT가 아니라 차량 `apiToken`을 사용합니다.
 
 ```http
-POST /api/ingest/telemetry/<vehicleId>
+POST /api/ingest/telemetry
 Authorization: Bearer <apiToken>
 Content-Type: application/json
 
 { "speed": 65, "lat": 37.56, "lon": 126.97, "odometer": 45230, "inVehicle": true }
 ```
+
+`apiToken` 자체가 차량을 특정하므로 URL에 별도 `vehicleId`가 필요 없습니다.
 
 주유·정비 기록 API는 [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md)를 참고하세요.  
 수집 URL·토큰은 **차량 → OBD & GPS**에서 복사합니다.
