@@ -14,13 +14,14 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { apiFetch } from "../../../../lib/api";
+import { apiFetch, getToken, API_URL } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { KM_TO_MI } from "../../../../lib/i18n/format";
 import type { FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
 import { computeFuelEfficiencyPoints, efficiencyUnitLabels } from "../../../../lib/fuelEfficiency";
+import { DownloadIcon } from "../../../../components/icons";
 
-type Period = "all" | "6m" | "1y";
+type Period = "all" | "1w" | "1m" | "6m" | "1y";
 
 export default function AnalyticsPage() {
   const params = useParams<{ id: string }>();
@@ -32,7 +33,13 @@ export default function AnalyticsPage() {
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<Period>("all");
+  const [period, setPeriod] = useState<Period>("1m");
+
+  function handleExport(category: "trips" | "maintenance" | "fuel") {
+    const token = getToken();
+    const url = `${API_URL}/api/vehicles/${vehicleId}/reports/export?category=${category}&period=${period}&lang=${locale}${token ? `&token=${token}` : ""}`;
+    window.open(url, "_blank");
+  }
 
   useEffect(() => {
     setLoading(true);
@@ -56,7 +63,10 @@ export default function AnalyticsPage() {
   const periodStart = useMemo(() => {
     if (period === "all") return null;
     const start = new Date();
-    start.setMonth(start.getMonth() - (period === "6m" ? 6 : 12));
+    if (period === "1w") start.setDate(start.getDate() - 7);
+    else if (period === "1m") start.setMonth(start.getMonth() - 1);
+    else if (period === "6m") start.setMonth(start.getMonth() - 6);
+    else if (period === "1y") start.setFullYear(start.getFullYear() - 1);
     return start;
   }, [period]);
 
@@ -148,25 +158,17 @@ export default function AnalyticsPage() {
       });
   }, [filteredLogs, filteredMaintenance, localeTag]);
 
-  const thisMonthCost = useMemo(() => {
-    const now = new Date();
-    const isThisMonth = (iso: string) => {
-      const d = new Date(iso);
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    };
-    const fuelSum = fuelLogs.filter((l) => isThisMonth(l.date)).reduce((sum, l) => sum + l.cost, 0);
-    const maintenanceSum = maintenanceRecords
-      .filter((m) => isThisMonth(m.date))
-      .reduce((sum, m) => sum + (m.cost ?? 0), 0);
-    return fuelSum + maintenanceSum;
-  }, [fuelLogs, maintenanceRecords]);
-
   const totalCostInPeriod = useMemo(
     () =>
       filteredLogs.reduce((sum, l) => sum + l.cost, 0) +
       filteredMaintenance.reduce((sum, m) => sum + (m.cost ?? 0), 0),
     [filteredLogs, filteredMaintenance],
   );
+
+  const totalDistanceInPeriod = useMemo(() => {
+    const km = filteredTrips.reduce((sum, tr) => sum + (tr.distanceKm ?? 0), 0);
+    return distanceUnit === "mi" ? Math.round(km * KM_TO_MI * 10) / 10 : Math.round(km * 10) / 10;
+  }, [filteredTrips, distanceUnit]);
 
   if (loading) {
     return (
@@ -178,14 +180,16 @@ export default function AnalyticsPage() {
 
   return (
     <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <h1 style={{ margin: 0 }}>{t("analyticsHeading")}</h1>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div>
+        <h1 style={{ margin: "0 0 10px" }}>{t("analyticsHeading")}</h1>
+        <div style={{ display: "flex", gap: 4 }}>
           {(
             [
-              ["all", "analyticsPeriodAll"],
+              ["1w", "analyticsPeriod1w"],
+              ["1m", "analyticsPeriod1m"],
               ["6m", "analyticsPeriod6m"],
               ["1y", "analyticsPeriod1y"],
+              ["all", "analyticsPeriodAll"],
             ] as const
           ).map(([value, labelKey]) => (
             <button
@@ -193,11 +197,15 @@ export default function AnalyticsPage() {
               type="button"
               onClick={() => setPeriod(value)}
               style={{
+                flex: 1,
                 fontSize: 12,
-                padding: "4px 10px",
+                padding: "5px 4px",
                 minHeight: "auto",
+                textAlign: "center",
+                whiteSpace: "nowrap",
                 background: period === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
                 color: period === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
+                borderRadius: 6,
               }}
             >
               {t(labelKey)}
@@ -213,8 +221,8 @@ export default function AnalyticsPage() {
             <strong>{avgEfficiency !== null ? `${avgEfficiency.toFixed(1)} ${units.perUnit}` : "-"}</strong>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsThisMonthCost")}</div>
-            <strong>{formatCurrency(thisMonthCost)}</strong>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsTotalDistance")}</div>
+            <strong>{totalDistanceInPeriod > 0 ? `${totalDistanceInPeriod} ${distanceUnit}` : "-"}</strong>
           </div>
           <div>
             <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsTotalCost")}</div>
@@ -224,7 +232,28 @@ export default function AnalyticsPage() {
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>{t("analyticsEfficiencyChartTitle")}</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16 }}>{t("analyticsEfficiencyChartTitle")}</h2>
+          <button
+            type="button"
+            onClick={() => handleExport("fuel")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 12,
+              padding: "4px 8px",
+              minHeight: "auto",
+              background: "var(--color-surface-secondary)",
+              color: "var(--color-text)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            <DownloadIcon size={12} /> {t("exportDownloadButton")}
+          </button>
+        </div>
         {filteredEfficiencyPoints.length === 0 ? (
           <EmptyState
             title={allEfficiencyPoints.length === 0 ? t("analyticsEmptyTitle") : t("analyticsNoDataInPeriod")}
@@ -248,7 +277,49 @@ export default function AnalyticsPage() {
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>{t("analyticsCostChartTitle")}</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, gap: 8, flexWrap: "wrap" }}>
+          <h2 style={{ margin: 0, fontSize: 16 }}>{t("analyticsCostChartTitle")}</h2>
+          <div style={{ display: "flex", gap: 6 }}>
+            <button
+              type="button"
+              onClick={() => handleExport("fuel")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                padding: "4px 8px",
+                minHeight: "auto",
+                background: "var(--color-surface-secondary)",
+                color: "var(--color-text)",
+                border: "1px solid var(--color-border)",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              <DownloadIcon size={11} /> {t("exportCategoryFuel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleExport("maintenance")}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                fontSize: 11,
+                padding: "4px 8px",
+                minHeight: "auto",
+                background: "var(--color-surface-secondary)",
+                color: "var(--color-text)",
+                border: "1px solid var(--color-border)",
+                borderRadius: 6,
+                cursor: "pointer",
+              }}
+            >
+              <DownloadIcon size={11} /> {t("exportCategoryMaintenance")}
+            </button>
+          </div>
+        </div>
         {monthlyCost.length === 0 ? (
           <EmptyState title={t("analyticsNoDataInPeriod")} />
         ) : (
@@ -271,7 +342,28 @@ export default function AnalyticsPage() {
       </section>
 
       <section className="card" style={{ marginTop: 16 }}>
-        <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>{t("analyticsTripChartTitle")}</h2>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16 }}>{t("analyticsTripChartTitle")}</h2>
+          <button
+            type="button"
+            onClick={() => handleExport("trips")}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 12,
+              padding: "4px 8px",
+              minHeight: "auto",
+              background: "var(--color-surface-secondary)",
+              color: "var(--color-text)",
+              border: "1px solid var(--color-border)",
+              borderRadius: 6,
+              cursor: "pointer",
+            }}
+          >
+            <DownloadIcon size={12} /> {t("exportDownloadButton")}
+          </button>
+        </div>
         {monthlyTrips.length === 0 ? (
           <EmptyState title={t("analyticsNoDataInPeriod")} />
         ) : (

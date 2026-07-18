@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { apiFetch } from "../lib/api";
+import { apiFetch, getToken, API_URL } from "../lib/api";
 import { useAuth } from "../lib/auth-context";
 import { useSettings } from "../lib/i18n/settings-context";
 import { getLastVehicleId } from "../lib/lastVehicle";
@@ -27,6 +27,7 @@ import {
   DatabaseIcon,
   LogoutIcon,
   AwardIcon,
+  DownloadIcon,
 } from "./icons";
 
 // 차량 상세 화면(/vehicles/[id]/*)에 있을 때만 경로에서 차량 id를 뽑아낸다.
@@ -40,7 +41,7 @@ export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, isAdmin, logout } = useAuth();
-  const { t } = useSettings();
+  const { t, locale } = useSettings();
   const [moreOpen, setMoreOpen] = useState(false);
   const [lastVehicleId, setLastVehicleIdState] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
