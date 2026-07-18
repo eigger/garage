@@ -19,14 +19,33 @@ export async function settingsRoutes(app: FastifyInstance) {
     const rows = await prisma.setting.findMany({ where: { key: { in: keys as unknown as string[] } } });
     const byKey = new Map(rows.map((r) => [r.key, r.value]));
 
+    // 만료일은 비밀값이 아니라 만료 경고 UI에 필요해서, 이 키에 한해 원문 값도 함께 내려준다.
+    const isPlainValueKey = (key: string) => key === "EV_CHARGER_API_KEY_EXPIRES_AT";
+
     return keys.map((key) => {
       const dbValue = byKey.get(key);
-      if (dbValue) return { key, configured: true, source: "db" as const, masked: mask(dbValue) };
+      if (dbValue) {
+        return {
+          key,
+          configured: true,
+          source: "db" as const,
+          masked: mask(dbValue),
+          value: isPlainValueKey(key) ? dbValue : undefined,
+        };
+      }
 
       const envValue = process.env[key];
-      if (envValue) return { key, configured: true, source: "env" as const, masked: mask(envValue) };
+      if (envValue) {
+        return {
+          key,
+          configured: true,
+          source: "env" as const,
+          masked: mask(envValue),
+          value: isPlainValueKey(key) ? envValue : undefined,
+        };
+      }
 
-      return { key, configured: false, source: "none" as const, masked: null };
+      return { key, configured: false, source: "none" as const, masked: null, value: undefined };
     });
   });
 

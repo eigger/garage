@@ -83,6 +83,7 @@ services:
       NODE_ENV: production
       PORT: "8080"
       OPINET_API_KEY: ${OPINET_API_KEY:-}
+      EV_CHARGER_API_KEY: ${EV_CHARGER_API_KEY:-}
 
   web:
     image: ghcr.io/${GH_REPOSITORY_OWNER:-eigger}/garage-web:latest
@@ -118,6 +119,7 @@ POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 POSTGRES_DB=garage
 JWT_SECRET=${JWT_SECRET}
 OPINET_API_KEY=
+EV_CHARGER_API_KEY=
 EOF
 
 echo "[garage-install] Creating systemd service"

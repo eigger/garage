@@ -8,6 +8,7 @@ Implementation status reflects the current source tree. Keys managed in the admi
 | Integration | Direction | Status | Configuration | Purpose |
 |---|---|---|---|---|
 | [Opinet](#1-opinet-fuel-price-api) | Garage → external | **Available** | `/integrations` or `OPINET_API_KEY` | Nearby gas stations & prices |
+| [EV charging stations (K-eco)](#14-ev-charging-station-api-한국환경공단-evcharger) | Garage → external | **Available** | `/integrations` or `EV_CHARGER_API_KEY` | Nearby chargers, live status, connector type |
 | [OBD app (Torque Pro)](#2-obd-app-torque-pro) | external → Garage | **Available** | per-vehicle `apiToken` | OBD/GPS telemetry ingest |
 | [REST telemetry](#3-rest-telemetry-ingest) | external ↔ Garage | **Available** | per-vehicle `apiToken` | HA / generic JSON ingest + status/reminders read |
 | [WebSocket telemetry](#4-websocket-live-stream) | Garage → client | **Available** | per-vehicle `apiToken` | Live location & status |
@@ -833,6 +834,56 @@ A built-in page listing every REST endpoint in this document, grouped by how it 
 - **JWT (로그인 세션)** — read-only `GET` endpoints are one-click testable using the admin's own session; the response is shown as formatted JSON.
 - **차량 apiToken** — pick a vehicle from a dropdown (its token is fetched the same way `/vehicles/[id]/integration` does), then test `GET /api/ingest/status` and `GET /api/ingest/reminders` live.
 - Endpoints that create/modify/delete data (`POST`/`PATCH`/`DELETE`) are listed for reference with a ready-to-copy `curl` command, but are **not** one-click runnable — this page is meant for safely checking that reads work (e.g. before wiring up a Home Assistant sensor), not for driving the app.
+
+---
+
+## 14. EV charging station API (한국환경공단 EvCharger)
+
+| Field | Value |
+|---|---|
+| Status | Available (verified against live API) |
+| Setting key | `EV_CHARGER_API_KEY` (+ `EV_CHARGER_API_KEY_EXPIRES_AT`, plain date, not a secret) |
+| Where to set | `/integrations` UI or `.env` / `docker-compose` |
+| Issuer | [data.go.kr — 한국환경공단_전기자동차 충전소 정보](https://www.data.go.kr/data/15076352/openapi.do) |
+| Implementation | `apps/api/src/lib/evCharger.ts`, `apps/api/src/routes/evCharger.ts` |
+
+### External API Garage calls
+
+```
+GET https://apis.data.go.kr/B552584/EvCharger/getChargerInfo
+  ?serviceKey={EV_CHARGER_API_KEY}
+  &dataType=JSON
+  &numOfRows=1000&pageNo=1
+  &zcode={시도 코드, optional}
+```
+
+Unlike Opinet, this API has **no lat/lon + radius search** — only `zcode` (시도, 2-digit) / `zscode` (시군구) region filtering. Garage works around this:
+
+1. Frontend reverse-geocodes the vehicle's last-known coordinates (existing Kakao/Naver `reverseGeocode()`) to get an address string.
+2. Backend extracts the first token (시도 name, e.g. `서울특별시`) and maps it to a `zcode` via a static 17-entry table in `evCharger.ts` (no Kakao REST key needed — the map JS key can't call Kakao's REST-only `coord2regioncode`).
+3. All chargers in that 시도 are fetched, grouped by `statId` (one row per connector), and re-sorted by real `haversineKm()` distance — same "nearest first" UX as Opinet, at the cost of over-fetching within a large 시도.
+
+### Proxy API Garage exposes
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/ev-charger/configured` | JWT | Whether a key is set `{ configured: boolean }` |
+| `GET` | `/api/ev-charger/stations` | JWT | Nearby chargers via `lat`, `lon`, `address` (optional, for zcode resolution) query params |
+
+**Response fields**: `id` (statId), `name`, `operator`, `distance` (m), `lat`, `lon`, `address`, `parkingFree`, `connectors[]` (`chgerId`, `type`, `typeLabel`, `status`, `statusLabel`, `output` kW)
+
+`status` is normalized from the API's `stat` code into `AVAILABLE | CHARGING | RESERVED | OUT_OF_SERVICE | UNKNOWN`.
+
+Surfaced on the **vehicle overview page** (`NearbyStationsCard`) as a standalone "주변 충전소 찾기" card, separate from Quick Log — checking charger availability is a pre-departure decision for EV owners, not something tied to logging a completed charge. Each result links out via the existing nav deep-link buttons (T map / Kakao / Naver).
+
+### Fallback behavior
+
+- Missing `EV_CHARGER_API_KEY`, unresolvable `zcode`, or API error → **4 mock chargers** returned (synthesized near the query coordinates)
+- No separate "configured" gate on the button — the card always shows a "찾기" button and silently falls back to mock data, since browsing chargers has no cost/price side effect worth blocking (unlike Opinet, which hides the button to avoid saving fake prices to a fuel log)
+
+### Key expiration
+
+data.go.kr key applications default to a **2-year validity period** and expire automatically — there's no API to query the expiry date. `/integrations` has a dedicated date-input card (separate from the masked-secret rows) where the admin records the expiry manually; a warning banner appears starting 30 days out (`EV_CHARGER_API_KEY_EXPIRES_AT` is the one setting key whose plain value `GET /api/settings` returns, since it's a date, not a secret).
 
 ---
 

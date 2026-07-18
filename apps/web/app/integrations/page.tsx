@@ -15,6 +15,7 @@ type SettingEntry = {
   configured: boolean;
   source: SettingSource;
   masked: string | null;
+  value?: string;
 };
 
 // 새 연동을 추가할 때는 백엔드 settingKeySchema와 여기 라벨/설명/발급 URL 매핑만 늘리면 된다.
@@ -27,6 +28,12 @@ const SETTING_META: Record<
     helpKey: "opinetApiKeyHelp",
     signupUrl: "https://www.opinet.co.kr/user/custapi/custApiInfo.do",
     signupLabelKey: "integrationLinkOpinet",
+  },
+  EV_CHARGER_API_KEY: {
+    labelKey: "evChargerApiKeyLabel",
+    helpKey: "evChargerApiKeyHelp",
+    signupUrl: "https://www.data.go.kr/data/15076352/openapi.do",
+    signupLabelKey: "integrationLinkEvCharger",
   },
   KAKAO_MAP_APP_KEY: {
     labelKey: "kakaoMapAppKeyLabel",
@@ -52,8 +59,13 @@ const SETTING_META: Record<
   },
 };
 
-// 공개키/개인키는 한 쌍으로 발급돼야 하므로 개별 텍스트 입력이 아니라 전용 카드에서 처리한다.
-const VAPID_KEY_PAIR_KEYS = new Set(["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY"]);
+// 오피넷/EV충전소는 "연료·충전", 지도 3종은 "지도", VAPID 쌍+발신자는 "알림"으로 묶어
+// 연동 성격이 비슷한 것끼리 섹션을 나눈다. 새 연동을 추가할 때는 해당하는 그룹의 keys에만 추가하면 된다.
+const GROUPS: { key: string; titleKey: TranslationKey; keys: string[] }[] = [
+  { key: "fuel", titleKey: "integrationGroupFuel", keys: ["OPINET_API_KEY", "EV_CHARGER_API_KEY", "EV_CHARGER_API_KEY_EXPIRES_AT"] },
+  { key: "map", titleKey: "integrationGroupMap", keys: ["KAKAO_MAP_APP_KEY", "NAVER_MAP_CLIENT_ID", "TMAP_APP_KEY"] },
+  { key: "notification", titleKey: "integrationGroupNotification", keys: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] },
+];
 
 export default function IntegrationsPage() {
   const router = useRouter();
@@ -96,20 +108,25 @@ export default function IntegrationsPage() {
       <h1>{t("integrationsHeading")}</h1>
       <p>{t("integrationsIntro")}</p>
 
-      <VapidKeyCard settings={settings} onChanged={load} t={t} showToast={showToast} confirm={confirm} />
-
-      {settings
-        .filter((entry) => !VAPID_KEY_PAIR_KEYS.has(entry.key))
-        .map((entry) => (
-          <SettingRow
-            key={entry.key}
-            entry={entry}
-            onChanged={load}
-            t={t}
-            showToast={showToast}
-            confirm={confirm}
-          />
-        ))}
+      {GROUPS.map((group) => (
+        <section key={group.key} style={{ marginTop: 28 }}>
+          <h2 style={{ fontSize: 14, fontWeight: 700, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.03em", margin: 0 }}>
+            {t(group.titleKey)}
+          </h2>
+          {group.keys.map((key) => {
+            if (key === "VAPID_PRIVATE_KEY") return null; // VAPID_PUBLIC_KEY 카드가 쌍을 함께 처리
+            if (key === "VAPID_PUBLIC_KEY") {
+              return <VapidKeyCard key={key} settings={settings} onChanged={load} t={t} showToast={showToast} confirm={confirm} />;
+            }
+            if (key === "EV_CHARGER_API_KEY_EXPIRES_AT") {
+              return <EvChargerExpiryCard key={key} settings={settings} onChanged={load} t={t} showToast={showToast} />;
+            }
+            const entry = settings.find((e) => e.key === key);
+            if (!entry) return null;
+            return <SettingRow key={key} entry={entry} onChanged={load} t={t} showToast={showToast} confirm={confirm} />;
+          })}
+        </section>
+      ))}
     </main>
   );
 }
@@ -164,6 +181,78 @@ function VapidKeyCard({
       <button type="button" onClick={handleGenerate} disabled={generating} style={{ width: "auto", padding: "0 16px" }}>
         {generating ? t("vapidGenerating") : configured ? t("vapidRegenerateButton") : t("vapidGenerateButton")}
       </button>
+    </section>
+  );
+}
+
+function EvChargerExpiryCard({
+  settings,
+  onChanged,
+  t,
+  showToast,
+}: {
+  settings: SettingEntry[];
+  onChanged: () => void;
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
+  showToast: (message: string, type?: "success" | "error") => void;
+}) {
+  const entry = settings.find((e) => e.key === "EV_CHARGER_API_KEY_EXPIRES_AT");
+  const [date, setDate] = useState(entry?.value ?? "");
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    setDate(entry?.value ?? "");
+  }, [entry?.value]);
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!date) return;
+    setSubmitting(true);
+    try {
+      const res = await apiFetch("/api/settings/EV_CHARGER_API_KEY_EXPIRES_AT", {
+        method: "PUT",
+        body: JSON.stringify({ value: date }),
+      });
+      if (res.ok) {
+        showToast(t("toastSaved"), "success");
+        onChanged();
+      } else {
+        showToast(t("toastError"), "error");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  let statusText = t("evChargerKeyExpiresNotSet");
+  let statusColor = "var(--color-text-muted)";
+  if (entry?.value) {
+    const daysRemaining = Math.ceil((new Date(entry.value).getTime() - Date.now()) / 86400000);
+    if (daysRemaining < 0) {
+      statusText = t("evChargerKeyExpired");
+      statusColor = "var(--color-danger)";
+    } else if (daysRemaining <= 30) {
+      statusText = t("evChargerKeyExpiringSoon", { days: daysRemaining });
+      statusColor = "var(--color-danger)";
+    } else {
+      statusText = t("evChargerKeyExpiresOk", { days: daysRemaining });
+      statusColor = "var(--color-success)";
+    }
+  }
+
+  return (
+    <section className="card" style={{ marginTop: 16 }}>
+      <strong>{t("evChargerApiKeyExpiresLabel")}</strong>
+      <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "4px 0 8px" }}>
+        {t("evChargerApiKeyExpiresHelp")}
+      </p>
+      <p style={{ fontSize: 13, fontWeight: 600, color: statusColor, margin: "0 0 12px" }}>{statusText}</p>
+      <form onSubmit={handleSave} className="form" noValidate style={{ flexDirection: "row" }}>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} style={{ flex: 1 }} />
+        <button type="submit" disabled={submitting || !date} style={{ flexShrink: 0, width: "auto", padding: "0 16px" }}>
+          {submitting ? t("saving") : t("save")}
+        </button>
+      </form>
     </section>
   );
 }
