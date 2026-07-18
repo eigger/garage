@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SpeedPoint } from "../../lib/maps/polyline";
-import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
+import { ROUTE_ARROW_COUNT, arrowMarkerDataUri, buildSpeedSegments, circleMarkerDataUri, sampleForArrows } from "../../lib/maps/polyline";
 import { loadKakaoMaps } from "../../lib/maps/loadSdk";
 import { RecenterButton } from "./RecenterButton";
 
@@ -36,7 +36,15 @@ export function KakaoTripMap({ points, appKey }: { points: SpeedPoint[]; appKey:
             path: seg.path.map((p) => new kakao.LatLng(p.lat, p.lon)),
             strokeWeight: 4,
             strokeColor: seg.color,
-            endArrow: true,
+          }).setMap(map);
+        }
+
+        // 세그먼트마다 화살표를 찍으면(예전 endArrow: true) 속도가 자주 바뀌는 구간에서
+        // 화살표가 수십 개씩 겹쳐 지저분해졌다 — 경로 전체에서 몇 개만 고르게 샘플링한다.
+        for (const a of sampleForArrows(points, ROUTE_ARROW_COUNT)) {
+          new kakao.Marker({
+            position: new kakao.LatLng(a.point.lat, a.point.lon),
+            image: new kakao.MarkerImage(arrowMarkerDataUri(a.bearing, "#18523f"), new kakao.Size(20, 20)),
           }).setMap(map);
         }
 
@@ -91,7 +99,7 @@ type KakaoMapsApi = {
   Map: new (el: HTMLElement, opts: { center: object; level: number }) => { setBounds: (b: object) => void };
   LatLng: new (lat: number, lon: number) => object;
   LatLngBounds: new () => { extend: (ll: object) => void };
-  Polyline: new (opts: { path: object[]; strokeWeight: number; strokeColor: string; endArrow?: boolean }) => {
+  Polyline: new (opts: { path: object[]; strokeWeight: number; strokeColor: string }) => {
     setMap: (map: object) => void;
   };
   Marker: new (opts: { position: object; image?: object }) => { setMap: (map: object) => void };

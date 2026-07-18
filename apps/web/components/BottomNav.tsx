@@ -26,6 +26,7 @@ import {
   UserIcon,
   DatabaseIcon,
   LogoutIcon,
+  AwardIcon,
 } from "./icons";
 
 // 차량 상세 화면(/vehicles/[id]/*)에 있을 때만 경로에서 차량 id를 뽑아낸다.
@@ -125,6 +126,7 @@ export function BottomNav() {
   // "더보기" 탭을 현재 위치로 강조한다 (다른 탭 href와 안 겹치게 정확히 일치할 때만).
   const moreRoutes = [
     basePath ? `${basePath}/analytics` : null,
+    basePath ? `${basePath}/level` : null,
     basePath ? `${basePath}/access` : null,
     basePath ? `${basePath}/integration` : null,
     "/vehicles",
@@ -249,6 +251,9 @@ export function BottomNav() {
                 <div className="sheet-grid">
                   <button type="button" className="sheet-item" onClick={() => go(`${basePath}/analytics`)}>
                     <BarChartIcon size={20} /> {t("navAnalytics")}
+                  </button>
+                  <button type="button" className="sheet-item" onClick={() => go(`${basePath}/level`)}>
+                    <AwardIcon size={20} /> {t("navLevel")}
                   </button>
                   {isAdmin && (
                     <button type="button" className="sheet-item" onClick={() => go(`${basePath}/access`)}>

@@ -5,13 +5,15 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { MapProvider } from "@garage/shared";
 import { loadKakaoMaps, loadNaverMaps, loadTmapSdk } from "../../lib/maps/loadSdk";
-import { circleMarkerDataUri } from "../../lib/maps/polyline";
+import { numberedMarkerDataUri } from "../../lib/maps/polyline";
 import { RecenterButton } from "./RecenterButton";
 
 const DEFAULT_ZOOM = 16;
 const STATION_MARKER_COLOR = "#f59e0b";
 
-export type StationMarker = { id: string; lat: number; lon: number; name: string };
+// number는 NearbyStationsCard의 리스트 순번(1부터)과 맞춰서, 지도 마커와 리스트 항목을
+// 클릭/호버 없이도 번호로 바로 매칭할 수 있게 한다.
+export type StationMarker = { id: string; lat: number; lon: number; name: string; number: number };
 
 function LeafletRecenterControl({ lat, lon }: { lat: number; lon: number }) {
   const map = useMap();
@@ -41,7 +43,7 @@ function LeafletFitBounds({ lat, lon, stations }: { lat: number; lon: number; st
 
 function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stations: StationMarker[] }) {
   const [markerIcon, setMarkerIcon] = useState<any>(null);
-  const [stationIcon, setStationIcon] = useState<any>(null);
+  const [leaflet, setLeaflet] = useState<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,9 +62,7 @@ function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stat
         iconAnchor: [15, 30],
       });
       setMarkerIcon(icon);
-      setStationIcon(
-        L.icon({ iconUrl: circleMarkerDataUri(STATION_MARKER_COLOR), iconSize: [20, 20], iconAnchor: [10, 10] })
-      );
+      setLeaflet(L);
     });
     return () => {
       cancelled = true;
@@ -83,9 +83,17 @@ function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stat
       {markerIcon && (
         <Marker position={[lat, lon]} icon={markerIcon} />
       )}
-      {stationIcon &&
+      {leaflet &&
         stations.map((s) => (
-          <Marker key={s.id} position={[s.lat, s.lon]} icon={stationIcon}>
+          <Marker
+            key={s.id}
+            position={[s.lat, s.lon]}
+            icon={leaflet.icon({
+              iconUrl: numberedMarkerDataUri(s.number, STATION_MARKER_COLOR),
+              iconSize: [24, 24],
+              iconAnchor: [12, 12],
+            })}
+          >
             <Popup>{s.name}</Popup>
           </Marker>
         ))}
@@ -128,7 +136,7 @@ function KakaoLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: nu
         for (const s of stations) {
           new kakao.Marker({
             position: new kakao.LatLng(s.lat, s.lon),
-            image: new kakao.MarkerImage(circleMarkerDataUri(STATION_MARKER_COLOR), new kakao.Size(20, 20)),
+            image: new kakao.MarkerImage(numberedMarkerDataUri(s.number, STATION_MARKER_COLOR), new kakao.Size(24, 24)),
           }).setMap(map);
         }
 
@@ -200,7 +208,7 @@ function NaverLocationMap({ lat, lon, clientId, stations }: { lat: number; lon: 
           new naver.Marker({
             map,
             position: new naver.LatLng(s.lat, s.lon),
-            icon: { url: circleMarkerDataUri(STATION_MARKER_COLOR), size: new naver.Size(20, 20) },
+            icon: { url: numberedMarkerDataUri(s.number, STATION_MARKER_COLOR), size: new naver.Size(24, 24) },
           });
         }
 
@@ -273,7 +281,7 @@ function TmapLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: num
         for (const s of stations) {
           new Tmapv2.Marker({
             position: new Tmapv2.LatLng(s.lat, s.lon),
-            icon: circleMarkerDataUri(STATION_MARKER_COLOR),
+            icon: numberedMarkerDataUri(s.number, STATION_MARKER_COLOR),
             map,
           });
         }

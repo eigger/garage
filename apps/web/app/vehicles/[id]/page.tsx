@@ -8,13 +8,12 @@ import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { useToast } from "../../../lib/toast-context";
 import { useConfirm } from "../../../lib/confirm-context";
-import type { FuelType, Trip, TripSummary, Vehicle, VehicleGamification } from "../../../lib/types";
+import type { FuelType, Trip, TripSummary, Vehicle } from "../../../lib/types";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
 import { FUEL_TYPES } from "@garage/shared";
 import { useMapProviders } from "../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../lib/maps/types";
 import { PaperclipIcon, MapPinIcon } from "../../../components/icons";
-import { LevelCard } from "../../../components/LevelCard";
 import { NearbyStationsCard } from "../../../components/NearbyStationsCard";
 import type { StationMarker } from "../../../components/maps/LastLocationMap";
 import { formatDuration } from "../../../lib/duration";
@@ -59,7 +58,6 @@ export default function VehicleOverviewPage() {
   const [lastTrip, setLastTrip] = useState<Trip | null>(null);
   const [monthFuelCost, setMonthFuelCost] = useState(0);
   const [monthMaintenanceCost, setMonthMaintenanceCost] = useState(0);
-  const [gamification, setGamification] = useState<VehicleGamification | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
   const [stationMarkers, setStationMarkers] = useState<StationMarker[]>([]);
@@ -80,12 +78,11 @@ export default function VehicleOverviewPage() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   async function load() {
-    const [vehicleRes, summaryRes, fuelRes, maintenanceRes, gamificationRes, lastTripRes] = await Promise.all([
+    const [vehicleRes, summaryRes, fuelRes, maintenanceRes, lastTripRes] = await Promise.all([
       apiFetch(`/api/vehicles/${vehicleId}`),
       apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=week`),
       apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=500`),
       apiFetch(`/api/vehicles/${vehicleId}/maintenance-records?limit=500`),
-      apiFetch(`/api/vehicles/${vehicleId}/gamification`),
       apiFetch(`/api/trips?vehicleId=${vehicleId}&limit=1`),
     ]);
     if (vehicleRes.ok) {
@@ -101,7 +98,6 @@ export default function VehicleOverviewPage() {
       setOdometer(vData.odometer ? String(vData.odometer) : "0");
     }
     if (summaryRes.ok) setSummary(await summaryRes.json());
-    if (gamificationRes.ok) setGamification(await gamificationRes.json());
     if (lastTripRes.ok) {
       const trips = await lastTripRes.json();
       if (trips && trips.length > 0) {
@@ -211,8 +207,6 @@ export default function VehicleOverviewPage() {
           </select>
         </section>
       )}
-
-      {gamification && <LevelCard data={gamification} />}
 
       <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ display: "block", textDecoration: "none", marginTop: 12 }}>
         <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>

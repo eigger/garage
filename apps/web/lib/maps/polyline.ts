@@ -63,6 +63,18 @@ export function circleMarkerDataUri(color: string): string {
   return `data:image/svg+xml;base64,${typeof window !== "undefined" ? window.btoa(svg) : Buffer.from(svg).toString("base64")}`;
 }
 
+// 지도 마커와 리스트 항목을 같은 번호로 매칭시켜 보여주기 위한 원형 숫자 마커 —
+// provider마다 클릭 이벤트 API가 달라 상호 강조(hover/click highlight) 대신
+// 이 방식으로 "어떤 게 어떤 마커인지"를 알 수 있게 한다.
+export function numberedMarkerDataUri(num: number, color: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="${color}" stroke="#fff" stroke-width="2"/><text x="12" y="16.5" font-family="sans-serif" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">${num}</text></svg>`;
+  return `data:image/svg+xml;base64,${typeof window !== "undefined" ? window.btoa(svg) : Buffer.from(svg).toString("base64")}`;
+}
+
+// 작은 트립 지도 카드(240px)에 너무 많으면 지저분해지고, 포인트가 시간 간격 기준이라
+// 정체 구간에 몰릴 수도 있어서 4개로 제한한다 — 4개 provider(OSM/카카오/네이버/T맵) 공용.
+export const ROUTE_ARROW_COUNT = 4;
+
 // 포인트가 너무 많으면 화살표가 겹치므로, 경로를 대략 균등한 간격의 N개 지점으로 샘플링한다.
 export function sampleForArrows(points: LatLon[], maxArrows: number): { point: LatLon; bearing: number }[] {
   if (points.length < 2) return [];
@@ -72,4 +84,11 @@ export function sampleForArrows(points: LatLon[], maxArrows: number): { point: L
     result.push({ point: points[i], bearing: bearingDeg(points[i - 1], points[i]) });
   }
   return result;
+}
+
+// 카카오/네이버/티맵은 마커 아이콘에 CSS 회전을 못 걸어서(리플렛의 divIcon과 다름),
+// 방위각만큼 이미 회전된 화살표를 SVG 자체에 그려서 이미지로 내려준다.
+export function arrowMarkerDataUri(bearing: number, color: string): string {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><polygon points="10,3 16,15 10,11 4,15" fill="${color}" stroke="#fff" stroke-width="1" transform="rotate(${bearing} 10 10)"/></svg>`;
+  return `data:image/svg+xml;base64,${typeof window !== "undefined" ? window.btoa(svg) : Buffer.from(svg).toString("base64")}`;
 }

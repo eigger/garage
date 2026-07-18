@@ -1,14 +1,14 @@
 "use client";
 
-import { useState } from "react";
 import type { BadgeKey } from "@garage/shared";
 import { useSettings } from "../lib/i18n/settings-context";
 import { badgeCountToNextTier, badgeDescKey, badgeIcon, badgeMaxTier, badgeNameKey } from "../lib/badges";
 import type { VehicleGamification } from "../lib/types";
 
+// 전용 페이지(/vehicles/[id]/level)에서만 쓰여서 홈 화면처럼 공간을 아낄 필요가
+// 없으므로, 예전처럼 접어두지 않고 뱃지 목록을 항상 펼쳐서 보여준다.
 export function LevelCard({ data }: { data: VehicleGamification }) {
   const { t } = useSettings();
-  const [showBadges, setShowBadges] = useState(false);
   const progressPercent =
     data.xpForNextLevel > 0 ? Math.min(100, (data.xpIntoLevel / data.xpForNextLevel) * 100) : 100;
   const earnedByKey = new Map(data.badges.map((b) => [b.key, b]));
@@ -55,26 +55,12 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={() => setShowBadges((v) => !v)}
-        style={{
-          background: "transparent",
-          color: "var(--color-primary)",
-          padding: 0,
-          minHeight: "auto",
-          fontSize: 13,
-          marginTop: 10,
-        }}
-      >
+      <p style={{ color: "var(--color-text-muted)", fontSize: 13, margin: "10px 0 0" }}>
         {t("gamificationBadgesEarned", { count: data.badges.length, total: data.allBadgeKeys.length })}
-        {" · "}
-        {showBadges ? t("gamificationHideBadges") : t("gamificationViewBadges")}
-      </button>
+      </p>
 
-      {showBadges && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 10, marginTop: 10 }}>
-          {data.allBadgeKeys.map((key) => {
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 10, marginTop: 10 }}>
+        {data.allBadgeKeys.map((key) => {
             const badgeKey = key as BadgeKey;
             const earned = earnedByKey.get(key);
             if (!earned) {
@@ -144,9 +130,8 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
                 </span>
               </div>
             );
-          })}
-        </div>
-      )}
+        })}
+      </div>
     </section>
   );
 }

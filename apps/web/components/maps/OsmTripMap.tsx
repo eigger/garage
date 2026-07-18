@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { LatLon, SpeedPoint } from "../../lib/maps/polyline";
-import { buildSpeedSegments, sampleForArrows } from "../../lib/maps/polyline";
+import { ROUTE_ARROW_COUNT, buildSpeedSegments, sampleForArrows } from "../../lib/maps/polyline";
 import { RecenterButton } from "./RecenterButton";
 
 function fitToPoints(map: ReturnType<typeof useMap>, points: LatLon[]) {
@@ -38,7 +38,7 @@ function ArrowMarkers({ points }: { points: LatLon[] }) {
     let cancelled = false;
     import("leaflet").then((L) => {
       if (cancelled) return;
-      const arrows = sampleForArrows(points, 6).map((a) => ({
+      const arrows = sampleForArrows(points, ROUTE_ARROW_COUNT).map((a) => ({
         ...a,
         icon: L.divIcon({
           className: "",

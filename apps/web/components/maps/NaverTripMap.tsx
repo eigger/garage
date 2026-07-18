@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SpeedPoint } from "../../lib/maps/polyline";
-import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
+import { ROUTE_ARROW_COUNT, arrowMarkerDataUri, buildSpeedSegments, circleMarkerDataUri, sampleForArrows } from "../../lib/maps/polyline";
 import { loadNaverMaps } from "../../lib/maps/loadSdk";
 import { RecenterButton } from "./RecenterButton";
 
@@ -37,6 +37,15 @@ export function NaverTripMap({ points, clientId }: { points: SpeedPoint[]; clien
             path: seg.path.map((p) => new naver.LatLng(p.lat, p.lon)),
             strokeColor: seg.color,
             strokeWeight: 4,
+          });
+        }
+
+        // 경로 전체에서 몇 개만 골라 진행 방향 화살표를 표시한다 (전 구간에 찍으면 지저분해짐).
+        for (const a of sampleForArrows(points, ROUTE_ARROW_COUNT)) {
+          new naver.Marker({
+            map,
+            position: new naver.LatLng(a.point.lat, a.point.lon),
+            icon: { url: arrowMarkerDataUri(a.bearing, "#18523f"), size: new naver.Size(20, 20) },
           });
         }
 
