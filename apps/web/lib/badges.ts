@@ -8,6 +8,8 @@ const NAME_KEYS: Record<BadgeKey, TranslationKey> = {
   efficiency_king: "badgeEfficiencyKingName",
   admin_master: "badgeAdminMasterName",
   level_milestone: "badgeLevelMilestoneName",
+  trip_explorer: "badgeTripExplorerName",
+  photo_historian: "badgePhotoHistorianName",
 };
 
 const DESC_KEYS: Record<BadgeKey, TranslationKey> = {
@@ -17,6 +19,8 @@ const DESC_KEYS: Record<BadgeKey, TranslationKey> = {
   efficiency_king: "badgeEfficiencyKingDesc",
   admin_master: "badgeAdminMasterDesc",
   level_milestone: "badgeLevelMilestoneDesc",
+  trip_explorer: "badgeTripExplorerDesc",
+  photo_historian: "badgePhotoHistorianDesc",
 };
 
 export function badgeNameKey(key: BadgeKey): TranslationKey {

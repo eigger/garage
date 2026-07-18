@@ -22,28 +22,52 @@ export async function awardXp(vehicleId: string, type: XpEventType, note?: strin
 // 뱃지는 새로 딸 때 tier 1로 생기고, 이후로는 같은 뱃지의 tier만 올라간다(깃허브 업적처럼
 // x1→x5). 등급을 낮추는 일은 없다 — 이미 딴 등급 아래로 떨어뜨리지 않는다.
 async function upsertBadgeTier(vehicleId: string, badgeKey: BadgeKey, tier: number): Promise<void> {
-  const existing = await prisma.vehicleBadge.findUnique({
-    where: { vehicleId_badgeKey: { vehicleId, badgeKey } },
-  });
-  if (existing) {
-    if (tier > existing.tier) {
-      await prisma.vehicleBadge.update({ where: { id: existing.id }, data: { tier } });
+  try {
+    const existing = await prisma.vehicleBadge.findUnique({
+      where: { vehicleId_badgeKey: { vehicleId, badgeKey } },
+    });
+    if (existing) {
+      if (tier > existing.tier) {
+        await prisma.vehicleBadge.update({ where: { id: existing.id }, data: { tier } });
+      }
+    } else {
+      await prisma.vehicleBadge.create({ data: { vehicleId, badgeKey, tier } });
     }
-  } else {
-    await prisma.vehicleBadge.create({ data: { vehicleId, badgeKey, tier } });
+  } catch (err: any) {
+    if (err && (err.code === "P2002" || err.message?.includes("Unique constraint failed"))) {
+      const existing = await prisma.vehicleBadge.findUnique({
+        where: { vehicleId_badgeKey: { vehicleId, badgeKey } },
+      });
+      if (existing && tier > existing.tier) {
+        await prisma.vehicleBadge.update({ where: { id: existing.id }, data: { tier } });
+      }
+    } else {
+      throw err;
+    }
   }
 }
 
 // 뱃지 등급 판정에 쓰는 원본 누적치 — 뱃지 갱신과 조회 API 둘 다 이 함수 하나로 계산해서
 // 등급 산정 로직이 두 곳에서 따로 어긋나지 않게 한다.
 export async function getBadgeCounts(vehicleId: string): Promise<Record<BadgeKey, number> | null> {
-  const [vehicle, onTimeCount, detailCount, efficiencyCount, completionCount, adminCount] = await Promise.all([
+  const [
+    vehicle,
+    onTimeCount,
+    detailCount,
+    efficiencyCount,
+    completionCount,
+    adminCount,
+    tripCount,
+    photoCount,
+  ] = await Promise.all([
     prisma.vehicle.findUnique({ where: { id: vehicleId }, select: { xp: true } }),
     prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.ON_TIME_BONUS } }),
     prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.DETAIL_BONUS } }),
     prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.EFFICIENCY_BONUS } }),
     prisma.xpEvent.count({ where: { vehicleId, type: XP_EVENT_TYPES.COMPLETION } }),
     prisma.maintenanceRecord.count({ where: { vehicleId, category: "ADMINISTRATIVE" } }),
+    prisma.trip.count({ where: { vehicleId } }),
+    prisma.attachment.count({ where: { vehicleId } }),
   ]);
   if (!vehicle) return null;
 
@@ -54,6 +78,8 @@ export async function getBadgeCounts(vehicleId: string): Promise<Record<BadgeKey
     efficiency_king: efficiencyCount,
     admin_master: adminCount,
     level_milestone: levelForXp(vehicle.xp).level,
+    trip_explorer: tripCount,
+    photo_historian: photoCount,
   };
 }
 

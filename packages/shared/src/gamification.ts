@@ -54,7 +54,9 @@ export type BadgeKey =
   | "detail_master"
   | "efficiency_king"
   | "admin_master"
-  | "level_milestone";
+  | "level_milestone"
+  | "trip_explorer"
+  | "photo_historian";
 
 export const BADGE_KEYS: BadgeKey[] = [
   "maintenance_master",
@@ -63,6 +65,8 @@ export const BADGE_KEYS: BadgeKey[] = [
   "efficiency_king",
   "admin_master",
   "level_milestone",
+  "trip_explorer",
+  "photo_historian",
 ];
 
 // 각 뱃지가 몇 등급까지 있고, 등급별로 몇 건(또는 몇 레벨)이 필요한지.
@@ -73,6 +77,8 @@ export const BADGE_TIER_THRESHOLDS: Record<BadgeKey, number[]> = {
   efficiency_king: [1, 5, 15, 30, 60],
   admin_master: [1, 3, 8, 15, 30],
   level_milestone: [5, 10, 20, 40, 80],
+  trip_explorer: [1, 5, 15, 30, 60],
+  photo_historian: [1, 3, 8, 15, 30],
 };
 
 export const MAX_BADGE_TIER: Record<BadgeKey, number> = Object.fromEntries(
@@ -104,4 +110,6 @@ export const BADGE_ICONS: Record<BadgeKey, string> = {
   efficiency_king: "⛽",
   admin_master: "📄",
   level_milestone: "⭐",
+  trip_explorer: "🧭",
+  photo_historian: "📷",
 };
