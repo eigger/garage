@@ -17,7 +17,7 @@ import {
 import { apiFetch } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { KM_TO_MI } from "../../../../lib/i18n/format";
-import type { FuelLog, MaintenanceRecord, Vehicle } from "../../../../lib/types";
+import type { FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
 import { computeFuelEfficiencyPoints, efficiencyUnitLabels } from "../../../../lib/fuelEfficiency";
 
 type Period = "all" | "6m" | "1y";
@@ -30,6 +30,7 @@ export default function AnalyticsPage() {
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
+  const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<Period>("all");
 
@@ -39,10 +40,12 @@ export default function AnalyticsPage() {
       apiFetch(`/api/vehicles/${vehicleId}`),
       apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=1000`),
       apiFetch(`/api/vehicles/${vehicleId}/maintenance-records?limit=1000`),
-    ]).then(async ([vRes, fRes, mRes]) => {
+      apiFetch(`/api/trips?vehicleId=${vehicleId}&limit=1000`),
+    ]).then(async ([vRes, fRes, mRes, tRes]) => {
       setVehicle(vRes.ok ? await vRes.json() : null);
       setFuelLogs(fRes.ok ? await fRes.json() : []);
       setMaintenanceRecords(mRes.ok ? await mRes.json() : []);
+      setTrips(tRes.ok ? await tRes.json() : []);
       setLoading(false);
     });
   }, [vehicleId]);
@@ -66,6 +69,33 @@ export default function AnalyticsPage() {
     if (!periodStart) return maintenanceRecords;
     return maintenanceRecords.filter((m) => new Date(m.date) >= periodStart);
   }, [maintenanceRecords, periodStart]);
+
+  const filteredTrips = useMemo(() => {
+    if (!periodStart) return trips;
+    return trips.filter((tr) => new Date(tr.startTime) >= periodStart);
+  }, [trips, periodStart]);
+
+  const monthlyTrips = useMemo(() => {
+    const map = new Map<string, { distanceKm: number; count: number }>();
+    for (const trip of filteredTrips) {
+      const d = new Date(trip.startTime);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const entry = map.get(key) ?? { distanceKm: 0, count: 0 };
+      entry.distanceKm += trip.distanceKm ?? 0;
+      entry.count += 1;
+      map.set(key, entry);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([key, { distanceKm, count }]) => {
+        const [y, m] = key.split("-").map(Number);
+        const month = new Intl.DateTimeFormat(localeTag, { year: "2-digit", month: "short" }).format(
+          new Date(y, m - 1, 1),
+        );
+        const distance = distanceUnit === "mi" ? distanceKm * KM_TO_MI : distanceKm;
+        return { month, distance: Math.round(distance * 10) / 10, count };
+      });
+  }, [filteredTrips, localeTag, distanceUnit]);
 
   const allEfficiencyPoints = useMemo(() => computeFuelEfficiencyPoints(fuelLogs), [fuelLogs]);
   const filteredEfficiencyPoints = useMemo(
@@ -251,6 +281,27 @@ export default function AnalyticsPage() {
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="fuel" name={t("analyticsFuelCost")} stackId="cost" fill="var(--color-primary)" />
               <Bar dataKey="maintenance" name={t("analyticsMaintenanceCost")} stackId="cost" fill="var(--chart-secondary)" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <h2 style={{ margin: "0 0 12px", fontSize: 16 }}>{t("analyticsTripChartTitle")}</h2>
+        {monthlyTrips.length === 0 ? (
+          <EmptyState title={t("analyticsNoDataInPeriod")} />
+        ) : (
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={monthlyTrips} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={40} />
+              <Tooltip
+                formatter={(value) => [`${value} ${distanceUnit}`, t("totalDistance")]}
+                labelStyle={{ fontSize: 12 }}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+              <Bar dataKey="distance" name={t("totalDistance")} fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         )}
