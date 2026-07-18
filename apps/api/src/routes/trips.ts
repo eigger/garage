@@ -4,7 +4,7 @@ import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 
-const MAX_LIMIT = 100;
+const MAX_LIMIT = 1000;
 
 const tripUpdateSchema = z.object({
   notes: z.string().nullable().optional(),
