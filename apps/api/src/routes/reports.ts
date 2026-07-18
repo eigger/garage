@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
+import { REPORT_HEADERS, parseLocale } from "@garage/shared";
 
 function escapeCsv(val: any): string {
   if (val === null || val === undefined) return "";
@@ -42,14 +43,16 @@ export async function reportsRoutes(app: FastifyInstance) {
     const { category, period, lang } = request.query as {
       category: "trips" | "maintenance" | "fuel";
       period?: "week" | "month" | "year" | "all";
-      lang?: "ko" | "en";
+      lang?: string;
     };
 
     if (!category || !["trips", "maintenance", "fuel"].includes(category)) {
       return reply.code(400).send({ error: "Invalid category" });
     }
 
-    const isEn = lang === "en";
+    const locale = parseLocale(lang);
+    const headers = REPORT_HEADERS[locale];
+
     let dateFilter: Date | undefined = undefined;
     if (period && period !== "all") {
       const now = new Date();
@@ -66,9 +69,7 @@ export async function reportsRoutes(app: FastifyInstance) {
 
     if (category === "trips") {
       // Header
-      csvContent += isEn
-        ? "Start Time,End Time,Distance (km),Average Speed (km/h),Idle Time (s),Notes\n"
-        : "출발시간,도착시간,주행거리(km),평균속도(km/h),공회전시간(초),메모\n";
+      csvContent += headers.trips;
 
       const trips = await prisma.trip.findMany({
         where: {
@@ -90,9 +91,7 @@ export async function reportsRoutes(app: FastifyInstance) {
       }
     } else if (category === "maintenance") {
       // Header
-      csvContent += isEn
-        ? "Date,Odometer (km),Item,Category,Shop,Cost,Notes\n"
-        : "정비일자,누적주행거리(km),항목,구분,정비업체,비용(원),메모\n";
+      csvContent += headers.maintenance;
 
       const records = await prisma.maintenanceRecord.findMany({
         where: {
@@ -103,9 +102,7 @@ export async function reportsRoutes(app: FastifyInstance) {
       });
 
       for (const rec of records) {
-        const catLabel = isEn
-          ? rec.category === "ADMINISTRATIVE" ? "Administrative" : "Maintenance"
-          : rec.category === "ADMINISTRATIVE" ? "행정·법정" : "정비";
+        const catLabel = rec.category === "ADMINISTRATIVE" ? headers.categoryAdministrative : headers.categoryMaintenance;
 
         csvContent += [
           escapeCsv(rec.date),
@@ -122,13 +119,9 @@ export async function reportsRoutes(app: FastifyInstance) {
 
       // Header
       if (isEv) {
-        csvContent += isEn
-          ? "Date,Odometer (km),Amount (kWh),Unit Price,Total Cost,Charging Station,Efficiency (km/kWh),Full Charge,Notes\n"
-          : "충전일자,누적주행거리(km),충전량(kWh),단가(원/kWh),결제금액(원),충전소,전비(km/kWh),가득채움여부,메모\n";
+        csvContent += headers.charge;
       } else {
-        csvContent += isEn
-          ? "Date,Odometer (km),Amount (L),Unit Price,Total Cost,Gas Station,Efficiency (km/L),Full Tank,Notes\n"
-          : "주유일자,누적주행거리(km),주유량(L),단가(원/L),결제금액(원),주유소,연비(km/L),가득채움여부,메모\n";
+        csvContent += headers.fuel;
       }
 
       const logs = await prisma.fuelLog.findMany({
@@ -162,7 +155,7 @@ export async function reportsRoutes(app: FastifyInstance) {
           escapeCsv(log.cost),
           escapeCsv(log.location),
           escapeCsv(efficiency),
-          escapeCsv(log.fullTank ? (isEn ? "Yes" : "예") : (isEn ? "No" : "아니오")),
+          escapeCsv(log.fullTank ? headers.yes : headers.no),
           escapeCsv(""), // FuelLog doesn't have a notes field
         ].join(",") + "\n";
       }
