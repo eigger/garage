@@ -102,14 +102,3 @@ export function countToNextTier(key: BadgeKey, count: number): number | null {
   const nextThreshold = thresholds.find((t) => count < t);
   return nextThreshold === undefined ? null : nextThreshold - count;
 }
-
-export const BADGE_ICONS: Record<BadgeKey, string> = {
-  maintenance_master: "🔧",
-  on_time_pro: "⏱️",
-  detail_master: "📋",
-  efficiency_king: "⛽",
-  admin_master: "📄",
-  level_milestone: "⭐",
-  trip_explorer: "🧭",
-  photo_historian: "📷",
-};

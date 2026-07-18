@@ -1,4 +1,4 @@
-import { BADGE_ICONS, MAX_BADGE_TIER, countToNextTier, type BadgeKey } from "@garage/shared";
+import { MAX_BADGE_TIER, countToNextTier, type BadgeKey } from "@garage/shared";
 import type { TranslationKey } from "./i18n/translations";
 
 const NAME_KEYS: Record<BadgeKey, TranslationKey> = {
@@ -29,10 +29,6 @@ export function badgeNameKey(key: BadgeKey): TranslationKey {
 
 export function badgeDescKey(key: BadgeKey): TranslationKey {
   return DESC_KEYS[key];
-}
-
-export function badgeIcon(key: BadgeKey): string {
-  return BADGE_ICONS[key];
 }
 
 export function badgeMaxTier(key: BadgeKey): number {
