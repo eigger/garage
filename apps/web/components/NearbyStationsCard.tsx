@@ -37,6 +37,22 @@ const STATUS_LABEL_KEY: Record<ChargerStatus, TranslationKey> = {
   UNKNOWN: "chargerStatusUnknown",
 };
 
+// 백엔드 typeLabel은 한글 고정 문자열이라 로케일 대응이 안 됨 — 코드(01~11) 기준으로
+// 번역 키를 찾고, 새로 추가된 코드처럼 매핑이 없을 때만 백엔드 라벨로 폴백한다.
+const CHGER_TYPE_LABEL_KEY: Record<string, TranslationKey> = {
+  "01": "chgerTypeDcChademo",
+  "02": "chgerTypeAcSlow",
+  "03": "chgerTypeDcChademoAc3Phase",
+  "04": "chgerTypeDcCombo",
+  "05": "chgerTypeDcChademoCombo",
+  "06": "chgerTypeDcChademoAc3PhaseCombo",
+  "07": "chgerTypeAc3Phase",
+  "08": "chgerTypeDcComboSlow",
+  "09": "chgerTypeNacs",
+  "10": "chgerTypeDcComboNacs",
+  "11": "chgerTypeDcCombo2Bus",
+};
+
 export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsChange }: NearbyStationsCardProps) {
   const { t } = useSettings();
   const isElectric = fuelType === "ELECTRIC";
@@ -167,7 +183,7 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
                       color: STATUS_COLOR[c.status],
                     }}
                   >
-                    {c.typeLabel} · {t(STATUS_LABEL_KEY[c.status])}
+                    {t(CHGER_TYPE_LABEL_KEY[c.type] ?? "chgerTypeUnknown")} · {t(STATUS_LABEL_KEY[c.status])}
                   </span>
                 ))}
               </div>
