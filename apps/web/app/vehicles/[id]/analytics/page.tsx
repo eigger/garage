@@ -180,9 +180,9 @@ export default function AnalyticsPage() {
 
   return (
     <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-        <h1 style={{ margin: 0 }}>{t("analyticsHeading")}</h1>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div>
+        <h1 style={{ margin: "0 0 10px" }}>{t("analyticsHeading")}</h1>
+        <div style={{ display: "flex", gap: 4 }}>
           {(
             [
               ["1w", "analyticsPeriod1w"],
@@ -197,11 +197,15 @@ export default function AnalyticsPage() {
               type="button"
               onClick={() => setPeriod(value)}
               style={{
+                flex: 1,
                 fontSize: 12,
-                padding: "4px 10px",
+                padding: "5px 4px",
                 minHeight: "auto",
+                textAlign: "center",
+                whiteSpace: "nowrap",
                 background: period === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
                 color: period === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
+                borderRadius: 6,
               }}
             >
               {t(labelKey)}
