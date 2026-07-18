@@ -37,8 +37,7 @@ const STATUS_LABEL_KEY: Record<ChargerStatus, TranslationKey> = {
   UNKNOWN: "chargerStatusUnknown",
 };
 
-// 백엔드 typeLabel은 한글 고정 문자열이라 로케일 대응이 안 됨 — 코드(01~11) 기준으로
-// 번역 키를 찾고, 새로 추가된 코드처럼 매핑이 없을 때만 백엔드 라벨로 폴백한다.
+// 백엔드는 코드(01~11)만 내려주므로 여기서 로케일에 맞는 라벨로 번역한다.
 const CHGER_TYPE_LABEL_KEY: Record<string, TranslationKey> = {
   "01": "chgerTypeDcChademo",
   "02": "chgerTypeAcSlow",

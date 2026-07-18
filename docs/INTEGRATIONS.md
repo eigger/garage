@@ -870,9 +870,9 @@ Unlike Opinet, this API has **no lat/lon + radius search** — only `zcode` (시
 | `GET` | `/api/ev-charger/configured` | JWT | Whether a key is set `{ configured: boolean }` |
 | `GET` | `/api/ev-charger/stations` | JWT | Nearby chargers via `lat`, `lon`, `address` (optional, for zcode resolution) query params |
 
-**Response fields**: `id` (statId), `name`, `operator`, `distance` (m), `lat`, `lon`, `address`, `parkingFree`, `connectors[]` (`chgerId`, `type`, `typeLabel`, `status`, `statusLabel`, `output` kW)
+**Response fields**: `id` (statId), `name`, `operator`, `distance` (m), `lat`, `lon`, `address`, `parkingFree`, `connectors[]` (`chgerId`, `type`, `status`, `output` kW)
 
-`status` is normalized from the API's `stat` code into `AVAILABLE | CHARGING | RESERVED | OUT_OF_SERVICE | UNKNOWN`.
+`status` is normalized from the API's `stat` code into `AVAILABLE | CHARGING | RESERVED | OUT_OF_SERVICE | UNKNOWN`. Both `type` (01–11) and `status` are locale-agnostic codes — the frontend translates them to a human-readable label (`NearbyStationsCard.tsx`), so the API never returns Korean-only display text for these fields.
 
 Surfaced on the **vehicle overview page** (`NearbyStationsCard`) as a standalone "주변 충전소 찾기" card, separate from Quick Log — checking charger availability is a pre-departure decision for EV owners, not something tied to logging a completed charge. Each result links out via the existing nav deep-link buttons (T map / Kakao / Naver).
 

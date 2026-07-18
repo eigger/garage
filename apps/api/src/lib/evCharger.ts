@@ -28,17 +28,6 @@ const ZCODE_BY_SIDO: Record<string, string> = {
   "전라북도": "52", // 2024년 개편 이전 명칭 대응
 };
 
-const STAT_LABEL: Record<string, string> = {
-  "0": "알수없음",
-  "1": "통신이상",
-  "2": "충전대기",
-  "3": "충전중",
-  "4": "운영중지",
-  "5": "점검중",
-  "6": "예약중",
-  "9": "상태미확인",
-};
-
 export type ChargerStatus = "AVAILABLE" | "CHARGING" | "RESERVED" | "OUT_OF_SERVICE" | "UNKNOWN";
 
 const STATUS_BY_STAT: Record<string, ChargerStatus> = {
@@ -49,26 +38,12 @@ const STATUS_BY_STAT: Record<string, ChargerStatus> = {
   "5": "OUT_OF_SERVICE",
 };
 
-const CHGER_TYPE_LABEL: Record<string, string> = {
-  "01": "DC차데모",
-  "02": "AC완속",
-  "03": "DC차데모+AC3상",
-  "04": "DC콤보",
-  "05": "DC차데모+DC콤보",
-  "06": "DC차데모+AC3상+DC콤보",
-  "07": "AC3상",
-  "08": "DC콤보(완속)",
-  "09": "NACS",
-  "10": "DC콤보+NACS",
-  "11": "DC콤보2(버스전용)",
-};
-
+// type/status는 코드만 반환한다 — 사람이 읽을 라벨(완속/급속, 충전중 등)은 로케일에 맞게
+// 표시해야 하므로 프론트(NearbyStationsCard.tsx)에서 코드 기준으로 번역한다.
 export type EvConnector = {
   chgerId: string;
   type: string;
-  typeLabel: string;
   status: ChargerStatus;
-  statusLabel: string;
   output: number | null;
 };
 
@@ -139,9 +114,7 @@ export async function fetchNearbyChargers(
       const connector: EvConnector = {
         chgerId: String(row.chgerId ?? ""),
         type: chgerType,
-        typeLabel: CHGER_TYPE_LABEL[chgerType] ?? "충전기",
         status: STATUS_BY_STAT[stat] ?? "UNKNOWN",
-        statusLabel: STAT_LABEL[stat] ?? "상태미확인",
         output: Number.isFinite(output) ? output : null,
       };
 
@@ -189,7 +162,7 @@ function mockChargers(lat: number, lon: number): EvChargerSummary[] {
       d: offset(0.002, 0.001),
       address: "예시동 123-4 공영주차장",
       connectors: [
-        { chgerId: "01", type: "04", typeLabel: CHGER_TYPE_LABEL["04"], status: "AVAILABLE", statusLabel: STAT_LABEL["2"], output: 100 },
+        { chgerId: "01", type: "04", status: "AVAILABLE", output: 100 },
       ],
     },
     {
@@ -199,8 +172,8 @@ function mockChargers(lat: number, lon: number): EvChargerSummary[] {
       d: offset(-0.003, 0.0025),
       address: "예시동 45-6",
       connectors: [
-        { chgerId: "01", type: "02", typeLabel: CHGER_TYPE_LABEL["02"], status: "CHARGING", statusLabel: STAT_LABEL["3"], output: 7 },
-        { chgerId: "02", type: "04", typeLabel: CHGER_TYPE_LABEL["04"], status: "AVAILABLE", statusLabel: STAT_LABEL["2"], output: 100 },
+        { chgerId: "01", type: "02", status: "CHARGING", output: 7 },
+        { chgerId: "02", type: "04", status: "AVAILABLE", output: 100 },
       ],
     },
     {
@@ -210,7 +183,7 @@ function mockChargers(lat: number, lon: number): EvChargerSummary[] {
       d: offset(0.004, -0.003),
       address: "예시동 78-9 지하주차장",
       connectors: [
-        { chgerId: "01", type: "04", typeLabel: CHGER_TYPE_LABEL["04"], status: "OUT_OF_SERVICE", statusLabel: STAT_LABEL["5"], output: 50 },
+        { chgerId: "01", type: "04", status: "OUT_OF_SERVICE", output: 50 },
       ],
     },
     {
@@ -220,8 +193,8 @@ function mockChargers(lat: number, lon: number): EvChargerSummary[] {
       d: offset(-0.006, -0.004),
       address: "예시고속도로 하늘길휴게소",
       connectors: [
-        { chgerId: "01", type: "04", typeLabel: CHGER_TYPE_LABEL["04"], status: "AVAILABLE", statusLabel: STAT_LABEL["2"], output: 100 },
-        { chgerId: "02", type: "04", typeLabel: CHGER_TYPE_LABEL["04"], status: "AVAILABLE", statusLabel: STAT_LABEL["2"], output: 100 },
+        { chgerId: "01", type: "04", status: "AVAILABLE", output: 100 },
+        { chgerId: "02", type: "04", status: "AVAILABLE", output: 100 },
       ],
     },
   ];

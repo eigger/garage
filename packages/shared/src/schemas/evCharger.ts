@@ -8,12 +8,12 @@ export const chargerStatusSchema = z.enum([
   "UNKNOWN",
 ]);
 
+// type/status는 코드 값만 내려주고, 사람이 읽을 라벨은 프론트에서 로케일에 맞게 번역한다
+// (백엔드가 한글 라벨을 내려주면 영어 로케일에서도 한글이 그대로 노출되는 문제가 있었음).
 export const evConnectorSchema = z.object({
   chgerId: z.string(),
   type: z.string(),
-  typeLabel: z.string(),
   status: chargerStatusSchema,
-  statusLabel: z.string(),
   output: z.number().nullable(),
 });
 
