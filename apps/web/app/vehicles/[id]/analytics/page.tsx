@@ -165,6 +165,11 @@ export default function AnalyticsPage() {
     [filteredLogs, filteredMaintenance],
   );
 
+  const totalDistanceInPeriod = useMemo(() => {
+    const km = filteredTrips.reduce((sum, tr) => sum + (tr.distanceKm ?? 0), 0);
+    return distanceUnit === "mi" ? Math.round(km * KM_TO_MI * 10) / 10 : Math.round(km * 10) / 10;
+  }, [filteredTrips, distanceUnit]);
+
   if (loading) {
     return (
       <section>
@@ -210,6 +215,10 @@ export default function AnalyticsPage() {
           <div>
             <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsAvgEfficiency")}</div>
             <strong>{avgEfficiency !== null ? `${avgEfficiency.toFixed(1)} ${units.perUnit}` : "-"}</strong>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsTotalDistance")}</div>
+            <strong>{totalDistanceInPeriod > 0 ? `${totalDistanceInPeriod} ${distanceUnit}` : "-"}</strong>
           </div>
           <div>
             <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsTotalCost")}</div>
