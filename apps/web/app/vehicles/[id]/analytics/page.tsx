@@ -158,19 +158,6 @@ export default function AnalyticsPage() {
       });
   }, [filteredLogs, filteredMaintenance, localeTag]);
 
-  const thisMonthCost = useMemo(() => {
-    const now = new Date();
-    const isThisMonth = (iso: string) => {
-      const d = new Date(iso);
-      return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-    };
-    const fuelSum = fuelLogs.filter((l) => isThisMonth(l.date)).reduce((sum, l) => sum + l.cost, 0);
-    const maintenanceSum = maintenanceRecords
-      .filter((m) => isThisMonth(m.date))
-      .reduce((sum, m) => sum + (m.cost ?? 0), 0);
-    return fuelSum + maintenanceSum;
-  }, [fuelLogs, maintenanceRecords]);
-
   const totalCostInPeriod = useMemo(
     () =>
       filteredLogs.reduce((sum, l) => sum + l.cost, 0) +
@@ -223,10 +210,6 @@ export default function AnalyticsPage() {
           <div>
             <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsAvgEfficiency")}</div>
             <strong>{avgEfficiency !== null ? `${avgEfficiency.toFixed(1)} ${units.perUnit}` : "-"}</strong>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsThisMonthCost")}</div>
-            <strong>{formatCurrency(thisMonthCost)}</strong>
           </div>
           <div>
             <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsTotalCost")}</div>
