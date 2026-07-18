@@ -43,9 +43,6 @@ export function BottomNav() {
   const { user, isAdmin, logout } = useAuth();
   const { t, locale } = useSettings();
   const [moreOpen, setMoreOpen] = useState(false);
-  const [exportOpen, setExportOpen] = useState(false);
-  const [exportCategory, setExportCategory] = useState<"trips" | "maintenance" | "fuel">("trips");
-  const [exportPeriod, setExportPeriod] = useState<"week" | "month" | "year" | "all">("all");
   const [lastVehicleId, setLastVehicleIdState] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
   const [dueCount, setDueCount] = useState(0);
@@ -269,9 +266,6 @@ export function BottomNav() {
                       <LinkIcon size={20} /> {t("navIntegration")}
                     </button>
                   )}
-                  <button type="button" className="sheet-item" onClick={() => { setMoreOpen(false); setExportOpen(true); }}>
-                    <DownloadIcon size={20} /> {t("exportReportsHeading")}
-                  </button>
                 </div>
               </>
             )}
@@ -354,141 +348,6 @@ export function BottomNav() {
                 </span>
               )}
             </div>
-          </div>
-        </div>
-      )}
-
-      {exportOpen && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: "rgba(0, 0, 0, 0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1100,
-            backdropFilter: "blur(2px)",
-          }}
-          onClick={() => setExportOpen(false)}
-        >
-          <div
-            style={{
-              width: "90%",
-              maxWidth: "400px",
-              backgroundColor: "var(--color-surface)",
-              border: "1px solid var(--color-border)",
-              borderRadius: "16px",
-              boxShadow: "0 10px 25px rgba(0, 0, 0, 0.2)",
-              padding: "20px",
-              display: "flex",
-              flexDirection: "column",
-              position: "relative",
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-              <h3 style={{ margin: 0, fontSize: "16px", fontWeight: "600", display: "flex", alignItems: "center", gap: 6 }}>
-                <DownloadIcon size={18} /> {t("exportReportsHeading")}
-              </h3>
-              <button
-                type="button"
-                onClick={() => setExportOpen(false)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: "4px",
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: "var(--color-text-muted)",
-                  borderRadius: "50%",
-                  width: "28px",
-                  height: "28px",
-                  minHeight: "auto",
-                }}
-              >
-                <span style={{ fontSize: 20, lineHeight: 1 }}>&times;</span>
-              </button>
-            </div>
-
-            <div style={{ marginBottom: "16px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--color-text-muted)", display: "block", marginBottom: "6px" }}>
-                {t("exportCategoryLabel")}
-              </label>
-              <select
-                value={exportCategory}
-                onChange={(e) => setExportCategory(e.target.value as any)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  fontSize: "14px",
-                }}
-              >
-                <option value="trips">{t("exportCategoryTrips")}</option>
-                <option value="maintenance">{t("exportCategoryMaintenance")}</option>
-                <option value="fuel">{t("exportCategoryFuel")}</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: "20px" }}>
-              <label style={{ fontSize: "12px", fontWeight: "600", color: "var(--color-text-muted)", display: "block", marginBottom: "6px" }}>
-                {t("exportPeriodLabel")}
-              </label>
-              <select
-                value={exportPeriod}
-                onChange={(e) => setExportPeriod(e.target.value as any)}
-                style={{
-                  width: "100%",
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  border: "1px solid var(--color-border)",
-                  background: "var(--color-surface)",
-                  color: "var(--color-text)",
-                  fontSize: "14px",
-                }}
-              >
-                <option value="all">{t("exportPeriodAll")}</option>
-                <option value="week">{t("exportPeriodWeek")}</option>
-                <option value="month">{t("exportPeriodMonth")}</option>
-                <option value="year">{t("exportPeriodYear")}</option>
-              </select>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                const token = getToken();
-                const url = `${API_URL}/api/vehicles/${vehicleId}/reports/export?category=${exportCategory}&period=${exportPeriod}&lang=${locale}${token ? `&token=${token}` : ""}`;
-                window.open(url, "_blank");
-                setExportOpen(false);
-              }}
-              style={{
-                width: "100%",
-                padding: "10px",
-                borderRadius: "8px",
-                border: "none",
-                background: "var(--color-primary)",
-                color: "#fff",
-                fontWeight: "600",
-                cursor: "pointer",
-                fontSize: "14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 6,
-              }}
-            >
-              <DownloadIcon size={16} /> {t("exportDownloadButton")}
-            </button>
           </div>
         </div>
       )}

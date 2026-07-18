@@ -42,7 +42,7 @@ export async function reportsRoutes(app: FastifyInstance) {
 
     const { category, period, lang } = request.query as {
       category: "trips" | "maintenance" | "fuel";
-      period?: "week" | "month" | "year" | "all";
+      period?: "week" | "month" | "year" | "all" | "6m" | "1y";
       lang?: string;
     };
 
@@ -60,8 +60,10 @@ export async function reportsRoutes(app: FastifyInstance) {
         dateFilter = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       } else if (period === "month") {
         dateFilter = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-      } else if (period === "year") {
+      } else if (period === "year" || period === "1y") {
         dateFilter = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+      } else if (period === "6m") {
+        dateFilter = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
       }
     }
 
