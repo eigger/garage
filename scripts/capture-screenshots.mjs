@@ -33,8 +33,10 @@ async function captureLocale(locale) {
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    viewport: { width: 1280, height: 800 },
+    viewport: { width: 390, height: 844 },
     locale: locale === "en" ? "en-US" : "ko-KR",
+    isMobile: true,
+    hasTouch: true,
   });
   const page = await context.newPage();
 
@@ -65,29 +67,58 @@ async function captureLocale(locale) {
   await page.goto(`${BASE}/`, { waitUntil: "domcontentloaded" });
   await shot(page, path.join(dir, "01-dashboard.png"));
 
-  const vehicleHref = await page.locator('a[href^="/vehicles/"]').first().getAttribute("href").catch(() => null);
-  const vehicleId = vehicleHref?.match(/\/vehicles\/([^/?#]+)/)?.[1] ?? null;
-  console.log(`[${locale}] vehicleId`, vehicleId);
+  const vehicleLinks = await page.locator('a[href^="/vehicles/"]').all();
+  const vehicleIds = [];
+  for (const link of vehicleLinks) {
+    const href = await link.getAttribute("href");
+    const id = href?.match(/\/vehicles\/([^/?#]+)/)?.[1];
+    if (id) {
+      vehicleIds.push(id);
+    }
+  }
+  const uniqueVehicleIds = [...new Set(vehicleIds)].filter(Boolean);
+  console.log(`[${locale}] found vehicleIds`, uniqueVehicleIds);
 
-  if (vehicleId) {
+  for (const vehicleId of uniqueVehicleIds) {
     await page.goto(`${BASE}/vehicles/${vehicleId}`, { waitUntil: "domcontentloaded" });
-    await shot(page, path.join(dir, "02-vehicle.png"));
+    await waitReady(page);
+    const headerText = await page.locator("h1").first().innerText().catch(() => "");
+    const isEv = headerText.includes("전기차") || headerText.includes("Electric") || headerText.includes("IONIQ") || headerText.includes("아이오닉");
+    const typeSuffix = isEv ? "ev" : "ice";
+    console.log(`[${locale}] vehicle ${vehicleId} is ${typeSuffix.toUpperCase()}`);
+
+    await shot(page, path.join(dir, `02-vehicle-${typeSuffix}.png`));
 
     await page.goto(`${BASE}/vehicles/${vehicleId}/quick-log`, { waitUntil: "domcontentloaded" });
-    await shot(page, path.join(dir, "03-quick-log.png"));
+    await shot(page, path.join(dir, `03-quick-log-${typeSuffix}.png`));
 
     await page.goto(`${BASE}/vehicles/${vehicleId}/schedule`, { waitUntil: "domcontentloaded" });
-    await shot(page, path.join(dir, "04-schedule.png"));
+    await shot(page, path.join(dir, `04-schedule-${typeSuffix}.png`));
 
     await page.goto(`${BASE}/vehicles/${vehicleId}/history`, { waitUntil: "domcontentloaded" });
-    await shot(page, path.join(dir, "05-history.png"));
+    await shot(page, path.join(dir, `05-history-${typeSuffix}.png`));
 
     await page.goto(`${BASE}/vehicles/${vehicleId}/level`, { waitUntil: "domcontentloaded" });
-    await shot(page, path.join(dir, "07-level.png"));
+    await shot(page, path.join(dir, `07-level-${typeSuffix}.png`));
   }
 
   await page.goto(`${BASE}/integrations`, { waitUntil: "domcontentloaded" });
   await shot(page, path.join(dir, "06-integrations.png"));
+
+  await page.goto(`${BASE}/vehicles`, { waitUntil: "domcontentloaded" });
+  await shot(page, path.join(dir, "08-vehicles.png"));
+
+  await page.goto(`${BASE}/users`, { waitUntil: "domcontentloaded" });
+  await shot(page, path.join(dir, "09-users.png"));
+
+  await page.goto(`${BASE}/maintenance-presets`, { waitUntil: "domcontentloaded" });
+  await shot(page, path.join(dir, "10-presets.png"));
+
+  await page.goto(`${BASE}/backup`, { waitUntil: "domcontentloaded" });
+  await shot(page, path.join(dir, "11-backup.png"));
+
+  await page.goto(`${BASE}/profile`, { waitUntil: "domcontentloaded" });
+  await shot(page, path.join(dir, "12-profile.png"));
 
   await browser.close();
 }

@@ -40,45 +40,76 @@ Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md
 
 ### 1. Dashboard
 
-Home screen after login. If the user only has a single vehicle, they skip this and redirect straight to the vehicle overview page. For multiple vehicles, it shows the unified dashboard where each vehicle card displays current odometer, recent distance, last fuel cost, and overdue/upcoming reminders. The bottom navigation bar provides quick access to Home, Quick Log, and a More sheet for admin settings.
+Home screen after login. For multiple vehicles, it shows the unified mobile-first dashboard where each vehicle card displays current odometer, recent distance, last fuel cost, and overdue/upcoming reminders. The bottom navigation bar provides quick access to Home, Quick Log, and a More sheet for settings.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/01-dashboard.png" alt="Dashboard" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/01-dashboard.png" alt="Dashboard" width="375" />
+</p>
 
-### 2. Vehicle overview
+### 2. Vehicle overview (EV vs. ICE)
 
-Per-vehicle hub: summary cards (including the new "last fuel cost" card), monthly expense chart, last trip details (time, distance, speed, fuel/battery consumed, notes) next to the map, and tab views for **Overview**, **Schedule**, and **History**. Right below the last-location map, find nearby gas stations or charging stations by distance or price and launch turn-by-turn navigation directly. The gear icon opens vehicle settings and OBD/GPS. The header bar has been consolidated into the bottom nav layout, and administrative features are placed under the **More** sheet.
+Per-vehicle hub featuring summary cards, monthly expense charts, recent trip details next to the map, and tab views for **Overview**, **Schedule**, and **History**. EV screens display charging status and battery-related metrics, while ICE screens display fuel metrics and integration with Opinet gas stations.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle.png" alt="Vehicle overview" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle-ev.png" alt="Vehicle overview (EV)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle-ice.png" alt="Vehicle overview (ICE)" width="375" />
+</p>
 
-### 3. Quick Log
+### 3. Quick Log (EV vs. ICE)
 
-Log fuel or maintenance quickly from anywhere. Accessible as the primary, prominent button in the bottom navigation bar. Fuel entry supports station search, unit price, volume, cost shortcuts, and receipt attachments. Switch to **Maintenance** for service records tied to schedule items.
+Log fuel or maintenance quickly from anywhere. EV charging inputs support price per kWh and station search, whereas ICE fueling inputs support brand logos (Opinet), fuel volume, and price per liter.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/03-quick-log.png" alt="Quick Log" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/03-quick-log-ev.png" alt="Quick Log (EV)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/03-quick-log-ice.png" alt="Quick Log (ICE)" width="375" />
+</p>
 
-### 4. Schedule
+### 4. Schedule (EV vs. ICE)
 
-Distance- and time-based maintenance / administrative items (oil, inspection, insurance, tax, …). Edit intervals, mark completed, and jump into Quick Log directly from reminders.
+Distance- and time-based maintenance / administrative items. Intervals and defaults differ based on the vehicle type (engine oil and filter vs. EV battery coolant).
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/04-schedule.png" alt="Schedule" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/04-schedule-ev.png" alt="Schedule (EV)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/04-schedule-ice.png" alt="Schedule (ICE)" width="375" />
+</p>
 
-### 5. History
+### 5. History (EV vs. ICE)
 
-Trips, fuel logs, and maintenance history in one place. Fuel efficiency is calculated between full-tank fills (`km/L` / `L/100km`). Individual trip rows support editing and adding custom notes. List items also feature cleaner, more compact edit/delete action buttons.
+Trips, charging/fuel logs, and maintenance history in one place. Fuel efficiency is calculated between full-tank fills (`km/L` / `L/100km`) for ICE, and energy usage metrics are displayed for EV.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/05-history.png" alt="History" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/05-history-ev.png" alt="History (EV)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/05-history-ice.png" alt="History (ICE)" width="375" />
+</p>
 
-### 6. API Integrations
+### 6. Vehicle care level (EV vs. ICE)
 
-Admin page for Opinet, EV charging stations (K-eco), Kakao Map, Naver Map, and T map keys, grouped into **Fuel & Charging / Maps / Notifications**. Values apply immediately (no restart) and are not included in backup archives. Accessed via the **More** sheet on the bottom navigation bar. The EV charger key expires automatically after 2 years (a data.go.kr policy) — enter the expiry date to get a warning starting 30 days out.
+Gamification screen: logging logs consistently levels up the vehicle and earns badges, tracked independently per vehicle.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/06-integrations.png" alt="API Integrations" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/07-level-ev.png" alt="Vehicle care level (EV)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/07-level-ice.png" alt="Vehicle care level (ICE)" width="375" />
+</p>
 
-### 7. Vehicle care level
+### 7. More Sheet menus (Admin & Account)
 
-Gamification screen — logging fuel and maintenance consistently levels up the vehicle and earns badges. Tracked independently per vehicle, accessed via the bottom nav **More** sheet → that vehicle's menu.
+Screens for managing vehicles, users, maintenance presets, API integrations, profile configurations, and backups, all accessible from the bottom navigation bar.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/07-level.png" alt="Vehicle care level" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/06-integrations.png" alt="API Integrations" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/08-vehicles.png" alt="Manage vehicles" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/09-users.png" alt="Manage users" width="240" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/10-presets.png" alt="Maintenance presets" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/11-backup.png" alt="Backup & Restore" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/12-profile.png" alt="Profile settings" width="240" />
+</p>
 
 ---
 

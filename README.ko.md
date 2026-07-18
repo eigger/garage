@@ -40,45 +40,76 @@
 
 ### 1. 대시보드
 
-로그인 후 홈 화면입니다. 등록된 차량이 1대뿐인 경우 이 화면을 건너뛰고 차량 개요 페이지로 자동 이동합니다. 차량이 여러 대인 경우에는 통합 대시보드가 표시되어 각 차량 카드에서 현재 주행거리, 최근 주행 거리, 최근 주유 비용, 지남/임박 알림 건수를 볼 수 있습니다. 하단 네비게이션 바를 통해 홈, 빠른 입력, 그리고 관리용 설정 항목이 포함된 **더보기** 시트에 빠르게 접근할 수 있습니다.
+로그인 후 홈 화면입니다. 차량이 여러 대인 경우에는 통합 대시보드가 표시되어 모바일에 최적화된 화면에서 각 차량 카드별 현재 주행거리, 최근 주행 거리, 최근 주유 비용, 지남/임박 알림 건수를 한눈에 볼 수 있습니다. 하단 네비게이션 바를 통해 홈, 빠른 입력, 설정으로 바로 이동할 수 있습니다.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/01-dashboard.png" alt="대시보드" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/01-dashboard.png" alt="대시보드" width="375" />
+</p>
 
-### 2. 차량 개요
+### 2. 차량 개요 (전기차 vs. 내연차)
 
-차량별 허브입니다. 최근 주유 비용을 포함한 요약 카드, 월간 비용 차트, 지도 옆에 표시되는 마지막 주행 정보 패널(시간, 거리, 속도, 소모량, 메모 등), 그리고 **개요 / 정비 스케줄 / 내역** 탭이 제공됩니다. 마지막 주행 위치 지도 바로 아래에서 주변 주유소/충전소를 거리순·가격순으로 찾아 네비게이션 앱으로 바로 연동할 수 있습니다. 톱니바퀴 아이콘에서 차량 설정과 OBD/GPS를 열 수 있습니다. 기존의 상단 헤더 바가 하단 네비게이션 구조로 단일화되었으며, 관리 기능은 하단 네비게이션의 **더보기** 시트 안에 깔끔하게 모여 있습니다.
+차량별 허브입니다. 최근 지출 요약 카드, 월간 비용 차트, 마지막 주행 정보 및 지도가 제공됩니다. 전기차 화면은 충전 상태와 배터리 관련 정보를 표시하며 주변 충전소 찾기가 연동되고, 내연차 화면은 연료 게이지와 오피넷 기반 주변 주유소 찾기 연동을 제공합니다.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/02-vehicle.png" alt="차량 개요" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/02-vehicle-ev.png" alt="차량 개요 (전기차)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/02-vehicle-ice.png" alt="차량 개요 (내연차)" width="375" />
+</p>
 
-### 3. 빠른 입력
+### 3. 빠른 입력 (전기차 vs. 내연차)
 
-화면 하단 네비게이션 바의 가장 직관적이고 두드러진 중앙 버튼을 누르면 언제든지 주유·정비를 바로 기록할 수 있는 팝업/페이지가 열립니다. 주유 탭은 주변 주유소 검색, 단가, 리터, 금액 단축 버튼, 영수증 첨부를 지원합니다. **정비** 탭에서는 정비 스케줄 항목과 연결된 정비 기록을 손쉽게 남길 수 있습니다.
+어디서나 주유/충전 및 정비를 바로 기록하는 화면입니다. 전기차는 충전 전력량(kWh) 입력, kWh당 단가, 충전소 검색을 지원하며, 내연차는 정유사 브랜드 로고 선택(오피넷), 주유량(L), 리터당 단가 입력을 지원합니다.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/03-quick-log.png" alt="빠른 입력" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/03-quick-log-ev.png" alt="빠른 입력 (전기차)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/03-quick-log-ice.png" alt="빠른 입력 (내연차)" width="375" />
+</p>
 
-### 4. 정비 스케줄
+### 4. 정비 스케줄 (전기차 vs. 내연차)
 
-거리·시간 기준 정비/행정 항목(엔진오일, 검사, 보험, 세금 등)을 관리합니다. 주기를 수정하고, 완료 처리하며, 알림에서 빠른 입력으로 바로 이동할 수 있습니다.
+거리 및 시간 기준 정비 스케줄과 행정 알림을 관리합니다. 엔진오일/오일필터 교체 주기(내연차 전용) 등 차종에 최적화된 정비 프리셋이 기본 적용됩니다.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/04-schedule.png" alt="정비 스케줄" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/04-schedule-ev.png" alt="정비 스케줄 (전기차)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/04-schedule-ice.png" alt="정비 스케줄 (내연차)" width="375" />
+</p>
 
-### 5. 내역
+### 5. 내역 (전기차 vs. 내연차)
 
-주행·주유·정비 이력을 한곳에서 모아 봅니다. 만탱크 주유 사이의 연비(`km/L`, `L/100km`)와 주행 리포트가 자동으로 계산되며, 개별 주행 기록에 메모를 추가하거나 편집할 수 있습니다. 또한, 각 목록의 수정/삭제 버튼을 더 작고 직관적인 아웃라인 스타일로 단정하게 개선했습니다.
+주행 리포트, 충전/주유 로그, 정비 이력을 한곳에 모아 보여줍니다. 내연차는 풀탱크 기준 주유 연비(`km/L`)가 자동 계산되고, 전기차는 에너지 소모량 지표를 중심으로 내역을 표시합니다.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/05-history.png" alt="내역" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/05-history-ev.png" alt="내역 (전기차)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/05-history-ice.png" alt="내역 (내연차)" width="375" />
+</p>
 
-### 6. API 연동 관리
+### 6. 차량 관리 레벨 (전기차 vs. 내연차)
 
-오피넷, 전기차 충전소(한국환경공단), 카카오맵, 네이버 지도, T맵 키를 관리하는 관리자 화면입니다. **연료·충전 / 지도 / 알림**으로 성격이 비슷한 연동끼리 묶여 있습니다. 하단 네비게이션 바의 **더보기** 시트를 통해 진입할 수 있으며, 설정값은 저장 즉시 적용되며(재시작 불필요), 백업 파일에는 포함되지 않습니다. 전기차 충전소 API 키는 data.go.kr 특성상 2년 후 자동 만료되는데, 만료일을 입력해두면 30일 전부터 경고가 표시됩니다.
+주유/충전 및 정비를 꾸준히 기록해 경험치를 모으고 차량 레벨을 올려 뱃지를 획득하는 화면입니다.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/06-integrations.png" alt="API 연동 관리" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/07-level-ev.png" alt="차량 관리 레벨 (전기차)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/07-level-ice.png" alt="차량 관리 레벨 (내연차)" width="375" />
+</p>
 
-### 7. 차량 관리 레벨
+### 7. 더보기 시트 메뉴 (관리 및 계정)
 
-주유·정비를 꾸준히 기록할수록 레벨이 오르고 뱃지를 획득하는 게이미피케이션 화면입니다. 차량별로 독립적으로 집계되며, 하단 네비게이션의 **더보기** 시트 → 해당 차량 메뉴에서 진입합니다.
+차량 등록/관리, 사용자 추가/수정, 연료타입별 정비 프리셋 설정, 지도/날씨/알림 API 연동, 백업/복원, 그리고 개인 프로필 변경 등 모든 관리용 설정 기능을 하단 네비게이션 시트에서 간편하게 사용할 수 있습니다.
 
-<img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/07-level.png" alt="차량 관리 레벨" width="960" />
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/06-integrations.png" alt="API 연동" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/08-vehicles.png" alt="차량 관리" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/09-users.png" alt="사용자 관리" width="240" />
+</p>
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/10-presets.png" alt="정비 프리셋" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/11-backup.png" alt="백업 및 복원" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/12-profile.png" alt="프로필 설정" width="240" />
+</p>
 
 ---
 
