@@ -21,7 +21,7 @@ import type { FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/
 import { computeFuelEfficiencyPoints, efficiencyUnitLabels } from "../../../../lib/fuelEfficiency";
 import { DownloadIcon } from "../../../../components/icons";
 
-type Period = "all" | "6m" | "1y";
+type Period = "all" | "1w" | "1m" | "6m" | "1y";
 
 export default function AnalyticsPage() {
   const params = useParams<{ id: string }>();
@@ -33,7 +33,7 @@ export default function AnalyticsPage() {
   const [maintenanceRecords, setMaintenanceRecords] = useState<MaintenanceRecord[]>([]);
   const [trips, setTrips] = useState<Trip[]>([]);
   const [loading, setLoading] = useState(true);
-  const [period, setPeriod] = useState<Period>("all");
+  const [period, setPeriod] = useState<Period>("1m");
 
   function handleExport(category: "trips" | "maintenance" | "fuel") {
     const token = getToken();
@@ -63,7 +63,10 @@ export default function AnalyticsPage() {
   const periodStart = useMemo(() => {
     if (period === "all") return null;
     const start = new Date();
-    start.setMonth(start.getMonth() - (period === "6m" ? 6 : 12));
+    if (period === "1w") start.setDate(start.getDate() - 7);
+    else if (period === "1m") start.setMonth(start.getMonth() - 1);
+    else if (period === "6m") start.setMonth(start.getMonth() - 6);
+    else if (period === "1y") start.setFullYear(start.getFullYear() - 1);
     return start;
   }, [period]);
 
@@ -190,9 +193,11 @@ export default function AnalyticsPage() {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {(
             [
-              ["all", "analyticsPeriodAll"],
+              ["1w", "analyticsPeriod1w"],
+              ["1m", "analyticsPeriod1m"],
               ["6m", "analyticsPeriod6m"],
               ["1y", "analyticsPeriod1y"],
+              ["all", "analyticsPeriodAll"],
             ] as const
           ).map(([value, labelKey]) => (
             <button
