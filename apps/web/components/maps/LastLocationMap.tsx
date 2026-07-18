@@ -1,21 +1,47 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, Popup, TileLayer, useMap } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import type { MapProvider } from "@garage/shared";
 import { loadKakaoMaps, loadNaverMaps, loadTmapSdk } from "../../lib/maps/loadSdk";
+import { circleMarkerDataUri } from "../../lib/maps/polyline";
 import { RecenterButton } from "./RecenterButton";
 
 const DEFAULT_ZOOM = 16;
+const STATION_MARKER_COLOR = "#f59e0b";
+
+export type StationMarker = { id: string; lat: number; lon: number; name: string };
 
 function LeafletRecenterControl({ lat, lon }: { lat: number; lon: number }) {
   const map = useMap();
   return <RecenterButton onClick={() => map.setView([lat, lon], DEFAULT_ZOOM)} />;
 }
 
-function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
+// 주유소/충전소 검색 결과가 생기면 차량 위치 + 결과 전체가 한 화면에 들어오도록 뷰를 맞춘다.
+function LeafletFitBounds({ lat, lon, stations }: { lat: number; lon: number; stations: StationMarker[] }) {
+  const map = useMap();
+  useEffect(() => {
+    if (stations.length === 0) return;
+    let cancelled = false;
+    import("leaflet").then((L) => {
+      if (cancelled) return;
+      const bounds = L.latLngBounds([
+        [lat, lon],
+        ...stations.map((s): [number, number] => [s.lat, s.lon]),
+      ]);
+      map.fitBounds(bounds, { padding: [30, 30] });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lon, stations, map]);
+  return null;
+}
+
+function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stations: StationMarker[] }) {
   const [markerIcon, setMarkerIcon] = useState<any>(null);
+  const [stationIcon, setStationIcon] = useState<any>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -34,6 +60,9 @@ function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
         iconAnchor: [15, 30],
       });
       setMarkerIcon(icon);
+      setStationIcon(
+        L.icon({ iconUrl: circleMarkerDataUri(STATION_MARKER_COLOR), iconSize: [20, 20], iconAnchor: [10, 10] })
+      );
     });
     return () => {
       cancelled = true;
@@ -54,12 +83,19 @@ function OsmLocationMap({ lat, lon }: { lat: number; lon: number }) {
       {markerIcon && (
         <Marker position={[lat, lon]} icon={markerIcon} />
       )}
+      {stationIcon &&
+        stations.map((s) => (
+          <Marker key={s.id} position={[s.lat, s.lon]} icon={stationIcon}>
+            <Popup>{s.name}</Popup>
+          </Marker>
+        ))}
       <LeafletRecenterControl lat={lat} lon={lon} />
+      <LeafletFitBounds lat={lat} lon={lon} stations={stations} />
     </MapContainer>
   );
 }
 
-function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKey: string }) {
+function KakaoLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: number; appKey: string; stations: StationMarker[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,6 +124,21 @@ function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appK
           position,
         });
         marker.setMap(map);
+
+        for (const s of stations) {
+          new kakao.Marker({
+            position: new kakao.LatLng(s.lat, s.lon),
+            image: new kakao.MarkerImage(circleMarkerDataUri(STATION_MARKER_COLOR), new kakao.Size(20, 20)),
+          }).setMap(map);
+        }
+
+        if (stations.length > 0) {
+          const bounds = new kakao.LatLngBounds();
+          bounds.extend(position);
+          for (const s of stations) bounds.extend(new kakao.LatLng(s.lat, s.lon));
+          map.setBounds(bounds);
+        }
+
         setReady(true);
       })
       .catch((err: Error) => {
@@ -97,7 +148,7 @@ function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appK
     return () => {
       cancelled = true;
     };
-  }, [appKey, lat, lon]);
+  }, [appKey, lat, lon, stations]);
 
   function handleRecenter() {
     const kakao = (window as any).kakao?.maps;
@@ -115,7 +166,7 @@ function KakaoLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appK
   );
 }
 
-function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; clientId: string }) {
+function NaverLocationMap({ lat, lon, clientId, stations }: { lat: number; lon: number; clientId: string; stations: StationMarker[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -144,6 +195,22 @@ function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; cl
           position,
           map,
         });
+
+        for (const s of stations) {
+          new naver.Marker({
+            map,
+            position: new naver.LatLng(s.lat, s.lon),
+            icon: { url: circleMarkerDataUri(STATION_MARKER_COLOR), size: new naver.Size(20, 20) },
+          });
+        }
+
+        if (stations.length > 0) {
+          const bounds = new naver.LatLngBounds(position, position);
+          bounds.extend(position);
+          for (const s of stations) bounds.extend(new naver.LatLng(s.lat, s.lon));
+          map.fitBounds(bounds);
+        }
+
         setReady(true);
       })
       .catch((err: Error) => {
@@ -153,7 +220,7 @@ function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; cl
     return () => {
       cancelled = true;
     };
-  }, [clientId, lat, lon]);
+  }, [clientId, lat, lon, stations]);
 
   function handleRecenter() {
     const naver = (window as any).naver?.maps;
@@ -171,7 +238,7 @@ function NaverLocationMap({ lat, lon, clientId }: { lat: number; lon: number; cl
   );
 }
 
-function TmapLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKey: string }) {
+function TmapLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: number; appKey: string; stations: StationMarker[] }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -202,6 +269,22 @@ function TmapLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKe
           position,
           map,
         });
+
+        for (const s of stations) {
+          new Tmapv2.Marker({
+            position: new Tmapv2.LatLng(s.lat, s.lon),
+            icon: circleMarkerDataUri(STATION_MARKER_COLOR),
+            map,
+          });
+        }
+
+        if (stations.length > 0) {
+          const bounds = new Tmapv2.LatLngBounds();
+          bounds.extend(position);
+          for (const s of stations) bounds.extend(new Tmapv2.LatLng(s.lat, s.lon));
+          map.fitBounds(bounds);
+        }
+
         setReady(true);
       })
       .catch((err: Error) => {
@@ -211,7 +294,7 @@ function TmapLocationMap({ lat, lon, appKey }: { lat: number; lon: number; appKe
     return () => {
       cancelled = true;
     };
-  }, [appKey, lat, lon]);
+  }, [appKey, lat, lon, stations]);
 
   function handleRecenter() {
     const Tmapv2 = (window as any).Tmapv2;
@@ -236,6 +319,7 @@ type LastLocationMapProps = {
   kakaoAppKey: string | null;
   naverClientId: string | null;
   tmapAppKey: string | null;
+  stations?: StationMarker[];
 };
 
 export function LastLocationMap({
@@ -245,18 +329,19 @@ export function LastLocationMap({
   kakaoAppKey,
   naverClientId,
   tmapAppKey,
+  stations = [],
 }: LastLocationMapProps) {
   if (provider === "kakao" && kakaoAppKey) {
-    return <KakaoLocationMap lat={lat} lon={lon} appKey={kakaoAppKey} />;
+    return <KakaoLocationMap lat={lat} lon={lon} appKey={kakaoAppKey} stations={stations} />;
   }
 
   if (provider === "naver" && naverClientId) {
-    return <NaverLocationMap lat={lat} lon={lon} clientId={naverClientId} />;
+    return <NaverLocationMap lat={lat} lon={lon} clientId={naverClientId} stations={stations} />;
   }
 
   if (provider === "tmap" && tmapAppKey) {
-    return <TmapLocationMap lat={lat} lon={lon} appKey={tmapAppKey} />;
+    return <TmapLocationMap lat={lat} lon={lon} appKey={tmapAppKey} stations={stations} />;
   }
 
-  return <OsmLocationMap lat={lat} lon={lon} />;
+  return <OsmLocationMap lat={lat} lon={lon} stations={stations} />;
 }

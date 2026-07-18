@@ -15,6 +15,8 @@ import { useMapProviders } from "../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../lib/maps/types";
 import { PaperclipIcon, MapPinIcon } from "../../../components/icons";
 import { LevelCard } from "../../../components/LevelCard";
+import { NearbyStationsCard } from "../../../components/NearbyStationsCard";
+import type { StationMarker } from "../../../components/maps/LastLocationMap";
 import { formatDuration } from "../../../lib/duration";
 import dynamic from "next/dynamic";
 
@@ -60,6 +62,7 @@ export default function VehicleOverviewPage() {
   const [gamification, setGamification] = useState<VehicleGamification | null>(null);
   const [loading, setLoading] = useState(true);
   const [showDetails, setShowDetails] = useState(false);
+  const [stationMarkers, setStationMarkers] = useState<StationMarker[]>([]);
 
   // Edit States
   const [editing, setEditing] = useState(false);
@@ -126,6 +129,7 @@ export default function VehicleOverviewPage() {
   }
 
   useEffect(() => {
+    setStationMarkers([]); // 차량 전환 시 이전 차량의 검색 결과 마커가 남아있지 않도록 초기화
     load();
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -503,12 +507,24 @@ export default function VehicleOverviewPage() {
                     kakaoAppKey={mapConfig.kakaoAppKey}
                     naverClientId={mapConfig.naverClientId}
                     tmapAppKey={mapConfig.tmapAppKey}
+                    stations={stationMarkers}
                   />
                 </div>
               </>
             );
           })()}
         </section>
+      )}
+
+      {vehicle && vehicle.latitude !== null && vehicle.latitude !== undefined && vehicle.longitude !== null && vehicle.longitude !== undefined && (
+        <NearbyStationsCard
+          key={vehicleId}
+          fuelType={vehicle.fuelType}
+          lat={vehicle.latitude}
+          lon={vehicle.longitude}
+          mapConfig={mapConfig}
+          onResultsChange={setStationMarkers}
+        />
       )}
     </>
   );
