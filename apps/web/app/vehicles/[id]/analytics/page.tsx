@@ -85,11 +85,50 @@ export default function AnalyticsPage() {
     return trips.filter((tr) => new Date(tr.startTime) >= periodStart);
   }, [trips, periodStart]);
 
-  const monthlyTrips = useMemo(() => {
+  // Determine grouping granularity based on period
+  const granularity: "day" | "week" | "month" =
+    period === "1w" ? "day" : period === "1m" ? "week" : "month";
+
+  // Returns a sortable group key for a given date
+  function getGroupKey(d: Date): string {
+    if (granularity === "day") {
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
+    if (granularity === "week") {
+      // ISO week: Monday-based
+      const tmp = new Date(d);
+      tmp.setHours(0, 0, 0, 0);
+      tmp.setDate(tmp.getDate() - ((tmp.getDay() + 6) % 7)); // back to Monday
+      return `${tmp.getFullYear()}-${String(tmp.getMonth() + 1).padStart(2, "0")}-${String(tmp.getDate()).padStart(2, "0")}`;
+    }
+    // month
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+  }
+
+  // Formats a group key into a human-readable X-axis label
+  function formatGroupLabel(key: string): string {
+    if (granularity === "day") {
+      const [y, m, dd] = key.split("-").map(Number);
+      return new Intl.DateTimeFormat(localeTag, { month: "numeric", day: "numeric" }).format(new Date(y, m - 1, dd));
+    }
+    if (granularity === "week") {
+      const [y, m, dd] = key.split("-").map(Number);
+      const start = new Date(y, m - 1, dd);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      const s = new Intl.DateTimeFormat(localeTag, { month: "numeric", day: "numeric" }).format(start);
+      const e = new Intl.DateTimeFormat(localeTag, { month: "numeric", day: "numeric" }).format(end);
+      return `${s}~${e}`;
+    }
+    // month
+    const [y, mo] = key.split("-").map(Number);
+    return new Intl.DateTimeFormat(localeTag, { year: "2-digit", month: "short" }).format(new Date(y, mo - 1, 1));
+  }
+
+  const groupedTrips = useMemo(() => {
     const map = new Map<string, { distanceKm: number; count: number }>();
     for (const trip of filteredTrips) {
-      const d = new Date(trip.startTime);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const key = getGroupKey(new Date(trip.startTime));
       const entry = map.get(key) ?? { distanceKm: 0, count: 0 };
       entry.distanceKm += trip.distanceKm ?? 0;
       entry.count += 1;
@@ -98,14 +137,47 @@ export default function AnalyticsPage() {
     return [...map.entries()]
       .sort(([a], [b]) => (a < b ? -1 : 1))
       .map(([key, { distanceKm, count }]) => {
-        const [y, m] = key.split("-").map(Number);
-        const month = new Intl.DateTimeFormat(localeTag, { year: "2-digit", month: "short" }).format(
-          new Date(y, m - 1, 1),
-        );
         const distance = distanceUnit === "mi" ? distanceKm * KM_TO_MI : distanceKm;
-        return { month, distance: Math.round(distance * 10) / 10, count };
+        return { label: formatGroupLabel(key), distance: Math.round(distance * 10) / 10, count };
       });
-  }, [filteredTrips, localeTag, distanceUnit]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredTrips, granularity, localeTag, distanceUnit]);
+
+  const groupedCost = useMemo(() => {
+    const map = new Map<string, { fuel: number; maintenance: number }>();
+    for (const log of filteredLogs) {
+      const key = getGroupKey(new Date(log.date));
+      const entry = map.get(key) ?? { fuel: 0, maintenance: 0 };
+      entry.fuel += log.cost;
+      map.set(key, entry);
+    }
+    for (const record of filteredMaintenance) {
+      const key = getGroupKey(new Date(record.date));
+      const entry = map.get(key) ?? { fuel: 0, maintenance: 0 };
+      entry.maintenance += record.cost ?? 0;
+      map.set(key, entry);
+    }
+    return [...map.entries()]
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([key, { fuel, maintenance }]) => ({
+        label: formatGroupLabel(key),
+        fuel,
+        maintenance,
+      }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredLogs, filteredMaintenance, granularity, localeTag]);
+
+  const totalCostInPeriod = useMemo(
+    () =>
+      filteredLogs.reduce((sum, l) => sum + l.cost, 0) +
+      filteredMaintenance.reduce((sum, m) => sum + (m.cost ?? 0), 0),
+    [filteredLogs, filteredMaintenance],
+  );
+
+  const totalDistanceInPeriod = useMemo(() => {
+    const km = filteredTrips.reduce((sum, tr) => sum + (tr.distanceKm ?? 0), 0);
+    return distanceUnit === "mi" ? Math.round(km * KM_TO_MI * 10) / 10 : Math.round(km * 10) / 10;
+  }, [filteredTrips, distanceUnit]);
 
   const allEfficiencyPoints = useMemo(() => computeFuelEfficiencyPoints(fuelLogs), [fuelLogs]);
   const filteredEfficiencyPoints = useMemo(
@@ -130,45 +202,6 @@ export default function AnalyticsPage() {
     const totalLiters = filteredEfficiencyPoints.reduce((sum, p) => sum + p.distanceKm / p.kmPerLiter, 0);
     return totalLiters > 0 ? totalDistance / totalLiters : null;
   }, [filteredEfficiencyPoints]);
-
-  const monthlyCost = useMemo(() => {
-    const map = new Map<string, { fuel: number; maintenance: number }>();
-    for (const log of filteredLogs) {
-      const d = new Date(log.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const entry = map.get(key) ?? { fuel: 0, maintenance: 0 };
-      entry.fuel += log.cost;
-      map.set(key, entry);
-    }
-    for (const record of filteredMaintenance) {
-      const d = new Date(record.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const entry = map.get(key) ?? { fuel: 0, maintenance: 0 };
-      entry.maintenance += record.cost ?? 0;
-      map.set(key, entry);
-    }
-    return [...map.entries()]
-      .sort(([a], [b]) => (a < b ? -1 : 1))
-      .map(([key, { fuel, maintenance }]) => {
-        const [y, m] = key.split("-").map(Number);
-        const month = new Intl.DateTimeFormat(localeTag, { year: "2-digit", month: "short" }).format(
-          new Date(y, m - 1, 1),
-        );
-        return { month, fuel, maintenance };
-      });
-  }, [filteredLogs, filteredMaintenance, localeTag]);
-
-  const totalCostInPeriod = useMemo(
-    () =>
-      filteredLogs.reduce((sum, l) => sum + l.cost, 0) +
-      filteredMaintenance.reduce((sum, m) => sum + (m.cost ?? 0), 0),
-    [filteredLogs, filteredMaintenance],
-  );
-
-  const totalDistanceInPeriod = useMemo(() => {
-    const km = filteredTrips.reduce((sum, tr) => sum + (tr.distanceKm ?? 0), 0);
-    return distanceUnit === "mi" ? Math.round(km * KM_TO_MI * 10) / 10 : Math.round(km * 10) / 10;
-  }, [filteredTrips, distanceUnit]);
 
   if (loading) {
     return (
@@ -320,13 +353,13 @@ export default function AnalyticsPage() {
             </button>
           </div>
         </div>
-        {monthlyCost.length === 0 ? (
+        {groupedCost.length === 0 ? (
           <EmptyState title={t("analyticsNoDataInPeriod")} />
         ) : (
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={monthlyCost} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <BarChart data={groupedCost} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={50} />
               <Tooltip
                 formatter={(value) => formatCurrency(Number(value))}
@@ -364,13 +397,13 @@ export default function AnalyticsPage() {
             <DownloadIcon size={12} /> {t("exportDownloadButton")}
           </button>
         </div>
-        {monthlyTrips.length === 0 ? (
+        {groupedTrips.length === 0 ? (
           <EmptyState title={t("analyticsNoDataInPeriod")} />
         ) : (
           <ResponsiveContainer width="100%" height={240}>
-            <BarChart data={monthlyTrips} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+            <BarChart data={groupedTrips} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
               <YAxis tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={40} />
               <Tooltip
                 formatter={(value) => [`${value} ${distanceUnit}`, t("totalDistance")]}
