@@ -33,7 +33,7 @@ async function captureLocale(locale) {
 
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
-    viewport: { width: 390, height: 844 },
+    viewport: { width: 430, height: 932 },
     locale: locale === "en" ? "en-US" : "ko-KR",
     isMobile: true,
     hasTouch: true,
