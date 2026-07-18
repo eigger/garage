@@ -21,6 +21,7 @@ import { evChargerRoutes } from "./routes/evCharger.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { mapProviderRoutes } from "./routes/mapProviders.js";
 import { pushRoutes } from "./routes/push.js";
+import { reportsRoutes } from "./routes/reports.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
@@ -117,6 +118,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(settingsRoutes, { prefix: "/api/settings" });
   await app.register(mapProviderRoutes, { prefix: "/api/map" });
   await app.register(pushRoutes, { prefix: "/api/push" });
+  await app.register(reportsRoutes, { prefix: "/api/vehicles" });
 
   return app;
 }
