@@ -52,6 +52,8 @@ const CHGER_TYPE_LABEL_KEY: Record<string, TranslationKey> = {
   "11": "chgerTypeDcCombo2Bus",
 };
 
+const RESULT_LIMIT = 5;
+
 export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsChange }: NearbyStationsCardProps) {
   const { t } = useSettings();
   const isElectric = fuelType === "ELECTRIC";
@@ -62,27 +64,32 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
   const [gasCoords, setGasCoords] = useState<Record<string, { lat: number; lon: number }>>({});
   const [chargers, setChargers] = useState<EvChargerSummary[]>([]);
 
-  async function handleSearch() {
+  // 거리순/가격순은 각각 오피넷에 따로 조회한다 — 한 번 받아온 목록을 클라이언트에서
+  // 재정렬하면, 상위 N개만 상세 조회(좌표)해둔 상태라 정렬을 바꿨을 때 원래 상위권 밖에
+  // 있던 항목이 새로 보이면서 네비 버튼이 빠지는 문제가 있었다.
+  async function handleSearch(mode: SortMode) {
     setLoading(true);
     setSearched(true);
+    setSortMode(mode);
     try {
       if (isElectric) {
         const address = await reverseGeocode(mapConfig, lat, lon);
         const url = `/api/ev-charger/stations?lat=${lat}&lon=${lon}${address ? `&address=${encodeURIComponent(address)}` : ""}`;
         const res = await apiFetch(url);
-        const data: EvChargerSummary[] = res.ok ? await res.json() : [];
+        const all: EvChargerSummary[] = res.ok ? await res.json() : [];
+        const data = all.slice(0, RESULT_LIMIT);
         setChargers(data);
         onResultsChange?.(data.map((s) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name })));
       } else {
-        const res = await apiFetch(`/api/opinet/stations?lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}`);
-        const data: OpinetStationSummary[] = res.ok ? await res.json() : [];
+        const res = await apiFetch(`/api/opinet/stations?lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}&sort=${mode}`);
+        const all: OpinetStationSummary[] = res.ok ? await res.json() : [];
+        const data = all.slice(0, RESULT_LIMIT);
         setGasStations(data);
 
-        // 요약 응답에는 좌표가 없어 네비 연동 + 지도 표기를 위해 실좌표가 있는 항목만 상세 조회로 보강한다.
+        // 요약 응답에는 좌표가 없어 네비 연동 + 지도 표기를 위해 화면에 보이는 항목만 상세 조회로 보강한다.
         const entries = await Promise.all(
           data
             .filter((s) => !s.id.startsWith("MOCK_"))
-            .slice(0, 15)
             .map(async (s) => {
               const detailRes = await apiFetch(`/api/opinet/stations/${s.id}`);
               if (!detailRes.ok) return null;
@@ -105,10 +112,6 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
     }
   }
 
-  const sortedGasStations = [...gasStations].sort((a, b) =>
-    sortMode === "price" ? a.price - b.price : a.distance - b.distance
-  );
-
   return (
     <section className="card" style={{ marginTop: 12 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
@@ -116,13 +119,14 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
           {isElectric ? t("nearbyChargersTitle") : t("nearbyGasStationsTitle")}
         </h2>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {!isElectric && gasStations.length > 0 && (
+          {!isElectric && searched && (
             <div style={{ display: "flex", gap: 4 }}>
               {(["distance", "price"] as SortMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
-                  onClick={() => setSortMode(mode)}
+                  onClick={() => handleSearch(mode)}
+                  disabled={loading}
                   style={{
                     fontSize: 12,
                     padding: "4px 8px",
@@ -139,7 +143,7 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
           )}
           <button
             type="button"
-            onClick={handleSearch}
+            onClick={() => handleSearch(sortMode)}
             disabled={loading}
             style={{ fontSize: 12, padding: "4px 10px", minHeight: "auto", background: "var(--color-primary)", color: "var(--color-text-on-primary)" }}
           >
@@ -157,7 +161,7 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
       {searched && !loading && isElectric && chargers.length === 0 && (
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("noNearbyResults")}</p>
       )}
-      {searched && !loading && !isElectric && sortedGasStations.length === 0 && (
+      {searched && !loading && !isElectric && gasStations.length === 0 && (
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("noNearbyResults")}</p>
       )}
 
@@ -194,9 +198,9 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
         </div>
       )}
 
-      {!isElectric && sortedGasStations.length > 0 && (
+      {!isElectric && gasStations.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {sortedGasStations.map((station) => {
+          {gasStations.map((station) => {
             const coords = gasCoords[station.id];
             return (
               <div key={station.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>

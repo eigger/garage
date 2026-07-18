@@ -279,8 +279,8 @@ export default function AnalyticsPage() {
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="fuel" name={t("analyticsFuelCost")} stackId="cost" fill="var(--color-primary)" />
-              <Bar dataKey="maintenance" name={t("analyticsMaintenanceCost")} stackId="cost" fill="var(--chart-secondary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="fuel" name={t("analyticsFuelCost")} stackId="cost" fill="var(--color-primary)" maxBarSize={48} />
+              <Bar dataKey="maintenance" name={t("analyticsMaintenanceCost")} stackId="cost" fill="var(--chart-secondary)" radius={[4, 4, 0, 0]} maxBarSize={48} />
             </BarChart>
           </ResponsiveContainer>
         )}
@@ -301,7 +301,7 @@ export default function AnalyticsPage() {
                 labelStyle={{ fontSize: 12 }}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
-              <Bar dataKey="distance" name={t("totalDistance")} fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="distance" name={t("totalDistance")} fill="var(--color-primary)" radius={[4, 4, 0, 0]} maxBarSize={48} />
             </BarChart>
           </ResponsiveContainer>
         )}

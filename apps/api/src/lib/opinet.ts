@@ -46,22 +46,26 @@ function brandLabel(code: string): string {
   return BRANDS[code.trim().toUpperCase()] ?? "자가상표";
 }
 
+export type StationSort = "distance" | "price";
+
 export async function fetchNearbyStations(
   lat: number,
   lon: number,
   fuelType: string,
+  sort: StationSort = "distance",
 ): Promise<OpinetStationSummary[]> {
   if (fuelType === "ELECTRIC") return [];
 
   const apiKey = await getSetting("OPINET_API_KEY");
-  if (!apiKey) return mockStations(fuelType);
+  if (!apiKey) return sortMockStations(mockStations(fuelType), sort);
 
   try {
     const { x, y } = wgs84ToKatec(lon, lat);
     const prodcd = FUEL_CODE_MAP[fuelType] ?? "B027";
     // 오피넷 API의 sort 파라미터는 1=가격순, 2=거리순이다 (실제 API 응답으로 확인됨,
     // 공식 문서에 적힌 것과 반대라 헷갈리기 쉬움).
-    const url = `https://www.opinet.co.kr/api/aroundAll.do?code=${apiKey}&out=json&x=${x}&y=${y}&radius=5000&prodcd=${prodcd}&sort=2`;
+    const opinetSort = sort === "price" ? 1 : 2;
+    const url = `https://www.opinet.co.kr/api/aroundAll.do?code=${apiKey}&out=json&x=${x}&y=${y}&radius=5000&prodcd=${prodcd}&sort=${opinetSort}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Opinet API responded with status ${res.status}`);
 
@@ -82,8 +86,12 @@ export async function fetchNearbyStations(
       };
     });
   } catch {
-    return mockStations(fuelType);
+    return sortMockStations(mockStations(fuelType), sort);
   }
+}
+
+function sortMockStations(stations: OpinetStationSummary[], sort: StationSort): OpinetStationSummary[] {
+  return [...stations].sort((a, b) => (sort === "price" ? a.price - b.price : a.distance - b.distance));
 }
 
 export async function fetchStationDetail(uniId: string): Promise<OpinetStationDetail | null> {

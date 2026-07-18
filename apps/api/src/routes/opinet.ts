@@ -11,17 +11,18 @@ export async function opinetRoutes(app: FastifyInstance) {
   });
 
   app.get("/stations", async (request, reply) => {
-    const { lat, lon, fuelType } = request.query as {
+    const { lat, lon, fuelType, sort } = request.query as {
       lat?: string;
       lon?: string;
       fuelType?: string;
+      sort?: string;
     };
 
     if (!lat || !lon || !fuelType) {
       return reply.code(400).send({ error: "lat, lon, and fuelType are required" });
     }
 
-    return fetchNearbyStations(Number(lat), Number(lon), fuelType);
+    return fetchNearbyStations(Number(lat), Number(lon), fuelType, sort === "price" ? "price" : "distance");
   });
 
   // 주유소 상세(주소·좌표) — 네비 연동 및 주유 기록 저장용
