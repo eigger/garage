@@ -153,7 +153,11 @@ EOF
 systemctl daemon-reload
 systemctl restart container-getty@1.service || true
 
-# Keep update logic local so rate limits on remote helper scripts cannot break updates.
+# /usr/bin/update는 실행 시점마다 최신 업데이트 스크립트를 받아서 실행하는 얇은 래퍼다.
+# 로직을 여기(설치 시점)에 그대로 박아두면, 이후 이 저장소에서 업데이트 스크립트가
+# 개선돼도(예: dangling 이미지 정리 추가) 이미 설치된 컨테이너는 그 개선을 영영 못
+# 받는 문제가 있었다 — 실제로 v0.2.14에 추가된 `docker image prune -f`가 그 이전에
+# 설치된 컨테이너에는 반영되지 않아 디스크가 계속 쌓인 사례가 있었음.
 cat <<'EOF' >/usr/bin/update
 #!/usr/bin/env bash
 set -euo pipefail
@@ -162,18 +166,7 @@ set -a
 [ -f /etc/profile.d/90-http-proxy.sh ] && . /etc/profile.d/90-http-proxy.sh
 set +a
 
-if [[ ! -d /opt/garage ]]; then
-  echo "No Garage installation found at /opt/garage"
-  exit 1
-fi
-
-cd /opt/garage
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d --remove-orphans
-# 업데이트가 성공했을 때만 이 줄에 도달한다(set -e). 태그가 새 이미지로 넘어가면서
-# 남는 예전 <none> 이미지를 지워서, 릴리스가 반복돼도 디스크가 계속 쌓이지 않게 한다.
-docker image prune -f
-echo "Garage update completed."
+curl -fsSL https://raw.githubusercontent.com/eigger/garage/master/proxmox/ct-update.sh | bash
 EOF
 chmod +x /usr/bin/update
 
