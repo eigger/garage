@@ -149,6 +149,7 @@ export type EarnedBadge = {
   key: string;
   tier: number;
   count: number;
+  earnedAt?: string;
 };
 
 export type VehicleGamification = {

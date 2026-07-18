@@ -61,7 +61,7 @@ function renderBadgeIcon(key: BadgeKey, size = 24) {
 // 전용 페이지(/vehicles/[id]/level)에서만 쓰여서 홈 화면처럼 공간을 아낄 필요가
 // 없으므로, 예전처럼 접어두지 않고 뱃지 목록을 항상 펼쳐서 보여준다.
 export function LevelCard({ data }: { data: VehicleGamification }) {
-  const { t } = useSettings();
+  const { t, locale } = useSettings();
   const progressPercent =
     data.xpForNextLevel > 0 ? Math.min(100, (data.xpIntoLevel / data.xpForNextLevel) * 100) : 100;
   const earnedByKey = new Map(data.badges.map((b) => [b.key, b]));
@@ -112,7 +112,7 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
         {t("gamificationBadgesEarned", { count: data.badges.length, total: data.allBadgeKeys.length })}
       </p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(80px, 1fr))", gap: 10, marginTop: 10 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 10 }}>
         {data.allBadgeKeys.map((key) => {
             const badgeKey = key as BadgeKey;
             const earned = earnedByKey.get(key);
@@ -126,14 +126,12 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
                   aria-label={t("badgeLockedDesc")}
                   style={{
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
-                    gap: 4,
-                    padding: 8,
+                    gap: 12,
+                    padding: "10px 12px",
                     borderRadius: 8,
                     background: "var(--color-surface-secondary)",
                     opacity: 0.5,
-                    textAlign: "center",
                   }}
                 >
                   <div
@@ -146,7 +144,7 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      marginBottom: 6,
+                      flexShrink: 0,
                     }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--color-text-muted)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -154,7 +152,10 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
                       <path d="M7 11V7a5 5 0 0 1 10 0v4" />
                     </svg>
                   </div>
-                  <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{t("badgeLockedName")}</span>
+                  <div style={{ display: "flex", flexDirection: "column", textAlign: "left" }}>
+                    <span style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("badgeLockedName")}</span>
+                    <span style={{ fontSize: 11, color: "var(--color-text-muted-2)", marginTop: 2 }}>{t("badgeLockedDesc")}</span>
+                  </div>
                 </div>
               );
             }
@@ -170,29 +171,14 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
                 key={key}
                 title={`${t(badgeDescKey(badgeKey))} · ${hint}`}
                 style={{
-                  position: "relative",
                   display: "flex",
-                  flexDirection: "column",
                   alignItems: "center",
-                  gap: 4,
-                  padding: 8,
+                  gap: 12,
+                  padding: "10px 12px",
                   borderRadius: 8,
                   background: "var(--color-surface-secondary)",
-                  textAlign: "center",
                 }}
               >
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 4,
-                    right: 6,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "var(--color-primary)",
-                  }}
-                >
-                  x{earned.tier}
-                </span>
                 <div
                   style={{
                     width: 48,
@@ -204,15 +190,34 @@ export function LevelCard({ data }: { data: VehicleGamification }) {
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    marginBottom: 6,
+                    flexShrink: 0,
                   }}
                 >
                   {renderBadgeIcon(badgeKey, 24)}
                 </div>
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)" }}>{t(badgeNameKey(badgeKey))}</span>
-                <span style={{ fontSize: 10, color: "var(--color-text-muted-2)" }}>
-                  {earned.tier}/{badgeMaxTier(badgeKey)}
-                </span>
+                <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", textAlign: "left" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    <strong style={{ fontSize: 13, color: "var(--color-text)" }}>{t(badgeNameKey(badgeKey))}</strong>
+                    <span style={{ fontSize: 11, color: "var(--color-primary)", fontWeight: "700" }}>
+                      x{earned.tier} (Tier {earned.tier}/{badgeMaxTier(badgeKey)})
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 2 }}>{t(badgeDescKey(badgeKey))}</span>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4, flexWrap: "wrap", gap: 4 }}>
+                    {earned.earnedAt && (
+                      <span style={{ fontSize: 10, color: "var(--color-text-muted-2)" }}>
+                        {t("badgeEarnedAt", {
+                          date: new Date(earned.earnedAt).toLocaleDateString(locale === "ko" ? "ko-KR" : "en-US", {
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
+                        })}
+                      </span>
+                    )}
+                    <span style={{ fontSize: 10, color: "var(--color-text-muted-2)", marginLeft: "auto" }}>{hint}</span>
+                  </div>
+                </div>
               </div>
             );
         })}

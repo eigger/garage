@@ -606,7 +606,12 @@ export async function vehicleRoutes(app: FastifyInstance) {
 
     return {
       ...levelForXp(vehicle.xp),
-      badges: earnedBadges.map((b) => ({ key: b.badgeKey, tier: b.tier, count: counts?.[b.badgeKey as keyof typeof counts] ?? 0 })),
+      badges: earnedBadges.map((b) => ({
+        key: b.badgeKey,
+        tier: b.tier,
+        count: counts?.[b.badgeKey as keyof typeof counts] ?? 0,
+        earnedAt: b.earnedAt,
+      })),
       allBadgeKeys: BADGE_KEYS,
       recentEvents,
     };
