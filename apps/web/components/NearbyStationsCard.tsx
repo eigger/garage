@@ -54,6 +54,30 @@ const CHGER_TYPE_LABEL_KEY: Record<string, TranslationKey> = {
 
 const RESULT_LIMIT = 5;
 
+// 지도 마커와 같은 색·숫자를 써서, provider별 클릭 이벤트 구현 없이도 리스트 항목과
+// 지도 마커를 번호로 서로 대응시킬 수 있게 한다.
+function StationBadge({ number }: { number: number }) {
+  return (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        background: "#f59e0b",
+        color: "#fff",
+        fontSize: 11,
+        fontWeight: 700,
+        flexShrink: 0,
+      }}
+    >
+      {number}
+    </span>
+  );
+}
+
 export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsChange }: NearbyStationsCardProps) {
   const { t } = useSettings();
   const isElectric = fuelType === "ELECTRIC";
@@ -79,7 +103,7 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
         const all: EvChargerSummary[] = res.ok ? await res.json() : [];
         const data = all.slice(0, RESULT_LIMIT);
         setChargers(data);
-        onResultsChange?.(data.map((s) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name })));
+        onResultsChange?.(data.map((s, i) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name, number: i + 1 })));
       } else {
         const res = await apiFetch(`/api/opinet/stations?lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}&sort=${mode}`);
         const all: OpinetStationSummary[] = res.ok ? await res.json() : [];
@@ -101,10 +125,13 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
         );
         const coordsMap = Object.fromEntries(entries.filter((e): e is readonly [string, { lat: number; lon: number }] => e !== null));
         setGasCoords(coordsMap);
+        // 좌표가 없어 걸러지는 항목이 있어도(드물게 상세조회 실패 등) 리스트 순번(number)은
+        // 원래 위치 그대로 유지해 지도 마커 번호와 항상 일치하게 한다.
         onResultsChange?.(
           data
-            .filter((s) => coordsMap[s.id])
-            .map((s) => ({ id: s.id, lat: coordsMap[s.id].lat, lon: coordsMap[s.id].lon, name: s.name }))
+            .map((s, i) => ({ station: s, number: i + 1 }))
+            .filter(({ station: s }) => coordsMap[s.id])
+            .map(({ station: s, number }) => ({ id: s.id, lat: coordsMap[s.id].lat, lon: coordsMap[s.id].lon, name: s.name, number }))
         );
       }
     } finally {
@@ -167,10 +194,13 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
 
       {isElectric && chargers.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {chargers.map((station) => (
+          {chargers.map((station, i) => (
             <div key={station.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{station.name}</strong>
+                <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+                  <StationBadge number={i + 1} />
+                  <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{station.name}</strong>
+                </span>
                 <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{station.distance}m</span>
               </div>
               <div style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "2px 0 6px" }}>{station.operator}</div>
@@ -200,14 +230,17 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
 
       {!isElectric && gasStations.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {gasStations.map((station) => {
+          {gasStations.map((station, i) => {
             const coords = gasCoords[station.id];
             return (
               <div key={station.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                  <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    [{station.brandLabel}] {station.name}
-                  </strong>
+                  <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+                    <StationBadge number={i + 1} />
+                    <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      [{station.brandLabel}] {station.name}
+                    </strong>
+                  </span>
                   <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{station.distance}m</span>
                 </div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", margin: "2px 0 8px" }}>

@@ -62,18 +62,19 @@ GET https://www.opinet.co.kr/api/aroundAll.do
   &x={KATEC_X}&y={KATEC_Y}
   &radius=5000
   &prodcd={B027|D047|K015}
-  &sort=1
+  &sort={1=price, 2=distance}
 ```
 
 - Coordinates: browser GPS (WGS84) → KATEC (`proj4`)
 - Fuel codes: `GASOLINE`→`B027`, `DIESEL`→`D047`, `LPG`→`K015`, `ELECTRIC`→skipped (empty array)
+- `sort` is threaded through from the `NearbyStationsCard` UI's 거리순/가격순 toggle — each toggle re-queries Opinet directly (rather than re-sorting a client-cached list), so whichever 5 stations are shown always match what was actually detail-fetched for nav/map coordinates.
 
 ### Proxy API Garage exposes
 
 | Method | Path | Auth | Description |
 |---|---|---|---|
 | `GET` | `/api/opinet/configured` | JWT (logged-in user) | Whether a key is set `{ configured: boolean }` |
-| `GET` | `/api/opinet/stations` | JWT | Nearby stations via `lat`, `lon`, `fuelType` query params |
+| `GET` | `/api/opinet/stations` | JWT | Nearby stations via `lat`, `lon`, `fuelType`, `sort` (`distance` \| `price`, default `distance`) query params |
 | `GET` | `/api/opinet/stations/:id` | JWT | Station detail — address, road address, WGS84 coordinates |
 
 **List response fields**: `id`, `name`, `brand`, `brandLabel`, `distance` (m), `price` (KRW/L)
@@ -81,6 +82,8 @@ GET https://www.opinet.co.kr/api/aroundAll.do
 **Detail response fields**: summary fields plus `address`, `roadAddress`, `lat`, `lon`, `tel`
 
 When a station is selected in **Quick Log**, Garage fetches detail and saves `latitude`, `longitude`, `address`, and `opinetStationId` on the fuel log. Saved coordinates power navigation buttons in history.
+
+On the **vehicle overview** page, `NearbyStationsCard` caps results to the top 5 (per whichever sort is active) and numbers them 1–5 — the same numbers are drawn on the last-location map's markers (`LastLocationMap`), so a result can be matched to its map pin without needing per-provider click/hover handling. The vehicle's own position is never part of this numbering or the 5-item cap.
 
 ### Fallback behavior
 
@@ -874,7 +877,7 @@ Unlike Opinet, this API has **no lat/lon + radius search** — only `zcode` (시
 
 `status` is normalized from the API's `stat` code into `AVAILABLE | CHARGING | RESERVED | OUT_OF_SERVICE | UNKNOWN`. Both `type` (01–11) and `status` are locale-agnostic codes — the frontend translates them to a human-readable label (`NearbyStationsCard.tsx`), so the API never returns Korean-only display text for these fields.
 
-Surfaced on the **vehicle overview page** (`NearbyStationsCard`) as a standalone "주변 충전소 찾기" card, separate from Quick Log — checking charger availability is a pre-departure decision for EV owners, not something tied to logging a completed charge. Each result links out via the existing nav deep-link buttons (T map / Kakao / Naver).
+Surfaced on the **vehicle overview page** (`NearbyStationsCard`) as a standalone "주변 충전소 찾기" card, separate from Quick Log — checking charger availability is a pre-departure decision for EV owners, not something tied to logging a completed charge. Each result links out via the existing nav deep-link buttons (T map / Kakao / Naver). Same top-5 cap and map-marker numbering as the Opinet flow above (§1) — there's no price field here, so only distance sort applies.
 
 ### Fallback behavior
 

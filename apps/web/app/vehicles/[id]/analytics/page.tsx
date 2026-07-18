@@ -168,18 +168,6 @@ export default function AnalyticsPage() {
     [filteredLogs, filteredMaintenance],
   );
 
-  const periodDistanceKm = useMemo(() => {
-    const odometers = [...filteredLogs.map((l) => l.odometer), ...filteredMaintenance.map((m) => m.odometer)];
-    if (odometers.length < 2) return 0;
-    return Math.max(...odometers) - Math.min(...odometers);
-  }, [filteredLogs, filteredMaintenance]);
-
-  const costPerDistance = useMemo(() => {
-    if (periodDistanceKm <= 0) return null;
-    const distanceInUnit = distanceUnit === "mi" ? periodDistanceKm * KM_TO_MI : periodDistanceKm;
-    return totalCostInPeriod / distanceInUnit;
-  }, [periodDistanceKm, totalCostInPeriod, distanceUnit]);
-
   if (loading) {
     return (
       <section>
@@ -231,10 +219,6 @@ export default function AnalyticsPage() {
           <div>
             <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsTotalCost")}</div>
             <strong>{formatCurrency(totalCostInPeriod)}</strong>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("analyticsCostPerDistance")}</div>
-            <strong>{costPerDistance !== null ? `${formatCurrency(costPerDistance)}/${distanceUnit}` : "-"}</strong>
           </div>
         </div>
       </section>

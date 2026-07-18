@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { SpeedPoint } from "../../lib/maps/polyline";
-import { buildSpeedSegments, circleMarkerDataUri } from "../../lib/maps/polyline";
+import { ROUTE_ARROW_COUNT, arrowMarkerDataUri, buildSpeedSegments, circleMarkerDataUri, sampleForArrows } from "../../lib/maps/polyline";
 import { loadTmapSdk } from "../../lib/maps/loadSdk";
 import { RecenterButton } from "./RecenterButton";
 
@@ -38,6 +38,15 @@ export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: 
             path: seg.path.map((p) => new Tmapv2.LatLng(p.lat, p.lon)),
             strokeColor: seg.color,
             strokeWeight: 4,
+            map,
+          });
+        }
+
+        // 경로 전체에서 몇 개만 골라 진행 방향 화살표를 표시한다 (전 구간에 찍으면 지저분해짐).
+        for (const a of sampleForArrows(points, ROUTE_ARROW_COUNT)) {
+          new Tmapv2.Marker({
+            position: new Tmapv2.LatLng(a.point.lat, a.point.lon),
+            icon: arrowMarkerDataUri(a.bearing, "#18523f"),
             map,
           });
         }

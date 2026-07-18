@@ -131,9 +131,14 @@ export default function VehicleIntegrationPage() {
   lat: 37.5665,
   lon: 126.9780,
   fuelLevel: 85,
+  odometer: 15234,
+  dtcCodes: "P0300",
   inVehicle: true
 }, null, 2)}
             </pre>
+            <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
+              모든 필드는 선택 사항입니다 — 보내는 것만 반영됩니다. <code>odometer</code>는 기존 값보다 클 때만 갱신되고, <code>dtcCodes</code>는 진단 코드 문자열입니다.
+            </p>
           </div>
         </div>
       </div>
