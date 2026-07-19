@@ -6,6 +6,8 @@ import "leaflet/dist/leaflet.css";
 import type { MapProvider } from "@garage/shared";
 import { loadKakaoMaps, loadNaverMaps, loadTmapSdk } from "../../lib/maps/loadSdk";
 import { numberedMarkerDataUri } from "../../lib/maps/polyline";
+import { DARK_MAP_FILTER, OSM_TILE_DARK, OSM_TILE_LIGHT } from "../../lib/maps/darkMode";
+import { useIsDarkMode } from "../../lib/useIsDarkMode";
 import { RecenterButton } from "./RecenterButton";
 
 const DEFAULT_ZOOM = 16;
@@ -41,9 +43,10 @@ function LeafletFitBounds({ lat, lon, stations }: { lat: number; lon: number; st
   return null;
 }
 
-function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stations: StationMarker[] }) {
+function OsmLocationMap({ lat, lon, stations, isDark }: { lat: number; lon: number; stations: StationMarker[]; isDark: boolean }) {
   const [markerIcon, setMarkerIcon] = useState<any>(null);
   const [leaflet, setLeaflet] = useState<any>(null);
+  const pinColor = isDark ? "#34d399" : "#18523f";
 
   useEffect(() => {
     let cancelled = false;
@@ -54,7 +57,7 @@ function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stat
         html: `
           <div style="display: flex; align-items: center; justify-content: center; width: 30px; height: 30px;">
             <svg width="30" height="30" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="#18523f" stroke="#ffffff" stroke-width="1.5"/>
+              <path d="M12 2C8.13 2 5 5.13 5 9C5 14.25 12 22 12 22C12 22 19 14.25 19 9C19 5.13 15.87 2 12 2ZM12 11.5C10.62 11.5 9.5 10.38 9.5 9C9.5 7.62 10.62 6.5 12 6.5C13.38 6.5 14.5 7.62 14.5 9C14.5 10.38 13.38 11.5 12 11.5Z" fill="${pinColor}" stroke="#ffffff" stroke-width="1.5"/>
             </svg>
           </div>
         `,
@@ -67,7 +70,9 @@ function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stat
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [pinColor]);
+
+  const tile = isDark ? OSM_TILE_DARK : OSM_TILE_LIGHT;
 
   return (
     <MapContainer
@@ -76,10 +81,7 @@ function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stat
       style={{ height: "100%", width: "100%", zIndex: 1 }}
       scrollWheelZoom={true}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <TileLayer attribution={tile.attribution} url={tile.url} />
       {markerIcon && (
         <Marker position={[lat, lon]} icon={markerIcon} />
       )}
@@ -103,7 +105,7 @@ function OsmLocationMap({ lat, lon, stations }: { lat: number; lon: number; stat
   );
 }
 
-function KakaoLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: number; appKey: string; stations: StationMarker[] }) {
+function KakaoLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; lon: number; appKey: string; stations: StationMarker[]; isDark: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -168,13 +170,22 @@ function KakaoLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: nu
   if (error) return <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 8 }}>{error}</p>;
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "var(--color-surface-secondary)", borderRadius: 8 }} />
+      <div
+        ref={containerRef}
+        style={{
+          height: "100%",
+          width: "100%",
+          background: "var(--color-surface-secondary)",
+          borderRadius: 8,
+          filter: isDark ? DARK_MAP_FILTER : undefined,
+        }}
+      />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
 }
 
-function NaverLocationMap({ lat, lon, clientId, stations }: { lat: number; lon: number; clientId: string; stations: StationMarker[] }) {
+function NaverLocationMap({ lat, lon, clientId, stations, isDark }: { lat: number; lon: number; clientId: string; stations: StationMarker[]; isDark: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -240,13 +251,22 @@ function NaverLocationMap({ lat, lon, clientId, stations }: { lat: number; lon: 
   if (error) return <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 8 }}>{error}</p>;
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "var(--color-surface-secondary)", borderRadius: 8 }} />
+      <div
+        ref={containerRef}
+        style={{
+          height: "100%",
+          width: "100%",
+          background: "var(--color-surface-secondary)",
+          borderRadius: 8,
+          filter: isDark ? DARK_MAP_FILTER : undefined,
+        }}
+      />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
 }
 
-function TmapLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: number; appKey: string; stations: StationMarker[] }) {
+function TmapLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; lon: number; appKey: string; stations: StationMarker[]; isDark: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -314,7 +334,16 @@ function TmapLocationMap({ lat, lon, appKey, stations }: { lat: number; lon: num
   if (error) return <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 8 }}>{error}</p>;
   return (
     <div style={{ position: "relative", height: "100%", width: "100%" }}>
-      <div ref={containerRef} style={{ height: "100%", width: "100%", background: "var(--color-surface-secondary)", borderRadius: 8 }} />
+      <div
+        ref={containerRef}
+        style={{
+          height: "100%",
+          width: "100%",
+          background: "var(--color-surface-secondary)",
+          borderRadius: 8,
+          filter: isDark ? DARK_MAP_FILTER : undefined,
+        }}
+      />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
@@ -339,17 +368,19 @@ export function LastLocationMap({
   tmapAppKey,
   stations = [],
 }: LastLocationMapProps) {
+  const isDark = useIsDarkMode();
+
   if (provider === "kakao" && kakaoAppKey) {
-    return <KakaoLocationMap lat={lat} lon={lon} appKey={kakaoAppKey} stations={stations} />;
+    return <KakaoLocationMap lat={lat} lon={lon} appKey={kakaoAppKey} stations={stations} isDark={isDark} />;
   }
 
   if (provider === "naver" && naverClientId) {
-    return <NaverLocationMap lat={lat} lon={lon} clientId={naverClientId} stations={stations} />;
+    return <NaverLocationMap lat={lat} lon={lon} clientId={naverClientId} stations={stations} isDark={isDark} />;
   }
 
   if (provider === "tmap" && tmapAppKey) {
-    return <TmapLocationMap lat={lat} lon={lon} appKey={tmapAppKey} stations={stations} />;
+    return <TmapLocationMap lat={lat} lon={lon} appKey={tmapAppKey} stations={stations} isDark={isDark} />;
   }
 
-  return <OsmLocationMap lat={lat} lon={lon} stations={stations} />;
+  return <OsmLocationMap lat={lat} lon={lon} stations={stations} isDark={isDark} />;
 }

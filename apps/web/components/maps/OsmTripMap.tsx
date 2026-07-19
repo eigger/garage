@@ -5,6 +5,8 @@ import { CircleMarker, MapContainer, Marker, Polyline, TileLayer, useMap } from 
 import "leaflet/dist/leaflet.css";
 import type { LatLon, SpeedPoint } from "../../lib/maps/polyline";
 import { ROUTE_ARROW_COUNT, buildSpeedSegments, sampleForArrows } from "../../lib/maps/polyline";
+import { OSM_TILE_DARK, OSM_TILE_LIGHT } from "../../lib/maps/darkMode";
+import { useIsDarkMode } from "../../lib/useIsDarkMode";
 import { RecenterButton } from "./RecenterButton";
 
 function fitToPoints(map: ReturnType<typeof useMap>, points: LatLon[]) {
@@ -31,8 +33,9 @@ function LeafletRecenterControl({ points }: { points: LatLon[] }) {
 }
 
 // 진행 방향을 나타내는 화살표 마커 (leaflet은 서버사이드에서 L.divIcon을 만들 수 없어 동적 로드가 필요).
-function ArrowMarkers({ points }: { points: LatLon[] }) {
+function ArrowMarkers({ points, isDark }: { points: LatLon[]; isDark: boolean }) {
   const [icons, setIcons] = useState<{ point: LatLon; bearing: number; icon: any }[] | null>(null);
+  const arrowColor = isDark ? "#34d399" : "#18523f";
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +45,7 @@ function ArrowMarkers({ points }: { points: LatLon[] }) {
         ...a,
         icon: L.divIcon({
           className: "",
-          html: `<div style="transform: rotate(${a.bearing}deg); color: #18523f; font-size: 18px; line-height: 1;">▲</div>`,
+          html: `<div style="transform: rotate(${a.bearing}deg); color: ${arrowColor}; font-size: 18px; line-height: 1;">▲</div>`,
           iconSize: [18, 18],
           iconAnchor: [9, 9],
         }),
@@ -52,7 +55,7 @@ function ArrowMarkers({ points }: { points: LatLon[] }) {
     return () => {
       cancelled = true;
     };
-  }, [points]);
+  }, [points, arrowColor]);
 
   if (!icons) return null;
   return (
@@ -65,10 +68,12 @@ function ArrowMarkers({ points }: { points: LatLon[] }) {
 }
 
 export function OsmTripMap({ points }: { points: SpeedPoint[] }) {
+  const isDark = useIsDarkMode();
   const center = points[0] ?? { lat: 37.5665, lon: 126.978 };
   const start = points[0];
   const end = points[points.length - 1];
   const segments = buildSpeedSegments(points);
+  const tile = isDark ? OSM_TILE_DARK : OSM_TILE_LIGHT;
 
   return (
     <MapContainer
@@ -77,10 +82,7 @@ export function OsmTripMap({ points }: { points: SpeedPoint[] }) {
       style={{ height: 240, width: "100%", borderRadius: 8 }}
       scrollWheelZoom={true}
     >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <TileLayer attribution={tile.attribution} url={tile.url} />
       {points.length > 0 && (
         <>
           {segments.map((seg, i) => (
@@ -90,7 +92,7 @@ export function OsmTripMap({ points }: { points: SpeedPoint[] }) {
               pathOptions={{ color: seg.color, weight: 4 }}
             />
           ))}
-          <ArrowMarkers points={points} />
+          <ArrowMarkers points={points} isDark={isDark} />
           <CircleMarker center={[start.lat, start.lon]} radius={6} pathOptions={{ color: "#fff", weight: 2, fillColor: "#10b981", fillOpacity: 1 }} />
           <CircleMarker center={[end.lat, end.lon]} radius={6} pathOptions={{ color: "#fff", weight: 2, fillColor: "#ef4444", fillOpacity: 1 }} />
           <FitBounds points={points} />
