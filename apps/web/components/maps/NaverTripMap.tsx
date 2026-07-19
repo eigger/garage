@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { SpeedPoint } from "../../lib/maps/polyline";
 import { ROUTE_ARROW_COUNT, arrowMarkerDataUri, buildSpeedSegments, circleMarkerDataUri, sampleForArrows } from "../../lib/maps/polyline";
 import { loadNaverMaps } from "../../lib/maps/loadSdk";
+import { DARK_MAP_FILTER } from "../../lib/maps/darkMode";
 import { RecenterButton } from "./RecenterButton";
 
-export function NaverTripMap({ points, clientId }: { points: SpeedPoint[]; clientId: string }) {
+export function NaverTripMap({ points, clientId, isDark }: { points: SpeedPoint[]; clientId: string; isDark: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<{ fitBounds: (b: object) => void } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +89,13 @@ export function NaverTripMap({ points, clientId }: { points: SpeedPoint[]; clien
     <div style={{ position: "relative", height: 240, width: "100%" }}>
       <div
         ref={containerRef}
-        style={{ height: "100%", width: "100%", borderRadius: 8, background: "var(--color-surface-secondary)" }}
+        style={{
+          height: "100%",
+          width: "100%",
+          borderRadius: 8,
+          background: "var(--color-surface-secondary)",
+          filter: isDark ? DARK_MAP_FILTER : undefined,
+        }}
       />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>

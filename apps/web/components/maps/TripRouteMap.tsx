@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import type { MapProvider } from "@garage/shared";
 import type { SpeedPoint } from "../../lib/maps/polyline";
+import { useIsDarkMode } from "../../lib/useIsDarkMode";
 import { KakaoTripMap } from "./KakaoTripMap";
 import { NaverTripMap } from "./NaverTripMap";
 import { TmapTripMap } from "./TmapTripMap";
@@ -44,20 +45,22 @@ export function TripRouteMap({
   tmapAppKey,
   noRouteLabel,
 }: TripRouteMapProps) {
+  const isDark = useIsDarkMode();
+
   if (points.length === 0) {
     return <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{noRouteLabel}</p>;
   }
 
   if (provider === "kakao" && kakaoAppKey) {
-    return <KakaoTripMap points={points} appKey={kakaoAppKey} />;
+    return <KakaoTripMap points={points} appKey={kakaoAppKey} isDark={isDark} />;
   }
 
   if (provider === "naver" && naverClientId) {
-    return <NaverTripMap points={points} clientId={naverClientId} />;
+    return <NaverTripMap points={points} clientId={naverClientId} isDark={isDark} />;
   }
 
   if (provider === "tmap" && tmapAppKey) {
-    return <TmapTripMap points={points} appKey={tmapAppKey} />;
+    return <TmapTripMap points={points} appKey={tmapAppKey} isDark={isDark} />;
   }
 
   return <OsmTripMap points={points} />;

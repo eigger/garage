@@ -4,9 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { SpeedPoint } from "../../lib/maps/polyline";
 import { ROUTE_ARROW_COUNT, arrowMarkerDataUri, buildSpeedSegments, circleMarkerDataUri, sampleForArrows } from "../../lib/maps/polyline";
 import { loadTmapSdk } from "../../lib/maps/loadSdk";
+import { DARK_MAP_FILTER } from "../../lib/maps/darkMode";
 import { RecenterButton } from "./RecenterButton";
 
-export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: string }) {
+export function TmapTripMap({ points, appKey, isDark }: { points: SpeedPoint[]; appKey: string; isDark: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<{ fitBounds: (b: object) => void } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +88,13 @@ export function TmapTripMap({ points, appKey }: { points: SpeedPoint[]; appKey: 
     <div style={{ position: "relative", height: 240, width: "100%" }}>
       <div
         ref={containerRef}
-        style={{ height: "100%", width: "100%", borderRadius: 8, background: "var(--color-surface-secondary)" }}
+        style={{
+          height: "100%",
+          width: "100%",
+          borderRadius: 8,
+          background: "var(--color-surface-secondary)",
+          filter: isDark ? DARK_MAP_FILTER : undefined,
+        }}
       />
       {ready && <RecenterButton onClick={handleRecenter} />}
     </div>
