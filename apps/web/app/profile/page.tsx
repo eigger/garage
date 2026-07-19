@@ -43,6 +43,7 @@ export default function ProfilePage() {
   const [email, setEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -75,10 +76,15 @@ export default function ProfilePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setMessage("");
     setError("");
 
+    if (newPassword && newPassword !== confirmNewPassword) {
+      setError(t("passwordConfirmMismatch"));
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const body: any = { name, email };
       if (newPassword) {
@@ -95,6 +101,7 @@ export default function ProfilePage() {
         setMessage(t("profileUpdated"));
         setCurrentPassword("");
         setNewPassword("");
+        setConfirmNewPassword("");
         showToast(t("toastSaved"), "success");
         // Reload to sync auth state, delayed so the success message/toast is visible first.
         setTimeout(() => window.location.reload(), 1200);
@@ -161,9 +168,21 @@ export default function ProfilePage() {
           <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("newPassword")}</label>
           <input
             type="password"
+            autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
             placeholder={t("newPassword")}
+          />
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 4, marginTop: 12 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("confirmPassword")}</label>
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={confirmNewPassword}
+            onChange={(e) => setConfirmNewPassword(e.target.value)}
+            placeholder={t("confirmPassword")}
           />
         </div>
 

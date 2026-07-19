@@ -19,6 +19,7 @@ export default function UsersPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [role, setRole] = useState<"ADMIN" | "GENERAL">("GENERAL");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,10 @@ export default function UsersPage() {
       setError(t("requiredField"));
       return;
     }
+    if (password !== confirmPassword) {
+      setError(t("passwordConfirmMismatch"));
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await apiFetch("/api/auth/users", {
@@ -62,6 +67,7 @@ export default function UsersPage() {
       setName("");
       setEmail("");
       setPassword("");
+      setConfirmPassword("");
       setRole("GENERAL");
       showToast(t("toastCreated"), "success");
       await loadUsers();
@@ -107,9 +113,17 @@ export default function UsersPage() {
         />
         <input
           type="password"
+          autoComplete="new-password"
           placeholder={t("passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+        />
+        <input
+          type="password"
+          autoComplete="new-password"
+          placeholder={t("confirmPassword")}
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
         />
         <select
           className="form-select"
