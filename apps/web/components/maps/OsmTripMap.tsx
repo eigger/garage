@@ -33,7 +33,7 @@ function LeafletRecenterControl({ points }: { points: LatLon[] }) {
 }
 
 // 진행 방향을 나타내는 화살표 마커 (leaflet은 서버사이드에서 L.divIcon을 만들 수 없어 동적 로드가 필요).
-function ArrowMarkers({ points, isDark }: { points: LatLon[]; isDark: boolean }) {
+function ArrowMarkers({ points, isDark }: { points: SpeedPoint[]; isDark: boolean }) {
   const [icons, setIcons] = useState<{ point: LatLon; bearing: number; icon: any }[] | null>(null);
   const arrowColor = isDark ? "#34d399" : "#18523f";
 

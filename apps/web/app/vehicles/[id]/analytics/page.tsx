@@ -365,6 +365,7 @@ export default function AnalyticsPage() {
                 formatter={(value) => formatCurrency(Number(value))}
                 labelStyle={{ fontSize: 12 }}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                cursor={{ fill: "var(--color-text)", fillOpacity: 0.06 }}
               />
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="fuel" name={t("analyticsFuelCost")} stackId="cost" fill="var(--color-primary)" maxBarSize={48} />
@@ -409,6 +410,7 @@ export default function AnalyticsPage() {
                 formatter={(value) => [`${value} ${distanceUnit}`, t("totalDistance")]}
                 labelStyle={{ fontSize: 12 }}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                cursor={{ fill: "var(--color-text)", fillOpacity: 0.06 }}
               />
               <Bar dataKey="distance" name={t("totalDistance")} fill="var(--color-primary)" radius={[4, 4, 0, 0]} maxBarSize={48} />
             </BarChart>

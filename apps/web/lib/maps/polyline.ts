@@ -75,13 +75,18 @@ export function numberedMarkerDataUri(num: number, color: string): string {
 // 정체 구간에 몰릴 수도 있어서 4개로 제한한다 — 4개 provider(OSM/카카오/네이버/T맵) 공용.
 export const ROUTE_ARROW_COUNT = 4;
 
+// 정차 중에는 GPS 좌표가 튀면서 방위각이 엉뚱하게 나오는 경우가 많다 — 이 속도 이하는
+// "정차"로 보고 화살표 계산에서 아예 제외한다(표시용 임계값일 뿐, 정체 구간 색상 표시와는 무관).
+const STOPPED_SPEED_KMH = 2;
+
 // 포인트가 너무 많으면 화살표가 겹치므로, 경로를 대략 균등한 간격의 N개 지점으로 샘플링한다.
-export function sampleForArrows(points: LatLon[], maxArrows: number): { point: LatLon; bearing: number }[] {
-  if (points.length < 2) return [];
-  const step = Math.max(1, Math.ceil(points.length / maxArrows));
+export function sampleForArrows(points: SpeedPoint[], maxArrows: number): { point: LatLon; bearing: number }[] {
+  const moving = points.filter((p) => (p.speed ?? 0) > STOPPED_SPEED_KMH);
+  if (moving.length < 2) return [];
+  const step = Math.max(1, Math.ceil(moving.length / maxArrows));
   const result: { point: LatLon; bearing: number }[] = [];
-  for (let i = step; i < points.length; i += step) {
-    result.push({ point: points[i], bearing: bearingDeg(points[i - 1], points[i]) });
+  for (let i = step; i < moving.length; i += step) {
+    result.push({ point: moving[i], bearing: bearingDeg(moving[i - 1], moving[i]) });
   }
   return result;
 }
