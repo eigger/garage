@@ -56,7 +56,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError(null);
     if (password !== confirmPassword) {
-      setError(t("passwordMismatch"));
+      setError(t("passwordConfirmMismatch"));
       return;
     }
     setLoading(true);
