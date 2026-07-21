@@ -8,6 +8,11 @@ import { isActivePoint, type TripDetectionPoint } from "../lib/tripDetection.js"
 // 마지막 포인트로부터 이만큼 지나야 더 이상 데이터가 이어질 걱정 없이 트립을 닫는다.
 const TRIP_GAP_MINUTES = 10;
 const IDLE_SPEED_THRESHOLD_KMH = 3;
+// 시동을 켜도 기기가 와이파이/데이터에 실제로 붙기까지 시간이 걸려서, 트립의 첫
+// 텔레메트리 포인트가 이미 주행 중인 지점부터 잡히는 경우가 흔하다. 지도 경로만
+// 직전에 기록된 위치(보통 마지막 주차 지점)에서 이어지도록 보정하되, 그 지점이
+// 너무 멀면(비정상 데이터/차량 이동 등) 오히려 이상한 직선이 그어지므로 상한을 둔다.
+const ROUTE_START_MAX_GAP_KM = 5;
 
 type Point = {
   id: bigint;
@@ -124,11 +129,27 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
     }
   }
 
-  const routePolyline = encodeRoute(
-    segment
-      .filter((p): p is Point & { lat: number; lon: number } => p.lat !== null && p.lon !== null)
-      .map((p) => ({ lat: p.lat, lon: p.lon })),
-  );
+  const routePoints = segment
+    .filter((p): p is Point & { lat: number; lon: number } => p.lat !== null && p.lon !== null)
+    .map((p) => ({ lat: p.lat, lon: p.lon }));
+
+  const priorPoint = await prisma.telemetryRaw.findFirst({
+    where: { vehicleId, time: { lt: segment[0].time }, lat: { not: null }, lon: { not: null } },
+    orderBy: { time: "desc" },
+    select: { lat: true, lon: true },
+  });
+
+  if (
+    priorPoint &&
+    priorPoint.lat !== null &&
+    priorPoint.lon !== null &&
+    routePoints.length > 0 &&
+    haversineKm(priorPoint.lat, priorPoint.lon, routePoints[0].lat, routePoints[0].lon) <= ROUTE_START_MAX_GAP_KM
+  ) {
+    routePoints.unshift({ lat: priorPoint.lat, lon: priorPoint.lon });
+  }
+
+  const routePolyline = encodeRoute(routePoints);
 
   await prisma.$transaction(async (tx) => {
     const t = await tx.trip.create({
