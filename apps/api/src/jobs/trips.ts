@@ -95,7 +95,28 @@ async function closeTripsForVehicle(vehicleId: string): Promise<void> {
 }
 
 async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<void> {
+  const priorPoint = await prisma.telemetryRaw.findFirst({
+    where: { vehicleId, time: { lt: segment[0].time }, lat: { not: null }, lon: { not: null } },
+    orderBy: { time: "desc" },
+    select: { lat: true, lon: true, odometer: true },
+  });
+
+  // 직전 위치가 너무 멀면(비정상 데이터, 견인 등으로 텔레메트리 없이 이동) 잇지 않는다.
+  const shouldConnectToPrior =
+    priorPoint !== null &&
+    priorPoint.lat !== null &&
+    priorPoint.lon !== null &&
+    segment[0].lat !== null &&
+    segment[0].lon !== null &&
+    haversineKm(priorPoint.lat, priorPoint.lon, segment[0].lat, segment[0].lon) <= ROUTE_START_MAX_GAP_KM;
+
   let distanceKm = 0;
+  // 시동~와이파이 연결 지연 구간도 실제로 주행한 거리이므로(단지 기록이 안 됐을 뿐),
+  // 아예 빼는 것보다 직전 위치에서부터의 직선 거리로 근사해 포함하는 쪽이 더 정확하다.
+  if (shouldConnectToPrior && priorPoint!.lat !== null && priorPoint!.lon !== null && segment[0].lat !== null && segment[0].lon !== null) {
+    distanceKm += haversineKm(priorPoint!.lat, priorPoint!.lon, segment[0].lat, segment[0].lon);
+  }
+
   let idleTimeSec = 0;
   const speeds: number[] = [];
 
@@ -117,15 +138,20 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
   }
   const avgSpeed = speeds.length > 0 ? speeds.reduce((a, b) => a + b, 0) / speeds.length : null;
 
-  // 텔레메트리 내에 기록된 계기판 주행거리 정보가 있다면 그 차이를 총 운행 거리로 사용
+  // 텔레메트리 내에 기록된 계기판 주행거리 정보가 있다면 그 차이를 총 운행 거리로 사용 —
+  // 직전 포인트에도 계기판 값이 있으면(연결 조건을 만족할 때) 그걸 시작 기준으로 써서
+  // 연결 지연 구간까지 실측값으로 포함한다(직선거리 근사보다 정확함).
   let finalDistance = distanceKm;
   const odometerPoints = segment.filter((p): p is Point & { odometer: number } => p.odometer !== null && p.odometer > 0);
-  if (odometerPoints.length >= 2) {
-    const firstOdo = odometerPoints[0].odometer;
-    const lastOdo = odometerPoints[odometerPoints.length - 1].odometer;
-    const diff = lastOdo - firstOdo;
-    if (diff >= 0) {
-      finalDistance = diff;
+  const priorOdo = shouldConnectToPrior && priorPoint!.odometer !== null && priorPoint!.odometer > 0 ? priorPoint!.odometer : null;
+  if (odometerPoints.length > 0) {
+    const firstOdo = priorOdo ?? (odometerPoints.length >= 2 ? odometerPoints[0].odometer : null);
+    if (firstOdo !== null) {
+      const lastOdo = odometerPoints[odometerPoints.length - 1].odometer;
+      const diff = lastOdo - firstOdo;
+      if (diff >= 0) {
+        finalDistance = diff;
+      }
     }
   }
 
@@ -133,20 +159,8 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
     .filter((p): p is Point & { lat: number; lon: number } => p.lat !== null && p.lon !== null)
     .map((p) => ({ lat: p.lat, lon: p.lon }));
 
-  const priorPoint = await prisma.telemetryRaw.findFirst({
-    where: { vehicleId, time: { lt: segment[0].time }, lat: { not: null }, lon: { not: null } },
-    orderBy: { time: "desc" },
-    select: { lat: true, lon: true },
-  });
-
-  if (
-    priorPoint &&
-    priorPoint.lat !== null &&
-    priorPoint.lon !== null &&
-    routePoints.length > 0 &&
-    haversineKm(priorPoint.lat, priorPoint.lon, routePoints[0].lat, routePoints[0].lon) <= ROUTE_START_MAX_GAP_KM
-  ) {
-    routePoints.unshift({ lat: priorPoint.lat, lon: priorPoint.lon });
+  if (shouldConnectToPrior && priorPoint!.lat !== null && priorPoint!.lon !== null) {
+    routePoints.unshift({ lat: priorPoint!.lat, lon: priorPoint!.lon });
   }
 
   const routePolyline = encodeRoute(routePoints);
