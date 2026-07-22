@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   Line,
-  LineChart,
+  ComposedChart,
   Bar,
   BarChart,
   CartesianGrid,
@@ -18,7 +18,7 @@ import { apiFetch, getToken, API_URL } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { KM_TO_MI } from "../../../../lib/i18n/format";
 import type { FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
-import { computeFuelEfficiencyPoints, efficiencyUnitLabels } from "../../../../lib/fuelEfficiency";
+import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
 import { DownloadIcon } from "../../../../components/icons";
 
 type Period = "all" | "1w" | "1m" | "6m" | "1y";
@@ -184,15 +184,24 @@ export default function AnalyticsPage() {
     () => (periodStart ? allEfficiencyPoints.filter((p) => new Date(p.date) >= periodStart) : allEfficiencyPoints),
     [allEfficiencyPoints, periodStart],
   );
+  // 단가는 만탱크가 아니어도 매 주유 건마다 나오므로, "데이터가 아예 없다"는
+  // 연비 기준(allEfficiencyPoints)이 아니라 주유 기록 자체 기준으로 판단한다.
+  const hasAnyFuelData = useMemo(() => fuelLogs.some((l) => l.liters > 0), [fuelLogs]);
 
-  const efficiencyChartData = useMemo(
-    () =>
-      filteredEfficiencyPoints.map((p) => ({
-        date: new Intl.DateTimeFormat(localeTag, { month: "numeric", day: "numeric" }).format(new Date(p.date)),
-        value: Math.round(p.kmPerLiter * 10) / 10,
-      })),
-    [filteredEfficiencyPoints, localeTag],
-  );
+  // 연비는 만탱크끼리만 비교 가능해 데이터가 적지만, 단가는 주유 건마다 바로
+  // 나오므로 차트를 따로 두지 않고 한 차트에 합쳐서 스크롤을 줄인다 — logId로 맞춰서
+  // 연비가 없는 주유 건은 그 지점만 끊기고(null) 단가 선은 계속 이어진다.
+  const combinedFuelChartData = useMemo(() => {
+    const efficiencyByLogId = new Map(filteredEfficiencyPoints.map((p) => [p.logId, Math.round(p.kmPerLiter * 10) / 10]));
+    return filteredLogs
+      .filter((l) => l.liters > 0)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map((l) => ({
+        date: new Intl.DateTimeFormat(localeTag, { month: "numeric", day: "numeric" }).format(new Date(l.date)),
+        efficiency: efficiencyByLogId.get(l.id) ?? null,
+        price: Math.round((l.cost / l.liters) * 10) / 10,
+      }));
+  }, [filteredLogs, filteredEfficiencyPoints, localeTag]);
 
   // 구간별 연비 비율의 단순 평균이 아니라, 전체 주행거리/전체 주유량으로 계산해야
   // 짧은 구간 하나가 평균을 왜곡하지 않는다.
@@ -287,24 +296,49 @@ export default function AnalyticsPage() {
             <DownloadIcon size={12} /> {t("exportDownloadButton")}
           </button>
         </div>
-        {filteredEfficiencyPoints.length === 0 ? (
+        {combinedFuelChartData.length === 0 ? (
           <EmptyState
-            title={allEfficiencyPoints.length === 0 ? t("analyticsEmptyTitle") : t("analyticsNoDataInPeriod")}
-            desc={allEfficiencyPoints.length === 0 ? t("analyticsEmptyDesc") : undefined}
+            title={hasAnyFuelData ? t("analyticsNoDataInPeriod") : t("analyticsEmptyTitle")}
+            desc={hasAnyFuelData ? undefined : t("analyticsEmptyDesc")}
           />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
-            <LineChart data={efficiencyChartData} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={combinedFuelChartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
-              <YAxis tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={40} />
+              <YAxis yAxisId="left" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={36} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={44} />
               <Tooltip
-                formatter={(value) => [`${value} ${units.perUnit}`, ""]}
+                formatter={(value, name, props: any) => {
+                  if (value === null || value === undefined) return ["-", name];
+                  if (props?.dataKey === "price") {
+                    return [`${formatCurrency(Number(value))}/${fuelVolumeUnit(vehicle?.fuelType ?? null)}`, name];
+                  }
+                  return [`${value} ${units.perUnit}`, name];
+                }}
                 labelStyle={{ fontSize: 12 }}
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
               />
-              <Line type="monotone" dataKey="value" stroke="var(--color-primary)" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line
+                yAxisId="left"
+                type="monotone"
+                dataKey="efficiency"
+                name={t("analyticsEfficiencyLegend")}
+                stroke="var(--color-primary)"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+              <Line
+                yAxisId="right"
+                type="monotone"
+                dataKey="price"
+                name={t("analyticsFuelPriceLegend")}
+                stroke="var(--chart-secondary)"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+            </ComposedChart>
           </ResponsiveContainer>
         )}
       </section>
@@ -356,7 +390,7 @@ export default function AnalyticsPage() {
         {groupedCost.length === 0 ? (
           <EmptyState title={t("analyticsNoDataInPeriod")} />
         ) : (
-          <ResponsiveContainer width="100%" height={260}>
+          <ResponsiveContainer width="100%" height={220}>
             <BarChart data={groupedCost} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
@@ -401,7 +435,7 @@ export default function AnalyticsPage() {
         {groupedTrips.length === 0 ? (
           <EmptyState title={t("analyticsNoDataInPeriod")} />
         ) : (
-          <ResponsiveContainer width="100%" height={240}>
+          <ResponsiveContainer width="100%" height={200}>
             <BarChart data={groupedTrips} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
               <XAxis dataKey="label" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
