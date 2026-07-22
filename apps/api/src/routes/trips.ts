@@ -3,6 +3,8 @@ import polyline from "@mapbox/polyline";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
+import { haversineKm } from "../lib/geo.js";
+import { ROUTE_START_MAX_GAP_KM } from "../jobs/trips.js";
 
 const MAX_LIMIT = 1000;
 
@@ -141,7 +143,7 @@ export async function tripRoutes(app: FastifyInstance) {
   // 프론트에서 routePolyline 기반 단색 표시로 폴백해야 한다.
   app.get("/:id/points", async (request, reply) => {
     const { id } = request.params as { id: string };
-    const trip = await prisma.trip.findUnique({ where: { id }, select: { vehicleId: true } });
+    const trip = await prisma.trip.findUnique({ where: { id }, select: { vehicleId: true, startTime: true } });
     if (!trip) return reply.code(404).send({ error: "trip not found" });
 
     const { sub, role } = request.user;
@@ -149,11 +151,32 @@ export async function tripRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    return prisma.telemetryRaw.findMany({
+    const points = await prisma.telemetryRaw.findMany({
       where: { tripId: id, lat: { not: null }, lon: { not: null } },
       orderBy: { time: "asc" },
       select: { lat: true, lon: true, speed: true },
     });
+
+    // routePolyline과 동일한 규칙(마지막 주차 위치, 5km 이내)으로 앞점을 붙인다 — 이 포인트는
+    // 이전 트립(또는 트립 미배정) 소속이라 위 tripId 조회에는 절대 걸리지 않기 때문에 별도로 붙여야 한다.
+    const first = points[0];
+    if (first && first.lat !== null && first.lon !== null) {
+      const priorPoint = await prisma.telemetryRaw.findFirst({
+        where: { vehicleId: trip.vehicleId, time: { lt: trip.startTime }, lat: { not: null }, lon: { not: null } },
+        orderBy: { time: "desc" },
+        select: { lat: true, lon: true, speed: true },
+      });
+      if (
+        priorPoint &&
+        priorPoint.lat !== null &&
+        priorPoint.lon !== null &&
+        haversineKm(priorPoint.lat, priorPoint.lon, first.lat, first.lon) <= ROUTE_START_MAX_GAP_KM
+      ) {
+        points.unshift({ lat: priorPoint.lat, lon: priorPoint.lon, speed: priorPoint.speed });
+      }
+    }
+
+    return points;
   });
 
   app.patch("/:id", async (request, reply) => {

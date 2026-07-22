@@ -12,7 +12,7 @@ const IDLE_SPEED_THRESHOLD_KMH = 3;
 // 텔레메트리 포인트가 이미 주행 중인 지점부터 잡히는 경우가 흔하다. 지도 경로만
 // 직전에 기록된 위치(보통 마지막 주차 지점)에서 이어지도록 보정하되, 그 지점이
 // 너무 멀면(비정상 데이터/차량 이동 등) 오히려 이상한 직선이 그어지므로 상한을 둔다.
-const ROUTE_START_MAX_GAP_KM = 5;
+export const ROUTE_START_MAX_GAP_KM = 5;
 
 type Point = {
   id: bigint;
