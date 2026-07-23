@@ -8,7 +8,9 @@ import { useAuth } from "../lib/auth-context";
 import { useSettings } from "../lib/i18n/settings-context";
 import { getLastVehicleId } from "../lib/lastVehicle";
 import { countScheduleStatuses } from "../lib/scheduleStatus";
+import { initBugReportCapture } from "../lib/bugReport";
 import type { ConsumablePart } from "../lib/types";
+import { BugReportModal } from "./BugReportModal";
 import {
   HomeIcon,
   CalendarIcon,
@@ -28,6 +30,7 @@ import {
   LogoutIcon,
   AwardIcon,
   DownloadIcon,
+  BugIcon,
 } from "./icons";
 
 // 차량 상세 화면(/vehicles/[id]/*)에 있을 때만 경로에서 차량 id를 뽑아낸다.
@@ -46,7 +49,12 @@ export function BottomNav() {
   const [lastVehicleId, setLastVehicleIdState] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
   const [dueCount, setDueCount] = useState(0);
+  const [bugReportOpen, setBugReportOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    initBugReportCapture();
+  }, []);
 
   useEffect(() => {
     setLastVehicleIdState(getLastVehicleId());
@@ -308,6 +316,16 @@ export function BottomNav() {
                 className="sheet-item"
                 onClick={() => {
                   setMoreOpen(false);
+                  setBugReportOpen(true);
+                }}
+              >
+                <BugIcon size={20} /> {t("navBugReport")}
+              </button>
+              <button
+                type="button"
+                className="sheet-item"
+                onClick={() => {
+                  setMoreOpen(false);
                   logout();
                 }}
               >
@@ -351,6 +369,8 @@ export function BottomNav() {
           </div>
         </div>
       )}
+
+      {bugReportOpen && <BugReportModal onClose={() => setBugReportOpen(false)} t={t} />}
     </>
   );
 }
