@@ -1451,9 +1451,18 @@ function TripSection({
         return;
       }
       setTripAddressCache((prev) => ({ ...prev, [trip.id]: undefined as unknown as string | null }));
-      reverseGeocode(mapConfig, trip.endLatitude, trip.endLongitude).then((address) => {
-        setTripAddressCache((prev) => ({ ...prev, [trip.id]: address }));
-      });
+      reverseGeocode(mapConfig, trip.endLatitude, trip.endLongitude)
+        .then((address) => {
+          setTripAddressCache((prev) => ({ ...prev, [trip.id]: address }));
+        })
+        .catch(() => {
+          // 실패해도 로딩중(undefined) 상태로 영영 멈추지 않도록 캐시를 비워 다음 마운트에서 재시도되게 한다.
+          setTripAddressCache((prev) => {
+            const next = { ...prev };
+            delete next[trip.id];
+            return next;
+          });
+        });
     });
   }, [trips, mapConfig]); // eslint-disable-line react-hooks/exhaustive-deps
 
