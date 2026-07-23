@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { PageLoader } from "../../components/PageLoader";
 import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
 import type { TranslationKey } from "../../lib/i18n/translations";
@@ -97,7 +98,7 @@ export default function IntegrationsPage() {
   if (authLoading || (user && isAdmin && loading)) {
     return (
       <main className="container">
-        <p>{t("loading")}</p>
+        <PageLoader />
       </main>
     );
   }

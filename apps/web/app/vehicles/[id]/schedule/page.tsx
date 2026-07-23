@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { PageLoader } from "../../../../components/PageLoader";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
 import type { ConsumablePart, RecordCategory } from "../../../../lib/types";
@@ -70,7 +71,7 @@ export default function SchedulePage() {
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) {
-    return <p>{t("loading")}</p>;
+    return <PageLoader />;
   }
 
   const sorted = [...parts].sort((a, b) => {

@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { apiFetch, uploadFileWithProgress, API_URL, getToken } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
+import { PageLoader } from "../../../components/PageLoader";
 import { useToast } from "../../../lib/toast-context";
 import { useConfirm } from "../../../lib/confirm-context";
 import type { FuelType, Trip, TripSummary, Vehicle } from "../../../lib/types";
@@ -182,7 +183,7 @@ export default function VehicleOverviewPage() {
     }
   }
 
-  if (loading) return <p>{t("loading")}</p>;
+  if (loading) return <PageLoader />;
 
   const regCertificate = vehicle?.attachments?.find((att) => att.vehicleId === vehicleId);
 

@@ -485,6 +485,63 @@ button:disabled {
   }
 }
 
+/* 전체 화면 로딩 표시 — 화면 중앙에 트랙 링 + accent 아크가 차분히 회전.
+   빠른 로딩에서 깜빡이지 않도록 살짝 지연 후 페이드인한다. */
+.page-loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 60vh;
+  width: 100%;
+  animation: page-loader-fade 0.28s ease both;
+  animation-delay: 0.12s;
+}
+
+.page-loader__ring {
+  width: 40px;
+  height: 40px;
+  animation: spin 0.9s linear infinite;
+}
+
+.page-loader__track {
+  stroke: var(--color-border);
+}
+
+.page-loader__arc {
+  stroke: var(--color-primary);
+  stroke-linecap: round;
+}
+
+.page-loader__label {
+  font-size: 13px;
+  color: var(--color-text-muted);
+  letter-spacing: 0.02em;
+  margin: 0;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes page-loader-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-loader__ring {
+    animation-duration: 2s;
+  }
+}
+
 /* Confirm modal */
 .modal-backdrop {
   position: fixed;

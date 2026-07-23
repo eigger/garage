@@ -6,6 +6,7 @@ import { usePathname, useParams, useRouter } from "next/navigation";
 import { apiFetch } from "../../../lib/api";
 import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
+import { PageLoader } from "../../../components/PageLoader";
 import { fuelTypeLabelKey } from "../../../lib/fuelType";
 import { setLastVehicleId } from "../../../lib/lastVehicle";
 import type { Vehicle } from "../../../lib/types";
@@ -55,7 +56,7 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   if (authLoading) {
     return (
       <main className="container">
-        <p>{t("loading")}</p>
+        <PageLoader />
       </main>
     );
   }

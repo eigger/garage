@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
 import { useAuth } from "../../../../lib/auth-context";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { PageLoader } from "../../../../components/PageLoader";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
 import type { Vehicle } from "../../../../lib/types";
@@ -61,7 +62,7 @@ export default function VehicleIntegrationPage() {
     }
   }
 
-  if (loading) return <p>{t("loading")}</p>;
+  if (loading) return <PageLoader />;
   if (!isAdmin || !vehicle) return null;
 
   return (

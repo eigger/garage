@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch, API_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { PageLoader } from "../../components/PageLoader";
 import { TerminalIcon } from "../../components/icons";
 import type { Vehicle } from "../../lib/types";
 
@@ -102,7 +103,7 @@ export default function ApiExplorerPage() {
   if (authLoading) {
     return (
       <main className="container">
-        <p>{t("loading")}</p>
+        <PageLoader />
       </main>
     );
   }

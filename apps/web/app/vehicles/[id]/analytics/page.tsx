@@ -16,6 +16,7 @@ import {
 } from "recharts";
 import { apiFetch, getToken, API_URL } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { PageLoader } from "../../../../components/PageLoader";
 import { KM_TO_MI } from "../../../../lib/i18n/format";
 import type { FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
 import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
@@ -215,7 +216,7 @@ export default function AnalyticsPage() {
   if (loading) {
     return (
       <section>
-        <p>{t("loading")}</p>
+        <PageLoader />
       </section>
     );
   }

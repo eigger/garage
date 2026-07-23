@@ -5,6 +5,7 @@ import Link from "next/link";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { PageLoader } from "../../components/PageLoader";
 import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
 import type { FuelType, Vehicle } from "../../lib/types";
@@ -102,7 +103,7 @@ export default function VehiclesPage() {
   if (authLoading || (user && loading)) {
     return (
       <main className="container">
-        <p>{t("loading")}</p>
+        <PageLoader />
       </main>
     );
   }
