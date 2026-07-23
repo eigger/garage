@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "../lib/api";
 import { useSettings } from "../lib/i18n/settings-context";
+import { PageLoader } from "../components/PageLoader";
 import { useAuth } from "../lib/auth-context";
 import { formatItemLabel } from "../lib/i18n/itemLabel";
 import { getLastVehicleId } from "../lib/lastVehicle";
@@ -116,7 +117,7 @@ function HomeInner() {
   if (authLoading || (user && loading)) {
     return (
       <main className="container">
-        <p>{t("loading")}</p>
+        <PageLoader />
       </main>
     );
   }

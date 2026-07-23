@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { PageLoader } from "../../components/PageLoader";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -99,7 +100,7 @@ export default function LoginPage() {
   if (checkingBootstrap) {
     return (
       <main className="container">
-        <p>{t("loading")}</p>
+        <PageLoader />
       </main>
     );
   }

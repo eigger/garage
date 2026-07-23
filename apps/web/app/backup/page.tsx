@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiFetch } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
+import { PageLoader } from "../../components/PageLoader";
 import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
 
@@ -22,7 +23,7 @@ export default function BackupPage() {
   if (authLoading || !user) {
     return (
       <main className="container">
-        <p>{t("loading")}</p>
+        <PageLoader />
       </main>
     );
   }
