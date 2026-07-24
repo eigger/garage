@@ -36,6 +36,15 @@ export const XP_EVENT_TYPES = {
   ON_TIME_BONUS: "ON_TIME_BONUS",
   DETAIL_BONUS: "DETAIL_BONUS",
   EFFICIENCY_BONUS: "EFFICIENCY_BONUS",
+  // 소모품 완료 처리 같은 "성과"가 아니라, 주유/정비 기록을 남기는 평소 습관 자체에 주는
+  // 소액 기본 XP — 완료 처리 보너스보다 훨씬 낮게 잡아서 성과 보너스의 무게감을 지키면서도
+  // 꾸준히 기록만 해도 레벨이 조금씩 오르게 한다.
+  FUEL_LOG: "FUEL_LOG",
+  MAINTENANCE_LOG: "MAINTENANCE_LOG",
+  // FUEL_LOG/MAINTENANCE_LOG 위에 얹는 추가 보너스 — 위치·비용·업체·메모 중 2개 이상을
+  // 채운 "꼼꼼한" 기록에만 붙는다. 완료 처리 전용인 DETAIL_BONUS와 별개 타입으로 둔 이유는
+  // detail_master 뱃지 집계(DETAIL_BONUS 개수 기준)가 평소 기록으로 부풀려지지 않게 하려는 것.
+  DETAIL_LOG: "DETAIL_LOG",
 } as const;
 export type XpEventType = (typeof XP_EVENT_TYPES)[keyof typeof XP_EVENT_TYPES];
 
@@ -44,6 +53,9 @@ export const XP_AMOUNTS: Record<XpEventType, number> = {
   ON_TIME_BONUS: 10,
   DETAIL_BONUS: 10,
   EFFICIENCY_BONUS: 15,
+  FUEL_LOG: 5,
+  MAINTENANCE_LOG: 5,
+  DETAIL_LOG: 5,
 };
 
 // 깃허브 업적 뱃지처럼, 뱃지마다 "등급"이 있어서 계속 잘할수록 x1 → x5로 올라간다.

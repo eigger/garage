@@ -6,6 +6,8 @@ import {
   tierForCount,
   type BadgeKey,
   type XpEventType,
+  type FuelLogInput,
+  type MaintenanceRecordInput,
 } from "@garage/shared";
 import { prisma } from "./prisma.js";
 
@@ -17,6 +19,32 @@ export async function awardXp(vehicleId: string, type: XpEventType, note?: strin
     prisma.vehicle.update({ where: { id: vehicleId }, data: { xp: { increment: amount } } }),
   ]);
   await checkAndAwardBadges(vehicleId);
+}
+
+// 주유 기록 자체에 주는 기본 XP. 사진은 별도 업로드 API로 나중에 붙기 때문에 이 시점엔
+// 판정에 못 쓰고, 남는 선택 필드가 위치 하나뿐이라 2개 이상 채움 같은 문턱 없이 위치
+// 기록 여부만으로 DETAIL_LOG 지급 여부를 정한다.
+export async function awardFuelLogXp(vehicleId: string, data: Pick<FuelLogInput, "address" | "location">): Promise<void> {
+  await awardXp(vehicleId, XP_EVENT_TYPES.FUEL_LOG);
+  if (data.address?.trim() || data.location?.trim()) {
+    await awardXp(vehicleId, XP_EVENT_TYPES.DETAIL_LOG);
+  }
+}
+
+// 정비 기록 자체에 주는 기본 XP. 비용/업체/메모/위치 중 2개 이상 채우면 DETAIL_LOG 추가 —
+// 완료 처리 전용 DETAIL_BONUS와 같은 "2개 이상" 문턱을 그대로 따르되, 사진은 아직 못 쓰므로
+// 위치로 대신한다.
+export async function awardMaintenanceLogXp(
+  vehicleId: string,
+  data: Pick<MaintenanceRecordInput, "cost" | "shop" | "notes" | "address">,
+): Promise<void> {
+  await awardXp(vehicleId, XP_EVENT_TYPES.MAINTENANCE_LOG);
+  const filledCount = [Boolean(data.cost), Boolean(data.shop?.trim()), Boolean(data.notes?.trim()), Boolean(data.address?.trim())].filter(
+    Boolean,
+  ).length;
+  if (filledCount >= 2) {
+    await awardXp(vehicleId, XP_EVENT_TYPES.DETAIL_LOG);
+  }
 }
 
 // 뱃지는 새로 딸 때 tier 1로 생기고, 이후로는 같은 뱃지의 tier만 올라간다(깃허브 업적처럼

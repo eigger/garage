@@ -18,7 +18,13 @@ import { canAccessVehicle } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 import { syncReminders } from "../jobs/reminders.js";
-import { awardEfficiencyXpIfGood, getBadgeCounts, checkAndAwardBadges } from "../lib/gamification.js";
+import {
+  awardFuelLogXp,
+  awardMaintenanceLogXp,
+  awardEfficiencyXpIfGood,
+  getBadgeCounts,
+  checkAndAwardBadges,
+} from "../lib/gamification.js";
 
 const MAX_LIMIT = 1000;
 
@@ -233,6 +239,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
       return log;
     });
 
+    await awardFuelLogXp(id, parsed.data);
     if (parsed.data.fullTank) {
       await awardEfficiencyXpIfGood(id);
     }
@@ -418,6 +425,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
     });
 
     await syncReminders(id);
+    await awardMaintenanceLogXp(id, parsed.data);
     return reply.code(201).send(record);
   });
 
