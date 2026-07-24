@@ -10,7 +10,7 @@ import { publish } from "../lib/mqtt.js";
 import { telemetryEmitter } from "../lib/telemetryEmitter.js";
 import { syncReminders } from "../jobs/reminders.js";
 import { isReminderDue } from "../jobs/pushReminders.js";
-import { awardEfficiencyXpIfGood } from "../lib/gamification.js";
+import { awardFuelLogXp, awardMaintenanceLogXp, awardEfficiencyXpIfGood } from "../lib/gamification.js";
 
 // apiToken은 차량마다 유일(@unique)하므로 토큰 하나만으로 차량을 특정할 수 있다.
 // URL에 vehicleId를 별도로 받을 필요가 없다 — 토큰이 곧 신원이자 인증 수단이다.
@@ -161,6 +161,7 @@ export async function ingestRoutes(app: FastifyInstance) {
       return log;
     });
 
+    await awardFuelLogXp(vehicle.id, parsed.data);
     if (parsed.data.fullTank) {
       await awardEfficiencyXpIfGood(vehicle.id);
     }
@@ -208,6 +209,7 @@ export async function ingestRoutes(app: FastifyInstance) {
     });
 
     await syncReminders(vehicle.id);
+    await awardMaintenanceLogXp(vehicle.id, parsed.data);
     return reply.code(201).send(record);
   });
 
