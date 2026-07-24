@@ -1,6 +1,37 @@
 import { katecToWgs84, wgs84ToKatec } from "./geo.js";
 import { getSetting } from "./settings.js";
 
+// 오피넷 자체 시도 코드(EV충전소 zcode와는 체계가 다름) — lowTop10.do 등 지역별
+// 조회에 쓰는 area 파라미터. 프론트에서 역지오코딩한 주소 문자열의 첫 토큰(시도명)으로
+// 변환한다(evCharger.ts의 ZCODE_BY_SIDO와 동일한 패턴).
+const OPINET_AREA_BY_SIDO: Record<string, string> = {
+  "서울특별시": "01",
+  "경기도": "02",
+  "강원특별자치도": "03",
+  "강원도": "03", // 2023년 개편 이전 명칭 대응
+  "충청북도": "04",
+  "충청남도": "05",
+  "전북특별자치도": "06",
+  "전라북도": "06", // 2024년 개편 이전 명칭 대응
+  "전라남도": "07",
+  "경상북도": "08",
+  "경상남도": "09",
+  "부산광역시": "10",
+  "제주특별자치도": "11",
+  "대구광역시": "14",
+  "인천광역시": "15",
+  "광주광역시": "16",
+  "대전광역시": "17",
+  "울산광역시": "18",
+  "세종특별자치시": "19",
+};
+
+function resolveOpinetArea(address?: string | null): string | undefined {
+  if (!address) return undefined;
+  const sido = address.trim().split(/\s+/)[0];
+  return OPINET_AREA_BY_SIDO[sido];
+}
+
 const BRANDS: Record<string, string> = {
   SKE: "SK에너지",
   GSC: "GS칼텍스",
@@ -92,6 +123,64 @@ export async function fetchNearbyStations(
 
 function sortMockStations(stations: OpinetStationSummary[], sort: StationSort): OpinetStationSummary[] {
   return [...stations].sort((a, b) => (sort === "price" ? a.price - b.price : a.distance - b.distance));
+}
+
+export type OpinetLowPriceCandidate = {
+  id: string;
+  name: string;
+  brandLabel: string;
+  price: number;
+};
+
+// "이득순"(value-picks)용 — 반경 제한 없이 시도 전체에서 최저가 주유소를 가져온다.
+// 지역 코드를 못 구하면(주소 역지오코딩 실패 등) 빈 배열을 돌려주고, 상위 라우트가
+// insufficientData 처리를 하도록 둔다.
+export async function fetchLowPriceCandidates(
+  address: string | null | undefined,
+  fuelType: string,
+  cnt = 10,
+): Promise<OpinetLowPriceCandidate[]> {
+  const apiKey = await getSetting("OPINET_API_KEY");
+  const area = resolveOpinetArea(address);
+  if (!apiKey || !area) return [];
+
+  try {
+    const prodcd = FUEL_CODE_MAP[fuelType] ?? "B027";
+    const url = `https://www.opinet.co.kr/api/lowTop10.do?code=${apiKey}&out=json&prodcd=${prodcd}&area=${area}&cnt=${cnt}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Opinet API responded with status ${res.status}`);
+
+    const data = parseOpinetJson(await res.text()) as {
+      RESULT?: { OIL?: Array<Record<string, unknown>> };
+    };
+    if (!data.RESULT || !Array.isArray(data.RESULT.OIL)) return [];
+
+    return data.RESULT.OIL.map((s) => {
+      const brandCode = String(s.POLL_DIV_CO || s.POLL_DIV_CD || "ETC").trim().toUpperCase();
+      return {
+        id: String(s.UNI_ID),
+        name: String(s.OS_NM),
+        brandLabel: brandLabel(brandCode),
+        price: Number(s.PRICE),
+      };
+    });
+  } catch {
+    return [];
+  }
+}
+
+// 가까운 주유소(기준점) 대비 왕복 추가 거리에 드는 기름값을 빼고도 남는 순이득(원).
+export function computeNetGain(params: {
+  baselinePrice: number;
+  candidatePrice: number;
+  extraRoundTripKm: number;
+  avgLiters: number;
+  kmPerLiter: number;
+}): number {
+  const { baselinePrice, candidatePrice, extraRoundTripKm, avgLiters, kmPerLiter } = params;
+  const savings = (baselinePrice - candidatePrice) * avgLiters;
+  const detourCost = kmPerLiter > 0 ? (extraRoundTripKm / kmPerLiter) * candidatePrice : Infinity;
+  return savings - detourCost;
 }
 
 export async function fetchStationDetail(uniId: string): Promise<OpinetStationDetail | null> {
