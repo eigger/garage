@@ -435,14 +435,15 @@ button:disabled {
 }
 
 /* 브라우저 기본 outline은 border-radius를 안 따라가서 둥근 모서리 양 끝에서 각진
-   테두리가 삐져나와 보인다(다크 테마에서 특히 눈에 띔) — box-shadow는 border-radius를
-   그대로 따라가므로 이걸로 대체한다. */
+   테두리가 삐져나와 보인다(다크 테마에서 특히 눈에 띔) — box-shadow로 대체하되, 바깥으로
+   번지는 형태(outset)는 폭이 딱 맞는 컨테이너(overflow:hidden/auto) 안에서 양옆이 잘려
+   보이므로, 요소 안쪽에 그리는 inset으로 바꿔 절대 잘리지 않게 한다. */
 input:focus,
 select:focus,
 textarea:focus,
 button:focus {
   outline: none;
-  box-shadow: 0 0 0 2px var(--color-primary);
+  box-shadow: inset 0 0 0 2px var(--color-primary);
 }
 
 .error-text {
