@@ -39,9 +39,10 @@ model User {
   role         UserRole @default(GENERAL)
   createdAt    DateTime @default(now())
 
-  vehicleAccess UserVehicleAccess[]
-  fuelLogs      FuelLog[]
-  pushSubscriptions PushSubscription[]
+  vehicleAccess      UserVehicleAccess[]
+  fuelLogs           FuelLog[]
+  pushSubscriptions  PushSubscription[]
+  hyundaiAccountLink HyundaiAccountLink?
 }
 
 model Vehicle {
@@ -70,6 +71,7 @@ model Vehicle {
   attachments        Attachment[]
   xpEvents           XpEvent[]
   badges             VehicleBadge[]
+  hyundaiLink        HyundaiVehicleLink?
 }
 
 // 관리를 잘 할수록(정시 정비, 꼼꼼한 기록, 좋은 연비) 쌓이는 경험치 내역.
@@ -115,6 +117,42 @@ model UserVehicleAccess {
   @@id([userId, vehicleId])
 }
 
+// 현대 Hyundai Developers 커넥티드카 API 연동 — 사용자 1명당 블루링크 계정 1개를 연결한다.
+// 앱 전역 Client ID/Secret은 Setting 테이블(관리자 키)에 두고, 사용자별로 발급받는
+// 액세스/리프레시 토큰은 Setting과 성격이 달라(개인 데이터) 별도 테이블로 둔다.
+// 정확한 필드(만료 계산 방식 등)는 Hyundai Developers 콘솔의 API 규격서 확인 후 조정한다.
+model HyundaiAccountLink {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  // 현대 측이 발급한 사용자 고유 식별자(/user/profile의 id) — 데이터 조회 불가 알림
+  // 웹훅이 이 값으로 계정 삭제를 통지하므로, 웹훅에서 어느 연동을 지울지 찾는 키로 쓴다.
+  hyundaiUserId        String?   @unique
+  accessToken          String
+  refreshToken         String
+  // 토큰 갱신 요청에도 최초 로그인 때 쓴 redirect_uri가 필요해서 함께 저장해둔다.
+  redirectUri          String
+  // 개인정보 제3자 제공 동의 완료 시각 — 이게 없으면 데이터 API 전부가 5005로 실패한다.
+  dataConsentGrantedAt DateTime?
+  expiresAt            DateTime
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  user     User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicles HyundaiVehicleLink[]
+}
+
+// Garage 차량 ↔ 현대 커넥티드카 API의 carId 매핑. 차량 1대는 최대 1개 블루링크 차량에만 연결된다.
+model HyundaiVehicleLink {
+  id            String   @id @default(cuid())
+  vehicleId     String   @unique
+  accountLinkId String
+  hyundaiCarId  String
+  createdAt     DateTime @default(now())
+
+  vehicle     Vehicle            @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  accountLink HyundaiAccountLink @relation(fields: [accountLinkId], references: [id], onDelete: Cascade)
+}
+
 // OBD/GPS 원시 데이터. 데이터량이 늘면 TimescaleDB 하이퍼테이블로 전환 검토.
 model TelemetryRaw {
   id        BigInt   @id @default(autoincrement())
@@ -138,7 +176,7 @@ model TelemetryRaw {
 }
 
 model Trip {
-  id            String       @id @default(cuid())
+  id            String    @id @default(cuid())
   vehicleId     String
   startTime     DateTime
   endTime       DateTime?
@@ -153,18 +191,18 @@ model Trip {
 }
 
 model FuelLog {
-  id        String   @id @default(cuid())
-  vehicleId String
-  userId    String?
-  date      DateTime
-  odometer  Int
-  liters    Float
-  cost      Int
-  fullTank  Boolean  @default(true)
-  location  String?
-  latitude  Float?
-  longitude Float?
-  address   String?
+  id              String   @id @default(cuid())
+  vehicleId       String
+  userId          String?
+  date            DateTime
+  odometer        Int
+  liters          Float
+  cost            Int
+  fullTank        Boolean  @default(true)
+  location        String?
+  latitude        Float?
+  longitude       Float?
+  address         String?
   opinetStationId String?
 
   vehicle     Vehicle      @relation(fields: [vehicleId], references: [id], onDelete: Cascade)

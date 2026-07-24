@@ -11,6 +11,8 @@ export const settingKeySchema = z.enum([
   "KAKAO_MAP_APP_KEY",
   "NAVER_MAP_CLIENT_ID",
   "TMAP_APP_KEY",
+  "HYUNDAI_CLIENT_ID",
+  "HYUNDAI_CLIENT_SECRET",
   "VAPID_PUBLIC_KEY",
   "VAPID_PRIVATE_KEY",
   "VAPID_SUBJECT",

@@ -18,6 +18,8 @@ import { maintenancePresetRoutes } from "./routes/maintenancePresets.js";
 import { backupRoutes } from "./routes/backup.js";
 import { opinetRoutes } from "./routes/opinet.js";
 import { evChargerRoutes } from "./routes/evCharger.js";
+import { hyundaiRoutes } from "./routes/hyundai.js";
+import { hyundaiWebhookRoutes } from "./routes/hyundaiWebhook.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { mapProviderRoutes } from "./routes/mapProviders.js";
 import { pushRoutes } from "./routes/push.js";
@@ -115,6 +117,8 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(backupRoutes, { prefix: "/api/backup" });
   await app.register(opinetRoutes, { prefix: "/api/opinet" });
   await app.register(evChargerRoutes, { prefix: "/api/ev-charger" });
+  await app.register(hyundaiRoutes, { prefix: "/api/hyundai" });
+  await app.register(hyundaiWebhookRoutes, { prefix: "/api/hyundai/webhook" });
   await app.register(settingsRoutes, { prefix: "/api/settings" });
   await app.register(mapProviderRoutes, { prefix: "/api/map" });
   await app.register(pushRoutes, { prefix: "/api/push" });
