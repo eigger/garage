@@ -21,6 +21,7 @@ Implementation status reflects the current source tree. Keys managed in the admi
 | [Vehicle records REST API](#11-vehicle-records-rest-api-fuel--maintenance) | external → Garage | **Available** | Garage user JWT (`/api/auth/login`) | Fuel logs, maintenance records, odometer side-effects |
 | [PWA Web Push](#12-pwa-web-push) | Garage → client | **Available** | `VAPID_*` env vars | Due maintenance/admin reminder notifications |
 | [API Explorer](#13-api-explorer) | (developer tool) | **Available** | ADMIN login | Browse & test every REST endpoint from the web UI |
+| [Hyundai Developers (Bluelink)](#15-hyundai-developers-connected-car-api) | external → Garage | Wired against spec, not live-tested | `/integrations` (`HYUNDAI_CLIENT_ID`/`_SECRET`) | Mileage, EV battery/charging, warning lights — no OBD dongle needed |
 
 ---
 
@@ -905,6 +906,71 @@ data.go.kr key applications default to a **2-year validity period** and expire a
 1. `apps/api/src/routes/ingest.ts` or a dedicated route
 2. `packages/shared/src/schemas/` — Zod validation schema
 3. `apps/web/app/vehicles/[id]/integration/page.tsx` — setup instructions UI
+
+---
+
+## 15. Hyundai Developers (connected car API)
+
+| Field | Value |
+|---|---|
+| Status | **Wired against the confirmed API spec, not yet live-tested** — every endpoint below is implemented and unit-tested against the console's own API specification pages. No account has actually completed the full OAuth + data-consent flow yet, so nothing has been verified against a real response. |
+| Setting keys | `HYUNDAI_CLIENT_ID`, `HYUNDAI_CLIENT_SECRET` |
+| Where to set | `/integrations` UI |
+| Issuer | [developers.hyundai.com](https://developers.hyundai.com) ("Hyundai Developers") |
+| Implementation | `apps/api/src/lib/hyundai.ts` (+ `hyundai.test.ts`), `apps/api/src/routes/hyundai.ts`, `apps/api/src/routes/hyundaiWebhook.ts` |
+
+### Why
+
+Reviewed as an alternative to OBD-dongle-based ingest (see [OBD app](#2-obd-app-torque-pro)):
+domestic (Korea-registered) Bluelink-connected vehicles expose real odometer, EV battery/charging
+state, and dashboard warning lights directly from Hyundai's own cloud — no phone app, no Bluetooth
+dongle.
+
+### Data model
+
+- `Setting` (`HYUNDAI_CLIENT_ID` / `HYUNDAI_CLIENT_SECRET`) — app-level OAuth client credentials, admin-managed, excluded from backup like other integration keys.
+- `HyundaiAccountLink` — one row per Garage `User` who has linked their own Hyundai account (access/refresh token, the `redirectUri` used at login so refresh can reuse it, and `hyundaiUserId` — Hyundai's own user id from `/user/profile`, used to match the deletion webhook below). Personal, not admin-scoped — each family member links their own Bluelink account.
+- `HyundaiVehicleLink` — maps one Garage `Vehicle` to one Hyundai `carId`, referencing whichever `HyundaiAccountLink` owns it (not necessarily the requester — token lookups always resolve through the vehicle's own link, per `getValidAccessTokenForVehicleLink` in the route file).
+
+### API Garage exposes (`/api/hyundai/*`, all JWT-authenticated)
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/configured` | Whether admin has set Client ID/Secret |
+| `GET` | `/account` | Whether the current user has linked their own Hyundai account |
+| `GET` | `/authorize-url?redirectUri=` | Login URL to redirect the user to |
+| `POST` | `/link` | Exchange an authorization code for tokens, store against the current user |
+| `DELETE` | `/account` | Unlink the current user's Hyundai account (revokes the token and withdraws data consent) |
+| `GET` | `/vehicles` | List the linked account's Hyundai vehicles (candidates for matching to a Garage vehicle) |
+| `PUT` | `/vehicles/:vehicleId/link` | Link a Garage vehicle to a Hyundai `carId` |
+| `DELETE` | `/vehicles/:vehicleId/link` | Unlink |
+| `GET` | `/vehicles/:vehicleId/mileage` | Odometer + distance-to-empty |
+| `GET` | `/vehicles/:vehicleId/status` | Warning lights (7 types) |
+| `GET` | `/vehicles/:vehicleId/driving-habit` | Not yet available — see below |
+
+`POST /api/hyundai/webhook` (no JWT, public) is Hyundai's "데이터 조회 불가 상태 알림" callback —
+register it as the Callback URL in the console's "설정 - 데이터 API" page. On account deletion,
+vehicle deletion, or consent withdrawal it deletes the corresponding `HyundaiAccountLink`/
+`HyundaiVehicleLink` row, per the 개인정보보호법 requirement to purge data immediately on notice.
+
+### Confirmed against the console's own API specification (not just the walkthrough guide)
+
+- Login: `GET https://prd.kr-ccapi.hyundai.com/api/v1/user/oauth2/authorize` (`response_type`, `client_id`, `redirect_uri`, `state`)
+- Token issue/refresh/revoke: `POST https://prd.kr-ccapi.hyundai.com/api/v1/user/oauth2/token`, `Authorization: Basic base64(client_id:client_secret)`, form-encoded, `grant_type` = `authorization_code` | `refresh_token` | `delete`. Access tokens last 24h, refresh tokens 1 year (server-controlled; not hardcoded here since `expires_in` is read from the actual response).
+- User profile: `GET https://prd.kr-ccapi.hyundai.com/api/v1/user/profile` → `{id, email, name, mobileNum, birthdate, lang, social}` (the field is `id`, not `userId`).
+- Data consent: `POST https://dev.kr-ccapi.hyundai.com/api/v1/car-service/terms/agreement` (`token`, `state`) — redirect-based like login, not a plain server-to-server call; required before *any* data endpoint works (otherwise every call fails with `5005 No Agreement Error`). Withdrawal: `GET .../api/v1/car-service/terms/reject`.
+- Vehicle list: `GET https://dev.kr-ccapi.hyundai.com/api/v1/car/profile/carlist` → `{cars: [{carId, carNickname, carType, carName, carSellname}]}`.
+- Connected-service subscription dates: `GET .../api/v1/car/profile/:carId/contract` → `{subscribeDate, endDate}` (YYYYMMDD).
+- Mileage: `GET .../api/v1/car/status/:carId/dte` → `{value, unit, timestamp}`; `GET .../api/v1/car/status/:carId/odometer` → `{odometers: [{value, unit, date, timestamp}]}`. Both use the same unit code (0:feet, 1:km, 2:meter, 3:miles).
+- EV battery/charging: `GET .../ev/battery` → `{soc}`; `GET .../ev/charging` → `{batteryPlugin, batteryCharge, soc, targetSOC, remainTime}`.
+- Warning lights (7): `GET .../api/v1/car/status/warning/:carId/{lowFuel|tirePressure|lampWire|smartKeyBattery|washerFluid|breakOil|engineOil}` → `{status: boolean}` (note `breakOil`, not `brakeOil` — that's the real path).
+- Every endpoint's error body is `{errCode, errMsg, errId}` — `hyundai.ts`'s `describeError()` surfaces this in logs instead of a bare HTTP status.
+- All data-api hosts are `dev.kr-ccapi.hyundai.com` — confirmed across every endpoint in the spec, so this is a fixed host rather than an environment flag.
+
+### Still not available
+
+- **Last-parked location** and **90-day driving-habit safety score** — no endpoint for either has appeared in the specification pages reviewed so far. `fetchVehicleStatus`'s `lastParkedLat`/`lastParkedLon` stay `null`, and `fetchDrivingHabit` returns `null` until an endpoint is found.
+- No account has completed the OAuth + data-consent flow end-to-end yet, so the parsing logic above is verified against the spec's documented sample responses, not a live call.
 
 ---
 

@@ -58,6 +58,16 @@ const SETTING_META: Record<
     labelKey: "vapidSubjectLabel",
     helpKey: "vapidSubjectHelp",
   },
+  HYUNDAI_CLIENT_ID: {
+    labelKey: "hyundaiClientIdLabel",
+    helpKey: "hyundaiClientIdHelp",
+    signupUrl: "https://developers.hyundai.com",
+    signupLabelKey: "integrationLinkHyundai",
+  },
+  HYUNDAI_CLIENT_SECRET: {
+    labelKey: "hyundaiClientSecretLabel",
+    helpKey: "hyundaiClientSecretHelp",
+  },
 };
 
 // 오피넷/EV충전소는 "연료·충전", 지도 3종은 "지도", VAPID 쌍+발신자는 "알림"으로 묶어
@@ -65,6 +75,7 @@ const SETTING_META: Record<
 const GROUPS: { key: string; titleKey: TranslationKey; keys: string[] }[] = [
   { key: "fuel", titleKey: "integrationGroupFuel", keys: ["OPINET_API_KEY", "EV_CHARGER_API_KEY", "EV_CHARGER_API_KEY_EXPIRES_AT"] },
   { key: "map", titleKey: "integrationGroupMap", keys: ["KAKAO_MAP_APP_KEY", "NAVER_MAP_CLIENT_ID", "TMAP_APP_KEY"] },
+  { key: "connectedCar", titleKey: "integrationGroupConnectedCar", keys: ["HYUNDAI_CLIENT_ID", "HYUNDAI_CLIENT_SECRET"] },
   { key: "notification", titleKey: "integrationGroupNotification", keys: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] },
 ];
 
