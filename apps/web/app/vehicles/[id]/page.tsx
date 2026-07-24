@@ -514,6 +514,7 @@ export default function VehicleOverviewPage() {
       {vehicle && vehicle.latitude !== null && vehicle.latitude !== undefined && vehicle.longitude !== null && vehicle.longitude !== undefined && (
         <NearbyStationsCard
           key={vehicleId}
+          vehicleId={vehicleId}
           fuelType={vehicle.fuelType}
           lat={vehicle.latitude}
           lon={vehicle.longitude}

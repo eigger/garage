@@ -7,11 +7,12 @@ import { reverseGeocode } from "../lib/maps/geocode";
 import type { MapProvidersConfig } from "../lib/maps/types";
 import { NavLaunchButtons } from "./NavLaunchButtons";
 import type { StationMarker } from "./maps/LastLocationMap";
-import type { OpinetStationSummary, EvChargerSummary, ChargerStatus } from "@garage/shared";
+import type { OpinetStationSummary, EvChargerSummary, ChargerStatus, OpinetValuePicksResponse } from "@garage/shared";
 import type { FuelType } from "../lib/types";
 import type { TranslationKey } from "../lib/i18n/translations";
 
 type NearbyStationsCardProps = {
+  vehicleId: string;
   fuelType: FuelType | null;
   lat: number;
   lon: number;
@@ -19,7 +20,7 @@ type NearbyStationsCardProps = {
   onResultsChange?: (stations: StationMarker[]) => void;
 };
 
-type SortMode = "distance" | "price";
+type SortMode = "distance" | "price" | "value";
 
 const STATUS_COLOR: Record<ChargerStatus, string> = {
   AVAILABLE: "var(--color-success)",
@@ -78,8 +79,8 @@ function StationBadge({ number }: { number: number }) {
   );
 }
 
-export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsChange }: NearbyStationsCardProps) {
-  const { t } = useSettings();
+export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, onResultsChange }: NearbyStationsCardProps) {
+  const { t, formatDistance, formatCurrency } = useSettings();
   const isElectric = fuelType === "ELECTRIC";
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
@@ -87,6 +88,7 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
   const [gasStations, setGasStations] = useState<OpinetStationSummary[]>([]);
   const [gasCoords, setGasCoords] = useState<Record<string, { lat: number; lon: number }>>({});
   const [chargers, setChargers] = useState<EvChargerSummary[]>([]);
+  const [valuePicks, setValuePicks] = useState<OpinetValuePicksResponse | null>(null);
 
   // 거리순/가격순은 각각 오피넷에 따로 조회한다 — 한 번 받아온 목록을 클라이언트에서
   // 재정렬하면, 상위 N개만 상세 조회(좌표)해둔 상태라 정렬을 바꿨을 때 원래 상위권 밖에
@@ -104,6 +106,15 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
         const data = all.slice(0, RESULT_LIMIT);
         setChargers(data);
         onResultsChange?.(data.map((s, i) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name, number: i + 1 })));
+      } else if (mode === "value") {
+        const address = await reverseGeocode(mapConfig, lat, lon);
+        const url = `/api/opinet/value-picks?vehicleId=${vehicleId}&lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}${address ? `&address=${encodeURIComponent(address)}` : ""}`;
+        const res = await apiFetch(url);
+        const data: OpinetValuePicksResponse | null = res.ok ? await res.json() : null;
+        setValuePicks(data);
+        onResultsChange?.(
+          (data?.picks ?? []).map((p, i) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name, number: i + 1 })),
+        );
       } else {
         const res = await apiFetch(`/api/opinet/stations?lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}&sort=${mode}`);
         const all: OpinetStationSummary[] = res.ok ? await res.json() : [];
@@ -148,7 +159,7 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {!isElectric && searched && (
             <div style={{ display: "flex", gap: 4 }}>
-              {(["distance", "price"] as SortMode[]).map((mode) => (
+              {(["distance", "price", "value"] as SortMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
@@ -163,7 +174,7 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
                     color: sortMode === mode ? "var(--color-text-on-primary)" : "var(--color-text-secondary)",
                   }}
                 >
-                  {mode === "distance" ? t("sortDistance") : t("sortPrice")}
+                  {mode === "distance" ? t("sortDistance") : mode === "price" ? t("sortPrice") : t("sortValue")}
                 </button>
               ))}
             </div>
@@ -188,8 +199,14 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
       {searched && !loading && isElectric && chargers.length === 0 && (
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("noNearbyResults")}</p>
       )}
-      {searched && !loading && !isElectric && gasStations.length === 0 && (
+      {searched && !loading && !isElectric && sortMode !== "value" && gasStations.length === 0 && (
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("noNearbyResults")}</p>
+      )}
+      {searched && !loading && !isElectric && sortMode === "value" && valuePicks?.insufficientData && (
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("valuePickInsufficientData")}</p>
+      )}
+      {searched && !loading && !isElectric && sortMode === "value" && valuePicks && !valuePicks.insufficientData && valuePicks.picks.length === 0 && (
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("valuePickNoneWorthIt")}</p>
       )}
 
       {isElectric && chargers.length > 0 && (
@@ -228,7 +245,55 @@ export function NearbyStationsCard({ fuelType, lat, lon, mapConfig, onResultsCha
         </div>
       )}
 
-      {!isElectric && gasStations.length > 0 && (
+      {!isElectric && sortMode === "value" && valuePicks && !valuePicks.insufficientData && valuePicks.picks.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          {valuePicks.baseline && (
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: 0 }}>
+              {t("valuePickBaseline", {
+                name: valuePicks.baseline.name,
+                distance: formatDistance(valuePicks.baseline.distanceM / 1000),
+                price: `${valuePicks.baseline.price.toLocaleString()}원`,
+              })}
+            </p>
+          )}
+          {valuePicks.picks.map((pick, i) => (
+            <div key={pick.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+                  <StationBadge number={i + 1} />
+                  <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    [{pick.brandLabel}] {pick.name}
+                  </strong>
+                </span>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{formatDistance(pick.distanceM / 1000)}</span>
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", margin: "2px 0 2px" }}>
+                {pick.price.toLocaleString()}원
+              </div>
+              <div
+                style={{
+                  display: "inline-block",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  background: "var(--chip-green-bg)",
+                  border: "1px solid var(--chip-green-border)",
+                  color: "var(--color-success)",
+                  margin: "2px 0 8px",
+                }}
+              >
+                {t("valuePickNetGain", { amount: formatCurrency(pick.netGain) })}
+              </div>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                <NavLaunchButtons compact destination={{ lat: pick.lat, lon: pick.lon, name: pick.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {!isElectric && sortMode !== "value" && gasStations.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {gasStations.map((station, i) => {
             const coords = gasCoords[station.id];
