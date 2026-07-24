@@ -917,14 +917,25 @@ data.go.kr key applications default to a **2-year validity period** and expire a
 | Setting keys | `HYUNDAI_CLIENT_ID`, `HYUNDAI_CLIENT_SECRET` |
 | Where to set | `/integrations` UI |
 | Issuer | [developers.hyundai.com](https://developers.hyundai.com) ("Hyundai Developers") |
-| Implementation | `apps/api/src/lib/hyundai.ts` (+ `hyundai.test.ts`), `apps/api/src/routes/hyundai.ts`, `apps/api/src/routes/hyundaiWebhook.ts` |
+| Implementation | `apps/api/src/lib/hyundai.ts` (+ `hyundai.test.ts`), `apps/api/src/lib/hyundaiToken.ts`, `apps/api/src/routes/hyundai.ts`, `apps/api/src/routes/hyundaiWebhook.ts`, `apps/api/src/jobs/hyundaiSync.ts` |
 
 ### Why
 
 Reviewed as an alternative to OBD-dongle-based ingest (see [OBD app](#2-obd-app-torque-pro)):
 domestic (Korea-registered) Bluelink-connected vehicles expose real odometer, EV battery/charging
 state, and dashboard warning lights directly from Hyundai's own cloud — no phone app, no Bluetooth
-dongle.
+dongle. Note this only gives periodic odometer/status *snapshots* (updated by the car itself at
+ignition-off) — not per-trip route/duration/speed history like the OBD/GPS ingest path produces;
+the two are complementary, not a replacement for one another.
+
+### Automatic odometer sync
+
+`apps/api/src/jobs/hyundaiSync.ts` runs once on server boot and twice daily (07:00, 19:00 — matching
+the `reminders` job's cadence, chosen because Bluelink odometer data only updates at ignition-off,
+so polling more often has no effect). For every `HyundaiVehicleLink`, it fetches mileage and bumps
+`Vehicle.odometer` **only if the fetched value is higher** than what's stored — the same
+non-destructive rule the OBD webhook ingest uses (`bumpOdometerIfHigher`), so a more-recent manual
+entry is never overwritten by a stale Bluelink read.
 
 ### Data model
 

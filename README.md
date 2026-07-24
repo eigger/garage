@@ -27,6 +27,7 @@ Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md
 - Fuel logging with receipt attachments; Opinet nearby stations (optional)
 - EV charging station finder (K-eco API, optional) — same distance/price search as gas stations, numbered markers on the map
 - OBD ingest (Torque Pro) and REST/WebSocket telemetry; auto trip segmentation
+- Hyundai Bluelink connected-car integration (beta, Korea-only) — real odometer, distance-to-empty, and warning-light status with no OBD dongle, with automatic odometer sync; each family member links their own account under Profile
 - Trip reports, route maps (OSM / Kakao / Naver / T map) with direction arrows; inline trip notes editing and reverse geocoding
 - Dashboard reminder badges and vehicle summary cards (including last fuel cost)
 - Per-vehicle care level & badges (gamification) screen
