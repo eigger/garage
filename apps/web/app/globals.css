@@ -386,6 +386,7 @@ p {
 
 input,
 select,
+textarea,
 button {
   font-size: 16px; /* iOS에서 16px 미만이면 입력 시 자동 확대되는 걸 방지 */
   min-height: 48px; /* 터치 타깃 최소 크기 */
@@ -395,6 +396,12 @@ button {
   box-sizing: border-box;
   color: var(--color-text);
   background-color: var(--color-surface);
+}
+
+/* textarea는 브라우저 기본값이 폰트를 안 물려받아서(모노스페이스로 나오는 브라우저도 있음)
+   위 규칙만으로는 부족하다 — 다크 테마에서 색은 맞아도 폰트가 안 맞는 걸 방지. */
+textarea {
+  font-family: inherit;
 }
 
 /* native select는 min-height만으로는 입력 필드와 높이가 맞지 않는 경우가 많다 */
