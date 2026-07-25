@@ -1,6 +1,7 @@
 node_modules
 dist
 .next
+apps/api/src/generated/
 .env
 .env.*
 !.env.example

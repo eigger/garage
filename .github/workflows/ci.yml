@@ -23,7 +23,10 @@ jobs:
         run: npm ci
 
       - name: Run Prisma Generate
+        # prisma generate는 DB에 접속하지 않지만 prisma.config.ts가 DATABASE_URL 존재를 요구하므로 더미 값을 준다.
         run: npm run prisma:generate -w apps/api
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
       - name: Run Build
         run: npm run build
@@ -63,7 +66,7 @@ jobs:
         run: npm run prisma:generate -w apps/api
 
       - name: Run Prisma Migrate
-        run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma
+        run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma --config apps/api/prisma.config.ts
 
       - name: Run Tests
         run: npm run test

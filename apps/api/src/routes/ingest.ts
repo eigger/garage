@@ -265,24 +265,25 @@ export async function ingestRoutes(app: FastifyInstance) {
   });
 
   // 7. 웹 브라우저 대시보드 / 실시간 상태 연동용 WebSocket 스트림
-  app.get("/telemetry/ws", { websocket: true }, async (connection, request) => {
+  // @fastify/websocket v9+ 부터는 핸들러가 connection.socket이 아니라 WebSocket을 직접 전달한다.
+  app.get("/telemetry/ws", { websocket: true }, async (socket, request) => {
     const { token } = request.query as { token?: string };
     const vehicle = await getVehicleByToken(token);
     if (!vehicle) {
-      connection.socket.send(JSON.stringify({ error: "unauthorized" }));
-      connection.socket.close();
+      socket.send(JSON.stringify({ error: "unauthorized" }));
+      socket.close();
       return;
     }
 
     const listener = (data: unknown) => {
-      if (connection.socket.readyState === 1) {
-        connection.socket.send(JSON.stringify(data));
+      if (socket.readyState === 1) {
+        socket.send(JSON.stringify(data));
       }
     };
 
     telemetryEmitter.on(`telemetry:${vehicle.id}`, listener);
 
-    connection.socket.on("close", () => {
+    socket.on("close", () => {
       telemetryEmitter.off(`telemetry:${vehicle.id}`, listener);
     });
   });

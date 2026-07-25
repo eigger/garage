@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma.js";
 
 async function main() {
   const vehicleId = "cmrj5hoz90000bez0g40e0nc7"; // IONIQ 5

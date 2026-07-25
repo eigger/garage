@@ -1,6 +1,4 @@
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma.js";
 
 async function seedEvMock(vehicleId: string) {
   // Delete existing telemetry & trips to keep clean
