@@ -28,6 +28,8 @@ export type Vehicle = {
   longitude?: number | null;
   locationUpdatedAt?: string | null;
   speed?: number | null;
+  // 별도 저장 필드가 아니라, 가장 최근 자동차보험 갱신 완료 기록의 shop 값을 서버가 조회해서 내려준다.
+  currentInsurer?: string | null;
   // 관리자가 아닌 사용자에게는 API에서 이 필드 자체를 내려주지 않는다(인증 자격 증명이라 노출 제한).
   apiToken?: string | null;
   attachments?: Attachment[];

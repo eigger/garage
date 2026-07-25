@@ -10,6 +10,7 @@ import {
   ADMIN_ITEMS,
   maintenanceItemLabel,
   adminItemLabel,
+  adminStoredVariants,
   levelForXp,
   BADGE_KEYS,
 } from "@garage/shared";
@@ -151,6 +152,14 @@ export async function vehicleRoutes(app: FastifyInstance) {
       },
     });
 
+    // "현재 보험사"는 별도 필드로 저장하지 않고, 보험 갱신 완료 처리 시 남긴 shop 값을
+    // 재사용한다 — 가장 최근 자동차보험 갱신 기록의 shop이 곧 현재 가입된 보험사다.
+    const latestInsuranceRecord = await prisma.maintenanceRecord.findFirst({
+      where: { vehicleId: id, type: { in: adminStoredVariants("autoInsuranceRenewal") } },
+      orderBy: { date: "desc" },
+      select: { shop: true },
+    });
+
     const responseData = {
       ...vehicle,
       fuelLevel: latestTelemetry?.fuelLevel ?? null,
@@ -158,6 +167,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
       longitude: latestLocation?.lon ?? null,
       locationUpdatedAt: latestLocation?.time ?? null,
       speed: latestLocation?.speed ?? null,
+      currentInsurer: latestInsuranceRecord?.shop ?? null,
     };
 
     return omitApiTokenUnlessAdmin(responseData, role);

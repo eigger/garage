@@ -406,6 +406,7 @@ export default function VehicleOverviewPage() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: 12, borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
                     <div><strong>{t("vehicleTireSize")}:</strong> {vehicle.tireSize || "-"}</div>
                     <div><strong>{t("vehicleBatteryCapacity")}:</strong> {vehicle.batteryCapacity || "-"}</div>
+                    <div><strong>{t("currentInsurer")}:</strong> {vehicle.currentInsurer || "-"}</div>
                   </div>
                   <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
                     <strong>{t("registrationCertificate")}:</strong>{" "}

@@ -185,6 +185,9 @@ function ScheduleRow({
   const [completionFile, setCompletionFile] = useState<File | null>(null);
   const [completionUploadProgress, setCompletionUploadProgress] = useState<number | null>(null);
   const isCatalog = resolveCatalogKey(part.partType) !== null;
+  // 자동차보험 갱신 항목의 "정비소" 칸은 실제로는 보험사명을 적는 자리라 라벨을 바꿔준다 —
+  // 이 값이 곧 차량 상세 화면의 "현재 보험사"로 재사용된다.
+  const isInsuranceRenewal = resolveCatalogKey(part.partType)?.key === "autoInsuranceRenewal";
 
   const { status, dueDate } = computeStatus(part, odometer);
 
@@ -467,7 +470,7 @@ function ScheduleRow({
             onChange={(e) => setCompletionCost(e.target.value)}
           />
           <input
-            placeholder={t("shop")}
+            placeholder={isInsuranceRenewal ? t("insurerLabel") : t("shop")}
             value={completionShop}
             onChange={(e) => setCompletionShop(e.target.value)}
           />
