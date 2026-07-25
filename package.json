@@ -16,10 +16,16 @@
     "test": "npm run build:shared && npm run test -w apps/api && npm run test -w apps/web"
   },
   "allowScripts": {
-    "@prisma/client@5.22.0": true,
-    "@prisma/engines@5.22.0": true,
+    "@prisma/client@7.9.0": true,
+    "@prisma/engines@7.9.0": true,
     "esbuild@0.28.1": true,
-    "prisma@5.22.0": true
+    "prisma@7.9.0": true
+  },
+  "overrides": {
+    "postcss": "^8.5.23",
+    "sharp": "^0.35.3",
+    "find-my-way": "^9.7.0",
+    "valibot": "^1.4.2"
   },
   "devDependencies": {
     "playwright": "^1.61.1"

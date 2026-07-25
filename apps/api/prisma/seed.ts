@@ -1,9 +1,7 @@
 // 최초 관리자 계정과 연료타입별 정비 마스터 프리셋을 만드는 시드 스크립트.
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../src/lib/prisma.js";
 import { ensureMaintenancePresets } from "../src/lib/seedPresets.js";
-
-const prisma = new PrismaClient();
 
 async function seedAdmin() {
   const email = process.env.ADMIN_EMAIL ?? "admin@example.com";
