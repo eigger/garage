@@ -12,3 +12,4 @@ export * from "./schemas/opinet.js";
 export * from "./schemas/evCharger.js";
 export * from "./schemas/hyundai.js";
 export * from "./gamification.js";
+export * from "./scheduleStatus.js";

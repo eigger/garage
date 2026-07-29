@@ -1,16 +1,24 @@
-import { buildReminderPushMessage, parseLocale } from "@garage/shared";
+import { buildReminderPushMessage, parseLocale, resolveScheduleStatus } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { getUserIdsForVehicle, isPushConfigured, sendPushToSubscription } from "../lib/push.js";
 
+// 대시보드의 지난(due)/임박(upcoming) 판단과 반드시 같은 로직(@garage/shared)을 써야
+// /api/ingest/reminders 같은 외부 연동 건수가 화면과 어긋나지 않는다.
 export function isReminderDue(
   reminder: { dueDate: Date | null; dueOdometer: number | null },
   currentOdometer: number,
   now: Date,
 ): boolean {
-  const dueByDate = reminder.dueDate ? reminder.dueDate <= now : false;
-  const dueByOdometer = reminder.dueOdometer ? currentOdometer >= reminder.dueOdometer : false;
-  return dueByDate || dueByOdometer;
+  return resolveScheduleStatus(reminder.dueDate, reminder.dueOdometer, currentOdometer, now).status === "due";
+}
+
+export function isReminderUpcoming(
+  reminder: { dueDate: Date | null; dueOdometer: number | null },
+  currentOdometer: number,
+  now: Date,
+): boolean {
+  return resolveScheduleStatus(reminder.dueDate, reminder.dueOdometer, currentOdometer, now).status === "upcoming";
 }
 
 export function datesEqual(a: Date | null, b: Date | null): boolean {
