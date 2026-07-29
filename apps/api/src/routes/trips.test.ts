@@ -148,3 +148,70 @@ describe("GET /api/trips/:id/points — last-known-location connect", () => {
     }
   });
 });
+
+// hass-garage 같은 외부 소스가 10초 간격으로 위치를 계속 밀어 넣으면, 몇 시간짜리
+// 장거리 주행은 원시 포인트가 수백~수천 개까지 쌓인다. 실제 HTTP 라우트가 그런 트립을
+// 지도 표시용으로 축소해서 내려주는지(단위 테스트로는 검증 못 하는, geo.ts의
+// simplifyRouteForDisplay가 이 라우트에 실제로 연결됐는지)를 실제 DB로 확인한다.
+describe("GET /api/trips/:id/points — long trip simplification", () => {
+  let app: FastifyInstance;
+  let vehicleId: string;
+  let userId: string;
+  let token: string;
+
+  beforeAll(async () => {
+    app = await buildApp();
+
+    const suffix = randomUUID();
+    const vehicle = await prisma.vehicle.create({
+      data: { name: `Test Vehicle ${suffix}`, apiToken: randomUUID() },
+    });
+    vehicleId = vehicle.id;
+
+    const user = await prisma.user.create({
+      data: { name: "Test Owner", email: `test-owner-${suffix}@example.com`, passwordHash: "x", role: "ADMIN" },
+    });
+    userId = user.id;
+    token = app.jwt.sign({ sub: userId, role: "ADMIN" });
+  });
+
+  afterAll(async () => {
+    await prisma.vehicle.delete({ where: { id: vehicleId } }).catch(() => {});
+    await prisma.user.delete({ where: { id: userId } }).catch(() => {});
+    await app.close();
+    await prisma.$disconnect();
+  });
+
+  it("simplifies a long, straight highway leg down to a handful of points via the real route", async () => {
+    const trip = await prisma.trip.create({
+      data: { vehicleId, startTime: new Date("2026-07-01T00:00:00Z") },
+    });
+
+    // 10초 간격으로 2시간 곧게 뻗은 직선 주행 — 720개 원시 포인트(기본 임계값 500개를
+    // 넘겨야 단순화가 실제로 걸린다. 참고: 1시간짜리 평범한 출퇴근(360개)은 임계값
+    // 밑이라 단순화 없이 그대로 내려간다 — 의도된 동작).
+    await prisma.telemetryRaw.createMany({
+      data: Array.from({ length: 720 }, (_, i) => ({
+        vehicleId,
+        tripId: trip.id,
+        time: new Date(Date.UTC(2026, 6, 1, 0, 0, i * 10)),
+        source: "test",
+        lat: 37.0 + i * 0.0001,
+        lon: 127.0,
+        speed: 100,
+      })),
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: `/api/trips/${trip.id}/points`,
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.statusCode).toBe(200);
+    const points = res.json();
+
+    // 완전한 직선이므로 시작/끝 두 점만 남아야 한다 — 720개 그대로 내려오면 안 된다.
+    expect(points.length).toBeLessThan(720);
+    expect(points.length).toBe(2);
+  });
+});
