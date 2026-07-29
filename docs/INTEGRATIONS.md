@@ -8,18 +8,17 @@ Garage가 사용하거나 노출하는 모든 외부 서비스·기기 연동을
 | 연동 | 방향 | 상태 | 설정 | 용도 |
 |---|---|---|---|---|
 | [오피넷](#1-오피넷opinet-주유소-가격-api) | Garage → 외부 | **사용 가능** | `/integrations` 또는 `OPINET_API_KEY` | 주변 주유소 및 가격 |
-| [전기차 충전소(한국환경공단)](#12-전기차-충전소-api-한국환경공단-evcharger) | Garage → 외부 | **사용 가능** | `/integrations` 또는 `EV_CHARGER_API_KEY` | 주변 충전소, 실시간 상태, 커넥터 타입 |
+| [전기차 충전소(한국환경공단)](#11-전기차-충전소-api-한국환경공단-evcharger) | Garage → 외부 | **사용 가능** | `/integrations` 또는 `EV_CHARGER_API_KEY` | 주변 충전소, 실시간 상태, 커넥터 타입 |
 | [OBD 앱(Torque Pro)](#2-obd-앱torque-pro) | 외부 → Garage | **사용 가능** | 차량별 `apiToken` | OBD/GPS 텔레메트리 수집 |
 | [REST 텔레메트리](#3-rest-텔레메트리-수집) | 외부 ↔ Garage | **사용 가능** | 차량별 `apiToken` | HA / 범용 JSON 수집 + 상태·리마인더 조회 |
 | [WebSocket 텔레메트리](#4-websocket-실시간-스트림) | Garage → 클라이언트 | **사용 가능** | 차량별 `apiToken` | 실시간 위치·상태 |
-| [MQTT(Mosquitto)](#5-mqttmosquitto--home-assistant) | Garage → 외부 | 구현됨, 기본 비활성화 — 배포 계획 없음 | `MQTT_URL` + Compose | HA / Node-RED (선택) |
-| [GitHub Releases](#6-github-releases업데이트-확인) | Garage → 외부 | **사용 가능** | (없음) | `/health` 업데이트 알림 |
-| [지도 제공자(OSM/카카오/네이버/티맵)](#7-지도-제공자-osm--카카오--네이버--티맵) | Garage → 외부(선택) | **사용 가능** | 카카오/네이버/티맵은 `/integrations`에서 | 주행 경로 시각화 |
-| [내비게이션 딥링크](#8-내비게이션-딥링크-티맵--카카오--네이버) | Garage → 모바일 앱 | **사용 가능** | (없음) | 저장된 주유 위치로 티맵/카카오/네이버 내비 열기 |
-| [차량 기록 REST API](#9-차량-기록-rest-api-주유--정비) | 외부 → Garage | **사용 가능** | Garage 사용자 JWT(`/api/auth/login`) | 주유 기록, 정비 기록, 주행거리 부수효과 |
-| [PWA 웹 푸시](#10-pwa-웹-푸시) | Garage → 클라이언트 | **사용 가능** | `VAPID_*` 환경변수 | 정비/행정 예정 리마인더 알림 |
-| [API 익스플로러](#11-api-익스플로러) | (개발자 도구) | **사용 가능** | ADMIN 로그인 | 웹 UI에서 모든 REST 엔드포인트 탐색·테스트 |
-| [현대 Developers(블루링크)](#13-현대-developers커넥티드카-api) | 외부 → Garage | 규격서 기준 구현 완료, 실제 검증 전 | `/integrations`(`HYUNDAI_CLIENT_ID`/`_SECRET`) | 주행거리, EV 배터리/충전, 경고등 — OBD 동글 불필요 |
+| [GitHub Releases](#5-github-releases업데이트-확인) | Garage → 외부 | **사용 가능** | (없음) | `/health` 업데이트 알림 |
+| [지도 제공자(OSM/카카오/네이버/티맵)](#6-지도-제공자-osm--카카오--네이버--티맵) | Garage → 외부(선택) | **사용 가능** | 카카오/네이버/티맵은 `/integrations`에서 | 주행 경로 시각화 |
+| [내비게이션 딥링크](#7-내비게이션-딥링크-티맵--카카오--네이버) | Garage → 모바일 앱 | **사용 가능** | (없음) | 저장된 주유 위치로 티맵/카카오/네이버 내비 열기 |
+| [차량 기록 REST API](#8-차량-기록-rest-api-주유--정비) | 외부 → Garage | **사용 가능** | Garage 사용자 JWT(`/api/auth/login`) | 주유 기록, 정비 기록, 주행거리 부수효과 |
+| [PWA 웹 푸시](#9-pwa-웹-푸시) | Garage → 클라이언트 | **사용 가능** | `VAPID_*` 환경변수 | 정비/행정 예정 리마인더 알림 |
+| [API 익스플로러](#10-api-익스플로러) | (개발자 도구) | **사용 가능** | ADMIN 로그인 | 웹 UI에서 모든 REST 엔드포인트 탐색·테스트 |
+| [현대 Developers(블루링크)](#12-현대-developers커넥티드카-api) | 외부 → Garage | 규격서 기준 구현 완료, 실제 검증 전 | `/integrations`(`HYUNDAI_CLIENT_ID`/`_SECRET`) | 주행거리, EV 배터리/충전, 경고등 — OBD 동글 불필요 |
 
 ---
 
@@ -245,7 +244,7 @@ GET /api/ingest/reminders?token={apiToken}
 curl "https://GARAGE_HOST/api/ingest/status?token=YOUR_VEHICLE_API_TOKEN"
 ```
 
-관리자는 웹 UI에서 이 엔드포인트들을 포함해 전부 클릭 한 번으로 테스트할 수 있습니다 — **[API 익스플로러](#11-api-익스플로러)** 참고.
+관리자는 웹 UI에서 이 엔드포인트들을 포함해 전부 클릭 한 번으로 테스트할 수 있습니다 — **[API 익스플로러](#10-api-익스플로러)** 참고.
 
 ---
 
@@ -404,35 +403,7 @@ WS /api/ingest/telemetry/ws?token={apiToken}
 
 ---
 
-## 5. MQTT(Mosquitto / Home Assistant)
-
-| 항목 | 값 |
-|---|---|
-| 상태 | 코드는 구현되어 있으나 기본 비활성화 — **자체 Mosquitto 브로커를 배포할 계획은 없음**, 원하면 직접 켜서 쓸 수 있는 선택 기능 |
-| 설정 | `MQTT_URL` (예: `mqtt://mosquitto:1883`) |
-| 구현 | `apps/api/src/lib/mqtt.ts`, `mosquitto/mosquitto.conf` |
-
-### 동작
-
-- `MQTT_URL`이 설정되지 않으면 `publish()`는 **아무 동작도 하지 않는 스텁**입니다
-- Torque Pro GET 수집이 성공하면 아래로 JSON을 발행합니다:
-
-```
-토픽: car/{vehicleId}/telemetry
-페이로드: { speed, rpm, lat, lon, fuelLevel, odometer, time }
-```
-
-### 직접 켜고 싶다면
-
-1. `docker-compose.yml`의 `mosquitto` 서비스 주석 해제
-2. API 컨테이너에 `MQTT_URL=mqtt://mosquitto:1883` 추가
-3. Home Assistant를 브로커에 연결하고 해당 토픽 구독
-
-현재 구현된 건 텔레메트리 발행뿐입니다 — 리마인더/연료량을 MQTT 디스커버리 형식으로 노출하는 기능은 계획에 없습니다.
-
----
-
-## 6. GitHub Releases(업데이트 확인)
+## 5. GitHub Releases(업데이트 확인)
 
 | 항목 | 값 |
 |---|---|
@@ -451,7 +422,7 @@ GET https://api.github.com/repos/eigger/garage/releases/latest
 
 ---
 
-## 7. 지도 제공자 (OSM / 카카오 / 네이버 / 티맵)
+## 6. 지도 제공자 (OSM / 카카오 / 네이버 / 티맵)
 
 | 항목 | 값 |
 |---|---|
@@ -497,7 +468,7 @@ Authorization: Bearer <JWT>
 
 ---
 
-## 8. 내비게이션 딥링크 (티맵 / 카카오 / 네이버)
+## 7. 내비게이션 딥링크 (티맵 / 카카오 / 네이버)
 
 | 항목 | 값 |
 |---|---|
@@ -517,7 +488,7 @@ Authorization: Bearer <JWT>
 
 ---
 
-## 9. 차량 기록 REST API (주유 / 정비)
+## 8. 차량 기록 REST API (주유 / 정비)
 
 | 항목 | 값 |
 |---|---|
@@ -748,7 +719,7 @@ service: rest_command.garage_create_maintenance_record
 
 ---
 
-## 10. PWA 웹 푸시
+## 9. PWA 웹 푸시
 
 | 항목 | 값 |
 |---|---|
@@ -799,7 +770,7 @@ VAPID_SUBJECT=mailto:admin@example.com
 
 ---
 
-## 11. API 익스플로러
+## 10. API 익스플로러
 
 | 항목 | 값 |
 |---|---|
@@ -815,7 +786,7 @@ VAPID_SUBJECT=mailto:admin@example.com
 
 ---
 
-## 12. 전기차 충전소 API (한국환경공단 EvCharger)
+## 11. 전기차 충전소 API (한국환경공단 EvCharger)
 
 | 항목 | 값 |
 |---|---|
@@ -883,7 +854,7 @@ data.go.kr 키 신청은 기본적으로 **유효기간 2년**이며 자동 만�
 
 ---
 
-## 13. 현대 Developers(커넥티드카 API)
+## 12. 현대 Developers(커넥티드카 API)
 
 | 항목 | 값 |
 |---|---|
