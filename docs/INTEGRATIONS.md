@@ -550,7 +550,7 @@ Authorization: Bearer <JWT>
 | 상태 | **사용 가능** |
 | 인증 | `POST /api/auth/login`으로 받는 **JWT**(표준) 또는 차량별 **apiToken**(단순) |
 | 접근 권한 | 대상 차량에 접근 권한이 있는 사용자, 또는 유효한 차량별 `apiToken` |
-| 구현 | `apps/api/src/routes/fuelLogs.ts`, `apps/api/src/routes/maintenanceRecords.ts`, `apps/api/src/routes/ingest.ts` |
+| 구현 | `apps/api/src/routes/vehicles.ts`(표준 API), `apps/api/src/routes/ingest.ts`(단순화된 수집 API) |
 
 외부 연동(Home Assistant, 스크립트, 자동화)에는 **표준 API**(사용자 로그인 JWT 필요) 또는 **단순화된 수집 API**(차량별 `apiToken`만 필요) 둘 중 하나를 쓸 수 있습니다.
 
@@ -864,7 +864,7 @@ GET https://apis.data.go.kr/B552584/EvCharger/getChargerInfo
 오피넷과 달리 이 API는 **위경도 + 반경 검색을 지원하지 않고**, `zcode`(시도, 2자리) / `zscode`(시군구) 지역 필터만 제공합니다. Garage는 이를 다음과 같이 우회합니다:
 
 1. 프런트엔드가 차량의 마지막 위치 좌표를 (기존 카카오/네이버 `reverseGeocode()`로) 역지오코딩해 주소 문자열을 얻습니다.
-2. 백엔드가 첫 토큰(시도명, 예: `서울특별시`)을 추출해 `evCharger.ts`의 고정 17개 테이블로 `zcode`에 매핑합니다(카카오 REST 키 불필요 — 지도 JS 키로는 카카오의 REST 전용 `coord2regioncode`를 호출할 수 없기 때문).
+2. 백엔드가 첫 토큰(시도명, 예: `서울특별시`)을 추출해 `evCharger.ts`의 고정 매핑 테이블(17개 시도 + 개편 이전 명칭 대응 별칭 2개)로 `zcode`에 매핑합니다(카카오 REST 키 불필요 — 지도 JS 키로는 카카오의 REST 전용 `coord2regioncode`를 호출할 수 없기 때문).
 3. 해당 시도의 모든 충전소를 가져와 `statId`별로 그룹화(커넥터 하나당 한 행)하고, 실제 `haversineKm()` 거리로 재정렬합니다 — 큰 시도 안에서는 다소 과도하게 가져오는 대신, 오피넷과 동일한 "가까운 순" UX를 제공합니다.
 
 ### Garage가 노출하는 프록시 API
@@ -951,8 +951,11 @@ OBD 동글 기반 수집([OBD 앱](#2-obd-앱torque-pro) 참고)의 대안으로
 | `GET` | `/account` | 현재 사용자가 본인의 현대 계정을 연결했는지 여부 |
 | `GET` | `/authorize-url?redirectUri=` | 사용자를 리디렉션할 로그인 URL |
 | `POST` | `/link` | 인가 코드를 토큰으로 교환하고 현재 사용자에게 저장 |
+| `GET` | `/data-consent-url` | 개인정보 제3자 제공 동의 화면으로 리디렉션할 URL |
+| `POST` | `/consent/complete` | 동의 콜백 페이지가 넘겨준 `state`를 검증하고 동의 완료로 기록 |
 | `DELETE` | `/account` | 현재 사용자의 현대 계정 연결 해제(토큰 폐기 및 데이터 동의 철회) |
 | `GET` | `/vehicles` | 연결된 계정의 현대 차량 목록(Garage 차량과 매칭할 후보) |
+| `GET` | `/vehicles/:vehicleId/link` | 이 Garage 차량이 연결된 현대 `carId` 조회 |
 | `PUT` | `/vehicles/:vehicleId/link` | Garage 차량을 현대 `carId`에 연결 |
 | `DELETE` | `/vehicles/:vehicleId/link` | 연결 해제 |
 | `GET` | `/vehicles/:vehicleId/mileage` | 주행거리 + 잔여 주행가능거리 |
