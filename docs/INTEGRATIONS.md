@@ -230,7 +230,7 @@ GET /api/ingest/status?token={apiToken}
 GET /api/ingest/reminders?token={apiToken}
 ```
 
-해당 차량의 `PENDING` 상태 정비/행정 리마인더를 전부 반환하며, 각 항목에 `currentOdometer`와 계산된 `isDue`(날짜 또는 주행거리 기준으로 이미 지남), `isUpcoming`(아직 지나진 않았지만 1,000km 또는 30일 이내로 임박)이 포함됩니다 — 대시보드의 "지난/임박" 배지와 동일한 기준(`@garage/shared`의 `resolveScheduleStatus`)으로 계산되므로, 화면에 보이는 건수와 이 API로 집계한 건수가 항상 일치합니다:
+해당 차량의 주기 추적 대상 정비/행정 항목(`ConsumablePart`)을 전부 반환하며, 각 항목에 `currentOdometer`와 계산된 `isDue`(날짜 또는 주행거리 기준으로 이미 지남), `isUpcoming`(아직 지나진 않았지만 1,000km 또는 30일 이내로 임박)이 포함됩니다 — 대시보드(정비 스케줄 화면·하단 배지)와 정확히 같은 기준(`@garage/shared`의 `resolveScheduleStatus`/`computeDueBaseline`)으로 매번 새로 계산하므로, 화면에 보이는 건수와 이 API로 집계한 건수가 항상 일치합니다. 앱에서 "확인함(dismiss)" 처리한 항목도 실제로 정비를 마치기 전까지는 계속 포함됩니다 — HA 등 외부 서비스에는 확인함 액션이 없으므로, 다시 정비할 때까지 그대로 알려주는 게 맞습니다:
 
 ```json
 [

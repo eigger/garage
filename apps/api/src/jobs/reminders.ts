@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { computeDueBaseline } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { datesEqual } from "../jobs/pushReminders.js";
@@ -16,15 +17,7 @@ export async function syncReminders(vehicleId?: string): Promise<void> {
   for (const part of parts) {
     if (!part.expectedLifeKm && !part.expectedLifeMonths) continue;
 
-    let dueDate: Date | null = null;
-    if (part.expectedLifeMonths) {
-      dueDate = new Date(part.installedDate);
-      dueDate.setMonth(dueDate.getMonth() + part.expectedLifeMonths);
-    }
-
-    const dueOdometer = part.expectedLifeKm
-      ? part.installedOdometer + part.expectedLifeKm
-      : null;
+    const { dueDate, dueOdometer } = computeDueBaseline(part);
 
     if (!odometerCache.has(part.vehicleId)) {
       odometerCache.set(part.vehicleId, await getLatestOdometer(part.vehicleId));

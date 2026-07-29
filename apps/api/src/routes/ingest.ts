@@ -4,12 +4,13 @@ import {
   jsonTelemetrySchema,
   fuelLogSchema,
   maintenanceRecordSchema,
+  computeDueBaseline,
+  resolveScheduleStatus,
 } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { publish } from "../lib/mqtt.js";
 import { telemetryEmitter } from "../lib/telemetryEmitter.js";
 import { syncReminders } from "../jobs/reminders.js";
-import { isReminderDue, isReminderUpcoming } from "../jobs/pushReminders.js";
 import { awardFuelLogXp, awardMaintenanceLogXp, awardEfficiencyXpIfGood } from "../lib/gamification.js";
 
 // apiToken은 차량마다 유일(@unique)하므로 토큰 하나만으로 차량을 특정할 수 있다.
@@ -247,22 +248,35 @@ export async function ingestRoutes(app: FastifyInstance) {
   });
 
   // 6. HA 등 외부 서비스가 이 차량의 기한 지남/임박 정비 항목을 폴링할 때 쓰는 조회 API.
+  // 대시보드/정비 스케줄 화면과 마찬가지로 ConsumablePart에서 매번 직접 계산한다 — Reminder
+  // 테이블의 "확인함(dismiss)" 상태는 반영하지 않는다. HA에는 확인함 액션 자체가 없어서,
+  // dismiss된 항목을 걸러내면 실제로 정비를 마치지 않았는데도 HA에서는 안 보이게 되어
+  // 화면(대시보드)과 건수가 어긋난다.
   app.get("/reminders", async (request, reply) => {
     const vehicle = await getVehicleFromRequest(request);
     if (!vehicle) return reply.code(401).send({ error: "unauthorized" });
 
-    const reminders = await prisma.reminder.findMany({
-      where: { vehicleId: vehicle.id, status: "PENDING" },
+    const parts = await prisma.consumablePart.findMany({
+      where: { vehicleId: vehicle.id },
     });
     const currentOdometer = vehicle.odometer;
     const now = new Date();
 
-    return reminders.map((reminder) => ({
-      ...reminder,
-      currentOdometer,
-      isDue: isReminderDue(reminder, currentOdometer, now),
-      isUpcoming: isReminderUpcoming(reminder, currentOdometer, now),
-    }));
+    return parts
+      .filter((part) => part.expectedLifeKm || part.expectedLifeMonths)
+      .map((part) => {
+        const { dueDate, dueOdometer } = computeDueBaseline(part);
+        const { status } = resolveScheduleStatus(dueDate, dueOdometer, currentOdometer, now);
+        return {
+          id: part.id,
+          type: part.partType,
+          dueDate,
+          dueOdometer,
+          currentOdometer,
+          isDue: status === "due",
+          isUpcoming: status === "upcoming",
+        };
+      });
   });
 
   // 7. 웹 브라우저 대시보드 / 실시간 상태 연동용 WebSocket 스트림

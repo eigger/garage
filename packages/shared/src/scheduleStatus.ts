@@ -29,3 +29,28 @@ export function resolveScheduleStatus(
     remainingDays,
   };
 }
+
+export interface ScheduleBaseline {
+  installedDate: Date | string;
+  installedOdometer: number;
+  expectedLifeKm: number | null;
+  expectedLifeMonths: number | null;
+}
+
+// installedDate/installedOdometer + expectedLifeKm/expectedLifeMonths로부터 다음
+// 기준점(dueDate/dueOdometer)을 계산한다. apps/web(computeScheduleStatus)과
+// apps/api(reminders 동기화 잡, /api/ingest/reminders)가 전부 이 함수로만 계산해야
+// 셋이 어긋나지 않는다.
+export function computeDueBaseline(
+  part: ScheduleBaseline,
+): { dueDate: Date | null; dueOdometer: number | null } {
+  const dueOdometer = part.expectedLifeKm ? part.installedOdometer + part.expectedLifeKm : null;
+
+  let dueDate: Date | null = null;
+  if (part.expectedLifeMonths) {
+    dueDate = new Date(part.installedDate);
+    dueDate.setMonth(dueDate.getMonth() + part.expectedLifeMonths);
+  }
+
+  return { dueDate, dueOdometer };
+}
