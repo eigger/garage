@@ -250,6 +250,11 @@ curl "https://GARAGE_HOST/api/ingest/status?token=YOUR_VEHICLE_API_TOKEN"
 
 ### Home Assistant — 복사해서 붙여넣는 `rest_command`
 
+> **더 쉬운 방법**: [hass-garage](https://github.com/eigger/hass-garage) 커스텀 통합구성요소(HACS)를 쓰면
+> 아래 YAML 없이 화면에서 엔티티만 골라 위치/RPM/속도/연료/주행거리를 자동 전송할 수 있고,
+> Garage의 마지막 위치·리마인더도 센서로 받아옵니다. 아래 `rest_command`는 HA 없이 직접
+> YAML로 붙이고 싶을 때를 위한 수동 방법입니다.
+
 아래 블록을 `configuration.yaml`(또는 패키지 YAML 파일)에 붙여넣고, 세 개의 자리표시자를 바꾼 뒤 REST 커맨드를 다시 로드하거나 Home Assistant를 재시작하세요.
 
 **자리표시자**

@@ -166,7 +166,13 @@ Garage copies maintenance presets for that fuel type and administrative/legal sc
 
 ### 5. OBD / Home Assistant (short)
 
-Telemetry uses the vehicle `apiToken` (not the login JWT):
+For Home Assistant, the [hass-garage](https://github.com/eigger/hass-garage) custom integration
+(HACS) connects it with no YAML editing — pick entities in the UI and it forwards
+location/RPM/speed/fuel/odometer automatically, plus pulls in Garage's last known
+location and reminders as sensors.
+
+If you'd rather wire it up in YAML directly, telemetry uses the vehicle `apiToken`
+(not the login JWT):
 
 ```http
 POST /api/ingest/telemetry

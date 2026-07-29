@@ -166,7 +166,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### 5. OBD / Home Assistant (요약)
 
-텔레메트리는 로그인 JWT가 아니라 차량 `apiToken`을 사용합니다.
+Home Assistant는 [hass-garage](https://github.com/eigger/hass-garage) 커스텀 통합구성요소(HACS)로
+YAML 편집 없이 화면에서 바로 연동할 수 있습니다 — 위치/RPM/속도/연료/주행거리를 자동 전송하고,
+Garage가 계산한 마지막 위치·리마인더를 센서로 받아옵니다.
+
+YAML로 직접 붙이고 싶다면 아래처럼 차량 `apiToken`으로 텔레메트리를 전송할 수도 있습니다(로그인 JWT 아님).
 
 ```http
 POST /api/ingest/telemetry
