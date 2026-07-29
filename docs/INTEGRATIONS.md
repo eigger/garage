@@ -230,11 +230,11 @@ GET /api/ingest/status?token={apiToken}
 GET /api/ingest/reminders?token={apiToken}
 ```
 
-해당 차량의 `PENDING` 상태 정비/행정 리마인더를 전부 반환하며, 각 항목에 `currentOdometer`와 계산된 `isDue`(날짜 또는 주행거리 기준 도달 여부)가 포함됩니다:
+해당 차량의 `PENDING` 상태 정비/행정 리마인더를 전부 반환하며, 각 항목에 `currentOdometer`와 계산된 `isDue`(날짜 또는 주행거리 기준으로 이미 지남), `isUpcoming`(아직 지나진 않았지만 1,000km 또는 30일 이내로 임박)이 포함됩니다 — 대시보드의 "지난/임박" 배지와 동일한 기준(`@garage/shared`의 `resolveScheduleStatus`)으로 계산되므로, 화면에 보이는 건수와 이 API로 집계한 건수가 항상 일치합니다:
 
 ```json
 [
-  { "type": "engineOilFilter", "dueDate": "2024-07-01T00:00:00.000Z", "dueOdometer": 50000, "isDue": false, "currentOdometer": 45230 }
+  { "type": "engineOilFilter", "dueDate": "2024-07-01T00:00:00.000Z", "dueOdometer": 50000, "isDue": false, "isUpcoming": true, "currentOdometer": 45230 }
 ]
 ```
 
