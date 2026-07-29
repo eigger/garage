@@ -3,7 +3,7 @@ import polyline from "@mapbox/polyline";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
-import { haversineKm } from "../lib/geo.js";
+import { haversineKm, simplifyRouteForDisplay } from "../lib/geo.js";
 import { ROUTE_START_MAX_GAP_KM } from "../jobs/trips.js";
 
 const MAX_LIMIT = 1000;
@@ -176,7 +176,10 @@ export async function tripRoutes(app: FastifyInstance) {
       }
     }
 
-    return points;
+    // 장거리·장시간 주행처럼 포인트가 많이 쌓인 트립만 지도 표시용으로 단순화한다 —
+    // 저장된 원본은 그대로 두고, 여기서 응답할 때만 줄인다. 위 쿼리의 lat/lon not-null
+    // 조건과 priorPoint의 명시적 null 체크로 이미 걸러졌으므로 단언이 안전하다.
+    return simplifyRouteForDisplay(points as Array<{ lat: number; lon: number; speed: number | null }>);
   });
 
   app.patch("/:id", async (request, reply) => {
