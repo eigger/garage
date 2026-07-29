@@ -43,18 +43,31 @@ export function TmapTripMap({ points, appKey, isDark }: { points: SpeedPoint[]; 
           });
         }
 
+        // iconSize/offset을 안 주면 티맵 기본값은 아이콘 "아래쪽 중앙"이라(핀 아이콘 기준),
+        // 20x20 원형/화살표가 실제 좌표보다 위로 밀려 보인다 — 정중앙(10,10)으로 고정.
+        const iconSize = new Tmapv2.Size(20, 20);
+        const centerOffset = new Tmapv2.Point(10, 10);
+
         // 경로 전체에서 몇 개만 골라 진행 방향 화살표를 표시한다 (전 구간에 찍으면 지저분해짐).
         for (const a of sampleForArrows(points, ROUTE_ARROW_COUNT)) {
           new Tmapv2.Marker({
             position: new Tmapv2.LatLng(a.point.lat, a.point.lon),
             icon: arrowMarkerDataUri(a.bearing, "#18523f"),
+            iconSize,
+            offset: centerOffset,
             map,
           });
         }
 
         // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
-        new Tmapv2.Marker({ position: path[0], icon: circleMarkerDataUri("#10b981"), map });
-        new Tmapv2.Marker({ position: path[path.length - 1], icon: circleMarkerDataUri("#ef4444"), map });
+        new Tmapv2.Marker({ position: path[0], icon: circleMarkerDataUri("#10b981"), iconSize, offset: centerOffset, map });
+        new Tmapv2.Marker({
+          position: path[path.length - 1],
+          icon: circleMarkerDataUri("#ef4444"),
+          iconSize,
+          offset: centerOffset,
+          map,
+        });
 
         const bounds = new Tmapv2.LatLngBounds();
         for (const ll of path) bounds.extend(ll);
@@ -107,4 +120,6 @@ type TmapApi = {
   Map: new (el: HTMLElement, opts: Record<string, unknown>) => { fitBounds: (b: object) => void };
   Polyline: new (opts: Record<string, unknown>) => object;
   Marker: new (opts: Record<string, unknown>) => object;
+  Size: new (width: number, height: number) => object;
+  Point: new (x: number, y: number) => object;
 };

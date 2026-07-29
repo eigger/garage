@@ -40,23 +40,29 @@ export function KakaoTripMap({ points, appKey, isDark }: { points: SpeedPoint[];
           }).setMap(map);
         }
 
+        // MarkerImage에 offset을 안 주면 카카오 기본값은 아이콘 "아래쪽 중앙"이라(핀 아이콘
+        // 기준), 20x20 원형/화살표가 실제 좌표보다 위로 밀려 보인다 — 정중앙(10,10)으로 고정.
+        const centerOffset = new kakao.Point(10, 10);
+
         // 세그먼트마다 화살표를 찍으면(예전 endArrow: true) 속도가 자주 바뀌는 구간에서
         // 화살표가 수십 개씩 겹쳐 지저분해졌다 — 경로 전체에서 몇 개만 고르게 샘플링한다.
         for (const a of sampleForArrows(points, ROUTE_ARROW_COUNT)) {
           new kakao.Marker({
             position: new kakao.LatLng(a.point.lat, a.point.lon),
-            image: new kakao.MarkerImage(arrowMarkerDataUri(a.bearing, "#18523f"), new kakao.Size(20, 20)),
+            image: new kakao.MarkerImage(arrowMarkerDataUri(a.bearing, "#18523f"), new kakao.Size(20, 20), {
+              offset: centerOffset,
+            }),
           }).setMap(map);
         }
 
         // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
         new kakao.Marker({
           position: path[0],
-          image: new kakao.MarkerImage(circleMarkerDataUri("#10b981"), new kakao.Size(20, 20)),
+          image: new kakao.MarkerImage(circleMarkerDataUri("#10b981"), new kakao.Size(20, 20), { offset: centerOffset }),
         }).setMap(map);
         new kakao.Marker({
           position: path[path.length - 1],
-          image: new kakao.MarkerImage(circleMarkerDataUri("#ef4444"), new kakao.Size(20, 20)),
+          image: new kakao.MarkerImage(circleMarkerDataUri("#ef4444"), new kakao.Size(20, 20), { offset: centerOffset }),
         }).setMap(map);
 
         const bounds = new kakao.LatLngBounds();
@@ -110,6 +116,7 @@ type KakaoMapsApi = {
     setMap: (map: object) => void;
   };
   Marker: new (opts: { position: object; image?: object }) => { setMap: (map: object) => void };
-  MarkerImage: new (src: string, size: object) => object;
+  MarkerImage: new (src: string, size: object, options?: { offset?: object }) => object;
   Size: new (width: number, height: number) => object;
+  Point: new (x: number, y: number) => object;
 };

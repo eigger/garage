@@ -41,18 +41,30 @@ export function NaverTripMap({ points, clientId, isDark }: { points: SpeedPoint[
           });
         }
 
+        // icon에 anchor를 안 주면 네이버 기본값은 아이콘 "아래쪽 중앙"이라(핀 아이콘 기준),
+        // 20x20 원형/화살표가 실제 좌표보다 위로 밀려 보인다 — 정중앙(10,10)으로 고정.
+        const centerAnchor = new naver.Point(10, 10);
+
         // 경로 전체에서 몇 개만 골라 진행 방향 화살표를 표시한다 (전 구간에 찍으면 지저분해짐).
         for (const a of sampleForArrows(points, ROUTE_ARROW_COUNT)) {
           new naver.Marker({
             map,
             position: new naver.LatLng(a.point.lat, a.point.lon),
-            icon: { url: arrowMarkerDataUri(a.bearing, "#18523f"), size: new naver.Size(20, 20) },
+            icon: { url: arrowMarkerDataUri(a.bearing, "#18523f"), size: new naver.Size(20, 20), anchor: centerAnchor },
           });
         }
 
         // 출발(초록)/도착(빨강) 지점을 색상으로 구분해 경로 방향성을 표시한다.
-        new naver.Marker({ map, position: path[0], icon: { url: circleMarkerDataUri("#10b981"), size: new naver.Size(20, 20) } });
-        new naver.Marker({ map, position: path[path.length - 1], icon: { url: circleMarkerDataUri("#ef4444"), size: new naver.Size(20, 20) } });
+        new naver.Marker({
+          map,
+          position: path[0],
+          icon: { url: circleMarkerDataUri("#10b981"), size: new naver.Size(20, 20), anchor: centerAnchor },
+        });
+        new naver.Marker({
+          map,
+          position: path[path.length - 1],
+          icon: { url: circleMarkerDataUri("#ef4444"), size: new naver.Size(20, 20), anchor: centerAnchor },
+        });
 
         const bounds = new naver.LatLngBounds(path[0], path[path.length - 1]);
         for (const ll of path) {
@@ -107,6 +119,7 @@ type NaverMapsApi = {
   LatLng: new (lat: number, lon: number) => object;
   LatLngBounds: new (a: object, b: object) => { extend: (ll: object) => void };
   Polyline: new (opts: { map: object; path: object[]; strokeColor: string; strokeWeight: number }) => object;
-  Marker: new (opts: { map: object; position: object; icon: { url: string; size: object } }) => object;
+  Marker: new (opts: { map: object; position: object; icon: { url: string; size: object; anchor?: object } }) => object;
   Size: new (width: number, height: number) => object;
+  Point: new (x: number, y: number) => object;
 };
