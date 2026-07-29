@@ -1,60 +1,60 @@
-# API Integrations
+# API 연동
 
-This document lists every external service and device integration Garage uses or exposes.  
-Implementation status reflects the current source tree. Keys managed in the admin UI (`/integrations`) are kept in sync with the `settingKeySchema` whitelist in `packages/shared/src/schemas/settings.ts`.
+Garage가 사용하거나 노출하는 모든 외부 서비스·기기 연동을 정리한 문서입니다.
+구현 상태는 현재 소스 트리 기준입니다. 관리자 UI(`/integrations`)에서 관리하는 키는 `packages/shared/src/schemas/settings.ts`의 `settingKeySchema` 화이트리스트와 동기화되어 있습니다.
 
-## Summary
+## 요약
 
-| Integration | Direction | Status | Configuration | Purpose |
+| 연동 | 방향 | 상태 | 설정 | 용도 |
 |---|---|---|---|---|
-| [Opinet](#1-opinet-fuel-price-api) | Garage → external | **Available** | `/integrations` or `OPINET_API_KEY` | Nearby gas stations & prices |
-| [EV charging stations (K-eco)](#14-ev-charging-station-api-한국환경공단-evcharger) | Garage → external | **Available** | `/integrations` or `EV_CHARGER_API_KEY` | Nearby chargers, live status, connector type |
-| [OBD app (Torque Pro)](#2-obd-app-torque-pro) | external → Garage | **Available** | per-vehicle `apiToken` | OBD/GPS telemetry ingest |
-| [REST telemetry](#3-rest-telemetry-ingest) | external ↔ Garage | **Available** | per-vehicle `apiToken` | HA / generic JSON ingest + status/reminders read |
-| [WebSocket telemetry](#4-websocket-live-stream) | Garage → client | **Available** | per-vehicle `apiToken` | Live location & status |
-| [MQTT (Mosquitto)](#5-mqtt-mosquitto--home-assistant) | Garage → external | Code ready | `MQTT_URL` + Compose | HA / Node-RED |
-| [GitHub Releases](#6-github-releases-update-check) | Garage → external | **Available** | (none) | `/health` update notice |
-| [Cloudflare Tunnel](#7-cloudflare-tunnel) | Infrastructure | Planned | `CLOUDFLARE_TUNNEL_TOKEN` | Remote HTTPS access |
-| [Traccar](#8-traccar-gpsobd-hardware) | external → Garage | Planned | Compose service | Dedicated GPS/OBD loggers |
-| [Map providers (OSM/Kakao/Naver/T map)](#9-map-providers-osm--kakao--naver--t-map) | Garage → external (optional) | **Available** | `/integrations` for Kakao/Naver/T map | Trip route visualization |
-| [Navigation deep links](#10-navigation-deep-links-t-map--kakao--naver) | Garage → mobile apps | **Available** | (none) | Open T map / Kakao / Naver nav to saved fuel locations |
-| [Vehicle records REST API](#11-vehicle-records-rest-api-fuel--maintenance) | external → Garage | **Available** | Garage user JWT (`/api/auth/login`) | Fuel logs, maintenance records, odometer side-effects |
-| [PWA Web Push](#12-pwa-web-push) | Garage → client | **Available** | `VAPID_*` env vars | Due maintenance/admin reminder notifications |
-| [API Explorer](#13-api-explorer) | (developer tool) | **Available** | ADMIN login | Browse & test every REST endpoint from the web UI |
-| [Hyundai Developers (Bluelink)](#15-hyundai-developers-connected-car-api) | external → Garage | Wired against spec, not live-tested | `/integrations` (`HYUNDAI_CLIENT_ID`/`_SECRET`) | Mileage, EV battery/charging, warning lights — no OBD dongle needed |
+| [오피넷](#1-오피넷opinet-주유소-가격-api) | Garage → 외부 | **사용 가능** | `/integrations` 또는 `OPINET_API_KEY` | 주변 주유소 및 가격 |
+| [전기차 충전소(한국환경공단)](#14-전기차-충전소-api-한국환경공단-evcharger) | Garage → 외부 | **사용 가능** | `/integrations` 또는 `EV_CHARGER_API_KEY` | 주변 충전소, 실시간 상태, 커넥터 타입 |
+| [OBD 앱(Torque Pro)](#2-obd-앱torque-pro) | 외부 → Garage | **사용 가능** | 차량별 `apiToken` | OBD/GPS 텔레메트리 수집 |
+| [REST 텔레메트리](#3-rest-텔레메트리-수집) | 외부 ↔ Garage | **사용 가능** | 차량별 `apiToken` | HA / 범용 JSON 수집 + 상태·리마인더 조회 |
+| [WebSocket 텔레메트리](#4-websocket-실시간-스트림) | Garage → 클라이언트 | **사용 가능** | 차량별 `apiToken` | 실시간 위치·상태 |
+| [MQTT(Mosquitto)](#5-mqttmosquitto--home-assistant) | Garage → 외부 | 코드 준비됨 | `MQTT_URL` + Compose | HA / Node-RED |
+| [GitHub Releases](#6-github-releases업데이트-확인) | Garage → 외부 | **사용 가능** | (없음) | `/health` 업데이트 알림 |
+| [Cloudflare Tunnel](#7-cloudflare-tunnel) | 인프라 | 계획됨 | `CLOUDFLARE_TUNNEL_TOKEN` | 포트포워딩 없는 원격 HTTPS 접속 |
+| [Traccar](#8-traccargpsobd-하드웨어) | 외부 → Garage | 계획됨 | Compose 서비스 | 전용 GPS/OBD 로거 |
+| [지도 제공자(OSM/카카오/네이버/티맵)](#9-지도-제공자-osm--카카오--네이버--티맵) | Garage → 외부(선택) | **사용 가능** | 카카오/네이버/티맵은 `/integrations`에서 | 주행 경로 시각화 |
+| [내비게이션 딥링크](#10-내비게이션-딥링크-티맵--카카오--네이버) | Garage → 모바일 앱 | **사용 가능** | (없음) | 저장된 주유 위치로 티맵/카카오/네이버 내비 열기 |
+| [차량 기록 REST API](#11-차량-기록-rest-api-주유--정비) | 외부 → Garage | **사용 가능** | Garage 사용자 JWT(`/api/auth/login`) | 주유 기록, 정비 기록, 주행거리 부수효과 |
+| [PWA 웹 푸시](#12-pwa-웹-푸시) | Garage → 클라이언트 | **사용 가능** | `VAPID_*` 환경변수 | 정비/행정 예정 리마인더 알림 |
+| [API 익스플로러](#13-api-익스플로러) | (개발자 도구) | **사용 가능** | ADMIN 로그인 | 웹 UI에서 모든 REST 엔드포인트 탐색·테스트 |
+| [현대 Developers(블루링크)](#15-현대-developers커넥티드카-api) | 외부 → Garage | 규격서 기준 구현 완료, 실제 검증 전 | `/integrations`(`HYUNDAI_CLIENT_ID`/`_SECRET`) | 주행거리, EV 배터리/충전, 경고등 — OBD 동글 불필요 |
 
 ---
 
-## How integration keys are managed
+## 연동 키 관리 방식
 
-### Admin UI (`/integrations`)
+### 관리자 UI (`/integrations`)
 
-- **Access**: ADMIN only
+- **접근**: ADMIN만 가능
 - **API**: `GET/PUT/DELETE /api/settings` (`apps/api/src/routes/settings.ts`)
-- **Storage**: PostgreSQL `Setting` table
-- **Priority**: DB value → `.env` / docker-compose env fallback (`getSetting()`)
-- **Security**: Plaintext keys are never returned (masked only). **Excluded from backup files**
+- **저장소**: PostgreSQL `Setting` 테이블
+- **우선순위**: DB 값 → `.env` / docker-compose 환경변수 폴백 (`getSetting()`)
+- **보안**: 평문 키는 절대 응답에 포함되지 않음(마스킹만 반환). **백업 파일에서 제외**
 
-### Per-vehicle API token (`apiToken`)
+### 차량별 API 토큰 (`apiToken`)
 
-- **Issued**: Automatically on vehicle creation (UUID)
-- **Management**: ADMIN view & reset only (`POST /api/vehicles/:id/token/reset`)
-- **UI**: Web **Vehicle detail → OBD & GPS** (`/vehicles/[id]/integration`)
-- **Purpose**: Credential for unauthenticated telemetry ingest — used by OBD apps, Home Assistant, scripts
+- **발급**: 차량 등록 시 자동 생성 (UUID)
+- **관리**: ADMIN만 조회·재발급 가능 (`POST /api/vehicles/:id/token/reset`)
+- **UI**: 웹 **차량 상세 → OBD & GPS** (`/vehicles/[id]/integration`)
+- **용도**: 로그인 없이 텔레메트리를 수집할 때 쓰는 인증 정보 — OBD 앱, Home Assistant, 스크립트 등에서 사용
 
 ---
 
-## 1. Opinet fuel price API
+## 1. 오피넷(Opinet) 주유소 가격 API
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Available (verified against live API) |
-| Setting key | `OPINET_API_KEY` |
-| Where to set | `/integrations` UI or `.env` / `docker-compose` |
-| Issuer | [www.opinet.co.kr](https://www.opinet.co.kr) open API |
-| Implementation | `apps/api/src/routes/opinet.ts` |
+| 상태 | 사용 가능 (실제 API로 검증됨) |
+| 설정 키 | `OPINET_API_KEY` |
+| 설정 위치 | `/integrations` UI 또는 `.env` / `docker-compose` |
+| 발급처 | [www.opinet.co.kr](https://www.opinet.co.kr) 오픈 API |
+| 구현 | `apps/api/src/routes/opinet.ts` |
 
-### External API Garage calls
+### Garage가 호출하는 외부 API
 
 ```
 GET https://www.opinet.co.kr/api/aroundAll.do
@@ -63,94 +63,94 @@ GET https://www.opinet.co.kr/api/aroundAll.do
   &x={KATEC_X}&y={KATEC_Y}
   &radius=5000
   &prodcd={B027|D047|K015}
-  &sort={1=price, 2=distance}
+  &sort={1=가격순, 2=거리순}
 ```
 
-- Coordinates: browser GPS (WGS84) → KATEC (`proj4`)
-- Fuel codes: `GASOLINE`→`B027`, `DIESEL`→`D047`, `LPG`→`K015`, `ELECTRIC`→skipped (empty array)
-- `sort` is threaded through from the `NearbyStationsCard` UI's 거리순/가격순 toggle — each toggle re-queries Opinet directly (rather than re-sorting a client-cached list), so whichever 5 stations are shown always match what was actually detail-fetched for nav/map coordinates.
+- 좌표: 브라우저 GPS(WGS84) → KATEC 변환 (`proj4`)
+- 연료 코드: `GASOLINE`→`B027`, `DIESEL`→`D047`, `LPG`→`K015`, `ELECTRIC`→건너뜀(빈 배열)
+- `sort`는 `NearbyStationsCard` UI의 거리순/가격순 토글에서 그대로 전달됩니다 — 토글할 때마다 오피넷을 직접 재조회(클라이언트 캐시를 재정렬하는 방식이 아님)하므로, 화면에 표시되는 5개 결과가 내비/지도 좌표로 실제 상세 조회한 대상과 항상 일치합니다.
 
-### Proxy API Garage exposes
+### Garage가 노출하는 프록시 API
 
-| Method | Path | Auth | Description |
+| 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| `GET` | `/api/opinet/configured` | JWT (logged-in user) | Whether a key is set `{ configured: boolean }` |
-| `GET` | `/api/opinet/stations` | JWT | Nearby stations via `lat`, `lon`, `fuelType`, `sort` (`distance` \| `price`, default `distance`) query params |
-| `GET` | `/api/opinet/stations/:id` | JWT | Station detail — address, road address, WGS84 coordinates |
+| `GET` | `/api/opinet/configured` | JWT(로그인 사용자) | 키 설정 여부 `{ configured: boolean }` |
+| `GET` | `/api/opinet/stations` | JWT | `lat`, `lon`, `fuelType`, `sort`(`distance` \| `price`, 기본 `distance`) 쿼리 파라미터로 주변 주유소 조회 |
+| `GET` | `/api/opinet/stations/:id` | JWT | 주유소 상세 — 주소, 도로명주소, WGS84 좌표 |
 
-**List response fields**: `id`, `name`, `brand`, `brandLabel`, `distance` (m), `price` (KRW/L)
+**목록 응답 필드**: `id`, `name`, `brand`, `brandLabel`, `distance`(m), `price`(원/L)
 
-**Detail response fields**: summary fields plus `address`, `roadAddress`, `lat`, `lon`, `tel`
+**상세 응답 필드**: 요약 필드 + `address`, `roadAddress`, `lat`, `lon`, `tel`
 
-When a station is selected in **Quick Log**, Garage fetches detail and saves `latitude`, `longitude`, `address`, and `opinetStationId` on the fuel log. Saved coordinates power navigation buttons in history.
+**빠른 입력**에서 주유소를 선택하면 Garage가 상세 정보를 조회해 주유 기록에 `latitude`, `longitude`, `address`, `opinetStationId`를 저장합니다. 저장된 좌표는 이후 내역 화면의 내비게이션 버튼에 쓰입니다.
 
-On the **vehicle overview** page, `NearbyStationsCard` caps results to the top 5 (per whichever sort is active) and numbers them 1–5 — the same numbers are drawn on the last-location map's markers (`LastLocationMap`), so a result can be matched to its map pin without needing per-provider click/hover handling. The vehicle's own position is never part of this numbering or the 5-item cap.
+**차량 개요** 페이지의 `NearbyStationsCard`는 (활성화된 정렬 기준으로) 상위 5개 결과만 보여주고 1~5번 번호를 매기는데, 이 번호는 마지막 위치 지도(`LastLocationMap`)의 마커에도 그대로 표시됩니다 — 제공자별 클릭/호버 핸들링 없이도 결과와 지도 핀을 바로 매칭할 수 있습니다. 차량 자신의 위치는 이 번호 매김이나 5개 제한에 포함되지 않습니다.
 
-### Fallback behavior
+### 폴백 동작
 
-- Missing `OPINET_API_KEY` or API error → **4 mock stations** returned
-- Quick Log hides the **Find nearby stations** button when `GET /api/opinet/configured` is `false` (prevents saving fake prices)
-- Manual station name input always works regardless of Opinet status
+- `OPINET_API_KEY`가 없거나 API 오류 발생 시 → **모의(mock) 주유소 4개** 반환
+- `GET /api/opinet/configured`가 `false`이면 빠른 입력에서 **주변 주유소 찾기** 버튼이 숨겨짐(가짜 가격 저장 방지)
+- 오피넷 상태와 무관하게 주유소 이름 수동 입력은 항상 가능
 
 ---
 
-## 2. OBD app (Torque Pro)
+## 2. OBD 앱(Torque Pro)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Available |
-| Auth | Query `token={apiToken}` |
-| Implementation | `apps/api/src/routes/ingest.ts` |
+| 상태 | 사용 가능 |
+| 인증 | 쿼리 `token={apiToken}` |
+| 구현 | `apps/api/src/routes/ingest.ts` |
 
-### Endpoint
+### 엔드포인트
 
 ```
 GET /api/ingest/obd?token={apiToken}&speed=...&rpm=...&lat=...&lon=...&fuelLevel=...&odometer=...
 ```
 
-`token` alone identifies the vehicle — it's unique per vehicle (`Vehicle.apiToken`), so no separate `vehicleId` path segment is needed.
+`token` 하나만으로 차량을 식별합니다 — 차량마다 유일(`Vehicle.apiToken`)하므로 별도의 `vehicleId` 경로 세그먼트가 필요 없습니다.
 
-### Query parameters
+### 쿼리 파라미터
 
-| Parameter | Type | Description |
+| 파라미터 | 타입 | 설명 |
 |---|---|---|
-| `token` | string | **Required** — vehicle `apiToken`, also identifies which vehicle |
-| `speed` | number | Speed (km/h) |
-| `rpm` | number | Engine RPM |
-| `lat` | number | Latitude (WGS84) |
-| `lon` | number | Longitude (WGS84) |
-| `fuelLevel` | number | Fuel level (%) |
-| `odometer` | number | Odometer — updated only when greater than stored value |
-| `inVehicle` | boolean | Optional — `true`/`false`/`1`/`0`. When set, trusted for trip detection |
+| `token` | string | **필수** — 차량 `apiToken`, 어느 차량인지도 함께 식별 |
+| `speed` | number | 속도(km/h) |
+| `rpm` | number | 엔진 회전수 |
+| `lat` | number | 위도(WGS84) |
+| `lon` | number | 경도(WGS84) |
+| `fuelLevel` | number | 연료량(%) |
+| `odometer` | number | 주행거리 — 저장된 값보다 클 때만 갱신 |
+| `inVehicle` | boolean | 선택 — `true`/`false`/`1`/`0`. 값이 있으면 트립 감지에 그대로 신뢰됨 |
 
-### Torque Pro setup
+### Torque Pro 설정
 
 1. **Settings → Web Queue / OBD Web Server**
-2. Enable **Send data to web server**
-3. Paste the URL below into **Web Server URL** (copy from web **OBD & GPS** tab):
+2. **Send data to web server** 활성화
+3. 아래 URL을 **Web Server URL**에 붙여넣기 (웹 **OBD & GPS** 탭에서 복사):
 
 ```
 https://<your-host>/api/ingest/obd?token=<apiToken>
 ```
 
-### Processing flow
+### 처리 흐름
 
-1. Stored in `TelemetryRaw` with `source: "obd_app_get"`
-2. Published to MQTT topic `car/{vehicleId}/telemetry` (when `MQTT_URL` is set)
-3. Broadcast to WebSocket subscribers
-4. Background trip job groups GPS points into trips
+1. `source: "obd_app_get"`으로 `TelemetryRaw`에 저장
+2. `MQTT_URL`이 설정돼 있으면 `car/{vehicleId}/telemetry` MQTT 토픽에 발행
+3. WebSocket 구독자에게 브로드캐스트
+4. 백그라운드 트립 잡이 GPS 포인트들을 트립으로 묶음
 
 ---
 
-## 3. REST telemetry ingest
+## 3. REST 텔레메트리 수집
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Available |
-| Auth | `Authorization: Bearer {apiToken}` or query `?token=` |
-| Implementation | `apps/api/src/routes/ingest.ts` |
+| 상태 | 사용 가능 |
+| 인증 | `Authorization: Bearer {apiToken}` 또는 쿼리 `?token=` |
+| 구현 | `apps/api/src/routes/ingest.ts` |
 
-### Endpoint
+### 엔드포인트
 
 ```
 POST /api/ingest/telemetry
@@ -158,11 +158,11 @@ Authorization: Bearer {apiToken}
 Content-Type: application/json
 ```
 
-`apiToken` alone identifies the vehicle (unique per vehicle) — no `vehicleId` path segment needed.
+`apiToken` 하나만으로 차량을 식별합니다(차량마다 유일) — `vehicleId` 경로 세그먼트 불필요.
 
-The `Bearer` prefix is optional: `Authorization: {apiToken}` (no prefix) works too. This isn't an OAuth token, just a per-vehicle shared secret, so plain clients that can't easily add a prefix are supported.
+`Bearer` 접두사는 선택사항입니다: `Authorization: {apiToken}`(접두사 없이)도 동작합니다. OAuth 토큰이 아니라 차량별 공유 비밀값이라, 접두사를 쉽게 붙이기 어려운 단순한 클라이언트도 지원하기 위함입니다.
 
-### Request body (JSON)
+### 요청 바디(JSON)
 
 ```json
 {
@@ -177,42 +177,42 @@ The `Bearer` prefix is optional: `Authorization: {apiToken}` (no prefix) works t
 }
 ```
 
-All fields are optional. `odometer` follows the same monotonic-update rule as the Torque GET route.
+모든 필드는 선택사항입니다. `odometer`는 Torque GET 라우트와 동일하게 "더 클 때만 갱신" 규칙을 따릅니다.
 
-### Trip detection (`inVehicle`)
+### 트립 감지 (`inVehicle`)
 
-The trip job (`apps/api/src/jobs/trips.ts`, `apps/api/src/lib/tripDetection.ts`) decides which points count toward a driving trip:
+트립 잡(`apps/api/src/jobs/trips.ts`, `apps/api/src/lib/tripDetection.ts`)이 어떤 포인트를 주행 트립에 포함시킬지 결정합니다:
 
-| `inVehicle` in request | Behavior |
+| 요청의 `inVehicle` | 동작 |
 |---|---|
-| `true` | Trusted as an active driving point (requires `lat`/`lon` for route math) |
-| `false` | Excluded from trip aggregation |
-| omitted | Server infers from signals (see below) |
+| `true` | 실제 주행 포인트로 신뢰(경로 계산을 위해 `lat`/`lon` 필요) |
+| `false` | 트립 집계에서 제외 |
+| 생략 | 서버가 신호로 추론 (아래 참고) |
 
-**Server fallback** (when `inVehicle` is omitted):
+**서버 폴백** (`inVehicle`을 생략한 경우):
 
-1. `odometer` increased vs. previous point
+1. 이전 포인트 대비 `odometer` 증가
 2. `rpm >= 400`
-3. `source = obd_app_get` and `speed >= 8` km/h
-4. `speed >= 18` km/h and ≥ 80 m displacement from previous point (GPS-only filter)
+3. `source = obd_app_get`이고 `speed >= 8` km/h
+4. `speed >= 18` km/h이고 이전 포인트로부터 80m 이상 이동(GPS 전용 필터)
 
-Torque Pro typically omits `inVehicle` and is handled by rules 1–3 automatically.
+Torque Pro는 보통 `inVehicle`을 생략하며, 규칙 1~3으로 자동 처리됩니다.
 
-### Processing flow
+### 처리 흐름
 
-1. Stored in `TelemetryRaw` with `source: "rest_api_post"`
-2. Broadcast to WebSocket subscribers
-3. *(Note: this route does not publish to MQTT today — only the Torque GET route does)*
+1. `source: "rest_api_post"`로 `TelemetryRaw`에 저장
+2. WebSocket 구독자에게 브로드캐스트
+3. *(참고: 이 라우트는 MQTT에 발행하지 않습니다 — Torque GET 라우트만 발행합니다)*
 
-### Vehicle status & reminders (read)
+### 차량 상태 & 리마인더 (조회)
 
-Same `apiToken` auth as above (query `?token=` or `Authorization: Bearer`), but for **reading** instead of writing — this is what a Home Assistant `rest` sensor should poll. No user login is needed.
+위와 동일한 `apiToken` 인증(쿼리 `?token=` 또는 `Authorization: Bearer`)을 쓰지만, 쓰기가 아니라 **조회**용입니다 — Home Assistant `rest` 센서가 폴링하기에 적합합니다. 사용자 로그인이 필요 없습니다.
 
 ```
 GET /api/ingest/status?token={apiToken}
 ```
 
-Returns the vehicle row plus its latest known telemetry (never includes `apiToken` itself):
+차량 정보와 가장 최근 텔레메트리를 함께 반환합니다(`apiToken` 자체는 절대 포함하지 않음):
 
 ```json
 {
@@ -233,7 +233,7 @@ Returns the vehicle row plus its latest known telemetry (never includes `apiToke
 GET /api/ingest/reminders?token={apiToken}
 ```
 
-Returns every `PENDING` maintenance/admin reminder for the vehicle, each with `currentOdometer` and a computed `isDue` (date or odometer threshold reached):
+해당 차량의 `PENDING` 상태 정비/행정 리마인더를 전부 반환하며, 각 항목에 `currentOdometer`와 계산된 `isDue`(날짜 또는 주행거리 기준 도달 여부)가 포함됩니다:
 
 ```json
 [
@@ -241,32 +241,32 @@ Returns every `PENDING` maintenance/admin reminder for the vehicle, each with `c
 ]
 ```
 
-Both return `401 { "error": "unauthorized" }` when the token is missing or invalid — a quick way to sanity-check a token from a terminal:
+토큰이 없거나 잘못되면 둘 다 `401 { "error": "unauthorized" }`를 반환합니다 — 터미널에서 빠르게 토큰을 확인하는 방법:
 
 ```bash
 curl "https://GARAGE_HOST/api/ingest/status?token=YOUR_VEHICLE_API_TOKEN"
 ```
 
-Admins can also click through every endpoint (including these) from the web UI — see **[API Explorer](#13-api-explorer)**.
+관리자는 웹 UI에서 이 엔드포인트들을 포함해 전부 클릭 한 번으로 테스트할 수 있습니다 — **[API 익스플로러](#13-api-익스플로러)** 참고.
 
 ---
 
-### Home Assistant — copy & paste `rest_command`
+### Home Assistant — 복사해서 붙여넣는 `rest_command`
 
-Copy the block below into `configuration.yaml` (or a package YAML file), replace the three placeholders, then reload REST commands or restart Home Assistant.
+아래 블록을 `configuration.yaml`(또는 패키지 YAML 파일)에 붙여넣고, 세 개의 자리표시자를 바꾼 뒤 REST 커맨드를 다시 로드하거나 Home Assistant를 재시작하세요.
 
-**Placeholders**
+**자리표시자**
 
-| Placeholder | Where to find it |
+| 자리표시자 | 확인 위치 |
 |---|---|
-| `GARAGE_HOST` | Garage server hostname or IP (no trailing slash), e.g. `192.168.1.50` or `garage.home` |
-| `API_TOKEN` | Garage web UI → **Vehicles → OBD & GPS** — **API token** value (identifies the vehicle too, no separate ID needed) |
+| `GARAGE_HOST` | Garage 서버 호스트명 또는 IP(끝에 슬래시 없이), 예: `192.168.1.50` 또는 `garage.home` |
+| `API_TOKEN` | Garage 웹 UI → **차량 → OBD & GPS** — **API 토큰** 값(차량 식별도 이 값 하나로 됨, 별도 ID 불필요) |
 
-**Minimal config** — phone GPS with car Bluetooth presence (`inVehicle`):
+**최소 설정** — 폰 GPS + 차량 블루투스 연결 여부(`inVehicle`):
 
 ```yaml
-# --- Garage telemetry ingest (minimal) ---
-# Paste into configuration.yaml, replace GARAGE_HOST / API_TOKEN, then reload rest commands.
+# --- Garage 텔레메트리 수집 (최소) ---
+# configuration.yaml에 붙여넣고 GARAGE_HOST / API_TOKEN을 바꾼 뒤 REST 커맨드를 다시 로드하세요.
 
 rest_command:
   garage_send_telemetry:
@@ -284,11 +284,11 @@ rest_command:
       }
 ```
 
-**Full config** — all supported telemetry fields:
+**전체 설정** — 지원하는 모든 텔레메트리 필드:
 
 ```yaml
-# --- Garage telemetry ingest (full) ---
-# Replace GARAGE_HOST, API_TOKEN, and sensor entity IDs below.
+# --- Garage 텔레메트리 수집 (전체) ---
+# GARAGE_HOST, API_TOKEN, 아래 센서 엔티티 ID들을 바꾸세요.
 
 rest_command:
   garage_send_telemetry:
@@ -310,11 +310,11 @@ rest_command:
       }
 ```
 
-**Read Garage back into HA** — `rest` sensors that poll `GET /api/ingest/status` (Garage → HA direction, no telemetry push needed):
+**Garage → HA로 다시 읽어오기** — `GET /api/ingest/status`를 폴링하는 `rest` 센서(Garage → HA 방향, 텔레메트리 전송 불필요):
 
 ```yaml
-# --- Garage status sensors (read) ---
-# Paste into configuration.yaml, replace GARAGE_HOST / API_TOKEN.
+# --- Garage 상태 센서 (읽기) ---
+# configuration.yaml에 붙여넣고 GARAGE_HOST / API_TOKEN을 바꾸세요.
 
 sensor:
   - platform: rest
@@ -336,11 +336,11 @@ sensor:
     scan_interval: 3600
 ```
 
-**Optional automation** — push telemetry every minute while driving (speed > 5 km/h):
+**선택 자동화** — 주행 중(속도 5km/h 초과) 1분마다 텔레메트리 전송:
 
 ```yaml
-# --- Garage telemetry automation (optional) ---
-# Add to automations.yaml. Adjust entity IDs and the speed threshold as needed.
+# --- Garage 텔레메트리 자동화 (선택) ---
+# automations.yaml에 추가하세요. 엔티티 ID와 속도 임계값은 필요에 맞게 조정.
 
 automation:
   - id: garage_push_telemetry_while_driving
@@ -357,13 +357,13 @@ automation:
       - service: rest_command.garage_send_telemetry
 ```
 
-**Manual test** — run from **Developer tools → Actions**:
+**수동 테스트** — **개발자 도구 → 액션**에서 실행:
 
 ```yaml
 service: rest_command.garage_send_telemetry
 ```
 
-**Direct URL example** (no `secrets.yaml`):
+**직접 URL 예시** (`secrets.yaml` 없이):
 
 ```yaml
 rest_command:
@@ -382,133 +382,133 @@ rest_command:
       }
 ```
 
-> **HTTPS**: If Garage is behind HTTPS, change `http://` to `https://` in the URL.  
-> **`inVehicle`**: Set from car Bluetooth connection (or similar). When omitted, Garage applies server-side rules — phone GPS alone may not create trips while walking.  
-> **Companion app GPS**: Common entity IDs are `sensor.<device>_geocoded_location` for geocoding only; for raw coordinates use a GPS/logger integration or create template sensors from `device_tracker` attributes.
+> **HTTPS**: Garage가 HTTPS 뒤에 있다면 URL의 `http://`를 `https://`로 바꾸세요.
+> **`inVehicle`**: 차량 블루투스 연결 여부(또는 유사한 신호)로 설정하세요. 생략하면 Garage가 서버 측 규칙을 적용하는데, 폰 GPS만으로는 걷는 중에도 트립이 생성되지 않을 수 있습니다.
+> **컴패니언 앱 GPS**: 흔히 쓰는 엔티티 ID는 지오코딩 전용인 `sensor.<device>_geocoded_location`입니다. 원시 좌표가 필요하면 GPS/로거 연동을 쓰거나 `device_tracker` 속성으로 템플릿 센서를 만드세요.
 
 ---
 
-## 4. WebSocket live stream
+## 4. WebSocket 실시간 스트림
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Available |
-| Auth | Query `?token={apiToken}` |
-| Implementation | `apps/api/src/routes/ingest.ts` |
+| 상태 | 사용 가능 |
+| 인증 | 쿼리 `?token={apiToken}` |
+| 구현 | `apps/api/src/routes/ingest.ts` |
 
-### Endpoint
+### 엔드포인트
 
 ```
 WS /api/ingest/telemetry/ws?token={apiToken}
 ```
 
-Pushes a JSON payload whenever telemetry is ingested. Connection closes immediately on auth failure.
+텔레메트리가 수집될 때마다 JSON 페이로드를 푸시합니다. 인증 실패 시 연결이 즉시 종료됩니다.
 
 ---
 
-## 5. MQTT (Mosquitto / Home Assistant)
+## 5. MQTT(Mosquitto / Home Assistant)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Code ready — enable Mosquitto in Compose |
-| Setting | `MQTT_URL` (e.g. `mqtt://mosquitto:1883`) |
-| Implementation | `apps/api/src/lib/mqtt.ts`, `mosquitto/mosquitto.conf` |
+| 상태 | 코드 준비됨 — Compose에서 Mosquitto 활성화 필요 |
+| 설정 | `MQTT_URL` (예: `mqtt://mosquitto:1883`) |
+| 구현 | `apps/api/src/lib/mqtt.ts`, `mosquitto/mosquitto.conf` |
 
-### Behavior
+### 동작
 
-- When `MQTT_URL` is unset, `publish()` is a **silent no-op** stub
-- On successful Torque Pro GET ingest, publishes JSON to:
+- `MQTT_URL`이 설정되지 않으면 `publish()`는 **아무 동작도 하지 않는 스텁**입니다
+- Torque Pro GET 수집이 성공하면 아래로 JSON을 발행합니다:
 
 ```
-Topic: car/{vehicleId}/telemetry
-Payload: { speed, rpm, lat, lon, fuelLevel, odometer, time }
+토픽: car/{vehicleId}/telemetry
+페이로드: { speed, rpm, lat, lon, fuelLevel, odometer, time }
 ```
 
-### Enable
+### 활성화 방법
 
-1. Uncomment the `mosquitto` service in `docker-compose.yml`
-2. Add `MQTT_URL=mqtt://mosquitto:1883` to the API container
-3. Connect Home Assistant to the broker and subscribe to the topic
+1. `docker-compose.yml`의 `mosquitto` 서비스 주석 해제
+2. API 컨테이너에 `MQTT_URL=mqtt://mosquitto:1883` 추가
+3. Home Assistant를 브로커에 연결하고 해당 토픽 구독
 
-> `docs/ARCHITECTURE.md` describes a future phase with MQTT discovery for reminders and fuel level. Only telemetry publish is implemented today.
+> `docs/ARCHITECTURE.md`에는 리마인더/연료량에 대한 MQTT 디스커버리를 다루는 향후 단계가 설명되어 있습니다. 현재는 텔레메트리 발행만 구현되어 있습니다.
 
 ---
 
-## 6. GitHub Releases (update check)
+## 6. GitHub Releases(업데이트 확인)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Available |
-| Configuration | None (hardcoded: `eigger/garage`) |
-| Implementation | `apps/api/src/index.ts` — `/health` |
+| 상태 | 사용 가능 |
+| 설정 | 없음(고정값: `eigger/garage`) |
+| 구현 | `apps/api/src/index.ts` — `/health` |
 
-### Call
+### 호출
 
 ```
 GET https://api.github.com/repos/eigger/garage/releases/latest
 ```
 
-Cached for 30 minutes. `/health` returns `version`, `latestVersion`, `updateAvailable`.  
-Network errors keep the last known version (health check does not fail).
+30분간 캐시됩니다. `/health`는 `version`, `latestVersion`, `updateAvailable`을 반환합니다.
+네트워크 오류 시 마지막으로 알려진 버전을 유지합니다(헬스체크 자체는 실패하지 않음).
 
 ---
 
 ## 7. Cloudflare Tunnel
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Planned — Compose template only |
-| Setting | `CLOUDFLARE_TUNNEL_TOKEN` |
-| Location | `docker-compose.yml` `cloudflared` service (commented out) |
+| 상태 | 계획됨 — Compose 템플릿만 존재 |
+| 설정 | `CLOUDFLARE_TUNNEL_TOKEN` |
+| 위치 | `docker-compose.yml`의 `cloudflared` 서비스(주석 처리됨) |
 
-Planned setup: Tunnel in front of internal Caddy (HTTP :80) for remote access without port forwarding.
+계획: 내부 Caddy(HTTP :80) 앞단에 터널을 두어 포트포워딩 없이 원격 접속.
 
 ---
 
-## 8. Traccar (GPS/OBD hardware)
+## 8. Traccar(GPS/OBD 하드웨어)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Planned |
-| Configuration | `docker-compose.yml` `traccar` service (commented out) |
-| Plan | Traccar → Garage via webhook/MQTT with normalized location & speed |
+| 상태 | 계획됨 |
+| 설정 | `docker-compose.yml`의 `traccar` 서비스(주석 처리됨) |
+| 계획 | Traccar → Garage로 웹훅/MQTT를 통해 정규화된 위치·속도 전달 |
 
-Traccar handles 200+ device protocols; Garage would consume normalized events as a gateway (see `docs/ARCHITECTURE.md`).
+Traccar는 200종 이상의 기기 프로토콜을 지원하며, Garage는 정규화된 이벤트를 게이트웨이로서 소비하는 구조가 될 예정입니다(`docs/ARCHITECTURE.md` 참고).
 
 ---
 
-## 9. Map providers (OSM / Kakao / Naver / T map)
+## 9. 지도 제공자 (OSM / 카카오 / 네이버 / 티맵)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | **Available** — OSM by default; Kakao/Naver/T map when API keys are configured |
-| Default | OpenStreetMap (Leaflet) — no API key required |
-| Optional keys | `KAKAO_MAP_APP_KEY`, `NAVER_MAP_CLIENT_ID`, `TMAP_APP_KEY` via `/integrations` |
-| Implementation | `apps/web/components/maps/*`, `GET /api/map/providers` |
+| 상태 | **사용 가능** — 기본은 OSM, API 키를 설정하면 카카오/네이버/티맵도 사용 |
+| 기본값 | OpenStreetMap(Leaflet) — API 키 불필요 |
+| 선택 키 | `/integrations`에서 `KAKAO_MAP_APP_KEY`, `NAVER_MAP_CLIENT_ID`, `TMAP_APP_KEY` |
+| 구현 | `apps/web/components/maps/*`, `GET /api/map/providers` |
 
-### Behavior
+### 동작
 
-- Trip routes are stored as Google-encoded polylines in `trips.routePolyline`.
-- **History → Driving report → Map** opens the route on a map.
-- Map provider dropdown appears only when more than one provider is available (`osm` is always included).
-- Provider preference is saved in browser `localStorage` (`garage_map_provider`).
+- 트립 경로는 `trips.routePolyline`에 Google 인코딩 폴리라인으로 저장됩니다.
+- **내역 → 주행 리포트 → 지도**에서 경로를 지도에 표시합니다.
+- 지도 제공자 드롭다운은 사용 가능한 제공자가 2개 이상일 때만 표시됩니다(`osm`은 항상 포함).
+- 제공자 선호도는 브라우저 `localStorage`(`garage_map_provider`)에 저장됩니다.
 
-### API keys (optional)
+### API 키(선택)
 
-| Key | Issuer | Notes |
+| 키 | 발급처 | 참고 |
 |---|---|---|
-| `KAKAO_MAP_APP_KEY` | [Kakao Developers](https://developers.kakao.com) | JavaScript key; register your Garage web domain |
-| `NAVER_MAP_CLIENT_ID` | [Naver Cloud Platform Maps](https://www.ncloud.com/product/applicationService/maps) | Register site URL |
-| `TMAP_APP_KEY` | [TMAP Open API](https://openapi.sk.com/) | JavaScript v2 SDK; register your web domain |
+| `KAKAO_MAP_APP_KEY` | [카카오 디벨로퍼스](https://developers.kakao.com) | JavaScript 키; Garage 웹 도메인 등록 필요 |
+| `NAVER_MAP_CLIENT_ID` | [네이버클라우드플랫폼 Maps](https://www.ncloud.com/product/applicationService/maps) | 사이트 URL 등록 필요 |
+| `TMAP_APP_KEY` | [TMAP 오픈 API](https://openapi.sk.com/) | JavaScript v2 SDK; 웹 도메인 등록 필요 |
 
-### Client API
+### 클라이언트 API
 
 ```
 GET /api/map/providers
 Authorization: Bearer <JWT>
 ```
 
-Response:
+응답:
 
 ```json
 {
@@ -519,53 +519,53 @@ Response:
 }
 ```
 
-Keys are returned to authenticated users for loading browser map SDKs (domain-restricted client keys).
+인증된 사용자에게 브라우저 지도 SDK 로딩용 키가 그대로 반환됩니다(도메인 제한이 걸린 클라이언트 키).
 
 ---
 
-## 10. Navigation deep links (T map / Kakao / Naver)
+## 10. 내비게이션 딥링크 (티맵 / 카카오 / 네이버)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | **Available** |
-| Configuration | None — uses coordinates saved on fuel logs |
-| Implementation | `apps/web/lib/navigation/deepLinks.ts`, `NavLaunchButtons` |
+| 상태 | **사용 가능** |
+| 설정 | 없음 — 주유 기록에 저장된 좌표를 사용 |
+| 구현 | `apps/web/lib/navigation/deepLinks.ts`, `NavLaunchButtons` |
 
-When a fuel log has `latitude` and `longitude` (from Opinet station detail or future sources), **Quick Log** and **History → Fuel** show buttons to open:
+주유 기록에 `latitude`/`longitude`가 있으면(오피넷 주유소 상세 또는 향후 다른 출처), **빠른 입력**과 **내역 → 주유**에서 아래 앱을 여는 버튼이 표시됩니다:
 
-| App | URL scheme |
+| 앱 | URL 스킴 |
 |---|---|
-| T map | `tmap://route?goalname=…&goaly={lat}&goalx={lon}` |
-| Kakao Navi | `https://map.kakao.com/link/to/{name},{lat},{lon}` |
-| Naver Map | `nmap://route/car?dlat={lat}&dlng={lon}&dname={name}` |
+| 티맵 | `tmap://route?goalname=…&goaly={lat}&goalx={lon}` |
+| 카카오내비 | `https://map.kakao.com/link/to/{name},{lat},{lon}` |
+| 네이버지도 | `nmap://route/car?dlat={lat}&dlng={lon}&dname={name}` |
 
-These are standard mobile deep links; the user must have the app installed. Web fallbacks exist in code but are not shown in the UI yet.
+표준 모바일 딥링크이므로 해당 앱이 설치돼 있어야 합니다. 웹 폴백은 코드에 존재하지만 아직 UI에는 노출되지 않습니다.
 
 ---
 
-## 11. Vehicle records REST API (fuel / maintenance)
+## 11. 차량 기록 REST API (주유 / 정비)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | **Available** |
-| Auth | **JWT** from `POST /api/auth/login` (Standard) or per-vehicle **apiToken** (Simplified) |
-| Access | User must have access to the target vehicle, or use valid per-vehicle `apiToken` |
-| Implementation | `apps/api/src/routes/fuelLogs.ts`, `apps/api/src/routes/maintenanceRecords.ts`, `apps/api/src/routes/ingest.ts` |
+| 상태 | **사용 가능** |
+| 인증 | `POST /api/auth/login`으로 받는 **JWT**(표준) 또는 차량별 **apiToken**(단순) |
+| 접근 권한 | 대상 차량에 접근 권한이 있는 사용자, 또는 유효한 차량별 `apiToken` |
+| 구현 | `apps/api/src/routes/fuelLogs.ts`, `apps/api/src/routes/maintenanceRecords.ts`, `apps/api/src/routes/ingest.ts` |
 
-For third-party integrations (Home Assistant, scripts, automations), you can use either the **Standard API** (requires user login JWT) or the **Simplified Ingest API** (requires only the per-vehicle `apiToken`).
+외부 연동(Home Assistant, 스크립트, 자동화)에는 **표준 API**(사용자 로그인 JWT 필요) 또는 **단순화된 수집 API**(차량별 `apiToken`만 필요) 둘 중 하나를 쓸 수 있습니다.
 
 ---
 
-### 1) Simplified Ingest API (Recommended for HA & Scripts)
+### 1) 단순화된 수집 API (HA·스크립트에 권장)
 
-Identify and authenticate the vehicle using its unique `apiToken` in the query parameter `?token=...` or `Authorization: Bearer <apiToken>` header. No `vehicleId` path segment or body field is required.
+쿼리 파라미터 `?token=...` 또는 `Authorization: Bearer <apiToken>` 헤더의 고유 `apiToken`으로 차량을 식별·인증합니다. `vehicleId` 경로 세그먼트나 바디 필드가 필요 없습니다.
 
-| Method | Path | Description |
+| 메서드 | 경로 | 설명 |
 |---|---|---|
-| `POST` | `/api/ingest/fuel-logs` | Create fuel log |
-| `POST` | `/api/ingest/maintenance-records` | Create maintenance record |
+| `POST` | `/api/ingest/fuel-logs` | 주유 기록 생성 |
+| `POST` | `/api/ingest/maintenance-records` | 정비 기록 생성 |
 
-#### Fuel logs (Simplified)
+#### 주유 기록 (단순화)
 ```
 POST /api/ingest/fuel-logs?token={apiToken}
 Content-Type: application/json
@@ -581,7 +581,7 @@ Content-Type: application/json
 }
 ```
 
-#### Maintenance records (Simplified)
+#### 정비 기록 (단순화)
 ```
 POST /api/ingest/maintenance-records?token={apiToken}
 Content-Type: application/json
@@ -599,9 +599,9 @@ Content-Type: application/json
 
 ---
 
-### 2) Standard API (requires User JWT)
+### 2) 표준 API (사용자 JWT 필요)
 
-Requires a logged-in user account. Get a JWT:
+로그인된 사용자 계정이 필요합니다. JWT 발급:
 
 ```
 POST /api/auth/login
@@ -610,32 +610,32 @@ Content-Type: application/json
 { "email": "user@example.com", "password": "..." }
 ```
 
-Response includes `token` (no expiration by default). Send it on every request: `Authorization: Bearer <JWT>`.
+응답에 `token`이 포함됩니다(기본적으로 만료 없음). 모든 요청에 `Authorization: Bearer <JWT>`로 전달하세요.
 
-#### Fuel logs (Standard)
+#### 주유 기록 (표준)
 
-| Method | Path | Description |
+| 메서드 | 경로 | 설명 |
 |---|---|---|
-| `GET` | `/api/vehicles/{id}/fuel-logs?limit=&offset=` | List (newest first) |
-| `POST` | `/api/vehicles/{id}/fuel-logs` | Create |
-| `PATCH` | `/api/vehicles/{id}/fuel-logs/:logId` | Update (partial body) |
-| `DELETE` | `/api/vehicles/{id}/fuel-logs/:logId` | Delete |
+| `GET` | `/api/vehicles/{id}/fuel-logs?limit=&offset=` | 목록 조회(최신순) |
+| `POST` | `/api/vehicles/{id}/fuel-logs` | 생성 |
+| `PATCH` | `/api/vehicles/{id}/fuel-logs/:logId` | 수정(부분 바디) |
+| `DELETE` | `/api/vehicles/{id}/fuel-logs/:logId` | 삭제 |
 
-**Create body** (`packages/shared/src/schemas/records.ts`):
+**생성 바디** (`packages/shared/src/schemas/records.ts`):
 
-| Field | Type | Required | Notes |
+| 필드 | 타입 | 필수 | 참고 |
 |---|---|---|---|
-| `vehicleId` | string | yes | Target vehicle |
-| `date` | ISO date / string | yes | Past dates allowed (backfill) |
-| `odometer` | integer ≥ 0 | yes | km at time of fill-up |
-| `liters` | number > 0 | yes | |
-| `cost` | integer ≥ 0 | yes | KRW |
-| `fullTank` | boolean | no | default `true` |
-| `location` | string | no | Station name |
-| `latitude` | number \| null | no | WGS84 |
-| `longitude` | number \| null | no | WGS84 |
-| `address` | string \| null | no | Road or lot address |
-| `opinetStationId` | string \| null | no | Opinet `UNI_ID` |
+| `vehicleId` | string | 예 | 대상 차량 |
+| `date` | ISO 날짜 / 문자열 | 예 | 과거 날짜 입력 가능(소급 등록) |
+| `odometer` | integer ≥ 0 | 예 | 주유 시점 주행거리(km) |
+| `liters` | number > 0 | 예 | |
+| `cost` | integer ≥ 0 | 예 | 원(KRW) |
+| `fullTank` | boolean | 아니오 | 기본값 `true` |
+| `location` | string | 아니오 | 주유소 이름 |
+| `latitude` | number \| null | 아니오 | WGS84 |
+| `longitude` | number \| null | 아니오 | WGS84 |
+| `address` | string \| null | 아니오 | 도로명 또는 지번 주소 |
+| `opinetStationId` | string \| null | 아니오 | 오피넷 `UNI_ID` |
 
 ```json
 {
@@ -649,27 +649,27 @@ Response includes `token` (no expiration by default). Send it on every request: 
 }
 ```
 
-#### Maintenance records (Standard)
+#### 정비 기록 (표준)
 
-| Method | Path | Description |
+| 메서드 | 경로 | 설명 |
 |---|---|---|
-| `GET` | `/api/vehicles/{id}/maintenance-records?category=&search=&limit=&offset=` | List (newest first) |
-| `POST` | `/api/vehicles/{id}/maintenance-records` | Create |
-| `PATCH` | `/api/vehicles/{id}/maintenance-records/:recordId` | Update (partial body) |
-| `DELETE` | `/api/vehicles/{id}/maintenance-records/:recordId` | Delete |
+| `GET` | `/api/vehicles/{id}/maintenance-records?category=&search=&limit=&offset=` | 목록 조회(최신순) |
+| `POST` | `/api/vehicles/{id}/maintenance-records` | 생성 |
+| `PATCH` | `/api/vehicles/{id}/maintenance-records/:recordId` | 수정(부분 바디) |
+| `DELETE` | `/api/vehicles/{id}/maintenance-records/:recordId` | 삭제 |
 
-**Create body**:
+**생성 바디**:
 
-| Field | Type | Required | Notes |
+| 필드 | 타입 | 필수 | 참고 |
 |---|---|---|---|
-| `vehicleId` | string | yes | |
-| `date` | ISO date / string | yes | Past dates allowed |
-| `odometer` | integer ≥ 0 | yes | km at time of service |
-| `type` | string | yes | e.g. `엔진오일 교환` |
-| `category` | `MAINTENANCE` \| `ADMINISTRATIVE` | no | default `MAINTENANCE` |
-| `cost` | integer ≥ 0 | no | |
-| `shop` | string | no | Shop name |
-| `notes` | string | no | |
+| `vehicleId` | string | 예 | |
+| `date` | ISO 날짜 / 문자열 | 예 | 과거 날짜 입력 가능 |
+| `odometer` | integer ≥ 0 | 예 | 정비 시점 주행거리(km) |
+| `type` | string | 예 | 예: `엔진오일 교환` |
+| `category` | `MAINTENANCE` \| `ADMINISTRATIVE` | 아니오 | 기본값 `MAINTENANCE` |
+| `cost` | integer ≥ 0 | 아니오 | |
+| `shop` | string | 아니오 | 정비소 이름 |
+| `notes` | string | 아니오 | |
 
 ```json
 {
@@ -683,17 +683,17 @@ Response includes `token` (no expiration by default). Send it on every request: 
 }
 ```
 
-### Odometer (`Vehicle.odometer`)
+### 주행거리 (`Vehicle.odometer`)
 
-There is **no standalone “set odometer” endpoint**. The stored vehicle odometer is updated when:
+**독립적인 "주행거리 설정" 엔드포인트는 없습니다.** 저장된 차량 주행거리는 아래 시점에 갱신됩니다:
 
-| Source | Rule |
+| 출처 | 규칙 |
 |---|---|
-| `POST/PATCH` fuel log | `odometer` in body **>** current `Vehicle.odometer` → update vehicle |
-| `POST/PATCH` maintenance record | same |
-| Telemetry ingest (sections 2–3) | `odometer` query/body field, same monotonic rule |
+| `POST/PATCH` 주유 기록 | 바디의 `odometer`가 현재 `Vehicle.odometer`**보다 크면** → 차량 정보 갱신 |
+| `POST/PATCH` 정비 기록 | 동일 |
+| 텔레메트리 수집(2~3절) | 쿼리/바디의 `odometer` 필드, 동일한 "더 클 때만" 규칙 |
 
-**Read current value:**
+**현재 값 조회:**
 
 ```
 GET /api/vehicles/:id/odometer
@@ -702,11 +702,11 @@ Authorization: Bearer <JWT>
 
 → `{ "odometer": 45230 }`
 
-Backdated records with a **lower** odometer than the current vehicle value are saved normally but do **not** lower `Vehicle.odometer`.
+현재 차량 값보다 **낮은** 주행거리로 소급 등록한 기록은 정상 저장되지만 `Vehicle.odometer`는 낮추지 않습니다.
 
-### Attachments (optional)
+### 첨부파일 (선택)
 
-After creating a record, upload a receipt:
+기록 생성 후 영수증을 업로드할 수 있습니다:
 
 ```
 POST /api/attachments?fuelLogId={id}
@@ -715,13 +715,13 @@ Authorization: Bearer <JWT>
 Content-Type: multipart/form-data
 ```
 
-Allowed MIME types: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`.
+허용 MIME 타입: `image/jpeg`, `image/png`, `image/webp`, `application/pdf`.
 
 ---
 
 ### Home Assistant — Garage API 형식 `rest_command`
 
-아래는 차량의 `apiToken`을 사용한 단순화된 ingest API 형식입니다.
+아래는 차량의 `apiToken`을 사용한 단순화된 수집 API 형식입니다.
 
 ```yaml
 rest_command:
@@ -774,21 +774,21 @@ service: rest_command.garage_create_maintenance_record
 
 ---
 
-## 12. PWA Web Push
+## 12. PWA 웹 푸시
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | **Available** |
-| Configuration | `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, optional `VAPID_SUBJECT` in `.env` |
-| Implementation | `apps/api/src/lib/push.ts`, `apps/api/src/jobs/pushReminders.ts`, `apps/web/public/sw.js` |
+| 상태 | **사용 가능** |
+| 설정 | `.env`에 `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, 선택적으로 `VAPID_SUBJECT` |
+| 구현 | `apps/api/src/lib/push.ts`, `apps/api/src/jobs/pushReminders.ts`, `apps/web/public/sw.js` |
 
-### Generate VAPID keys
+### VAPID 키 생성
 
 ```bash
 npx web-push generate-vapid-keys
 ```
 
-Add to `.env`:
+`.env`에 추가:
 
 ```env
 VAPID_PUBLIC_KEY=...
@@ -796,197 +796,197 @@ VAPID_PRIVATE_KEY=...
 VAPID_SUBJECT=mailto:admin@example.com
 ```
 
-Restart the API server after setting keys.
+키 설정 후 API 서버를 재시작하세요.
 
-### User setup
+### 사용자 설정
 
-1. Open Garage over **HTTPS** (required for Web Push; `localhost` is OK for dev)
-2. **Profile → Push notifications → Enable**
-3. Grant browser notification permission
-4. On iOS: add Garage to the **home screen** first (iOS 16.4+)
+1. **HTTPS**로 Garage에 접속(웹 푸시 필수 조건; 개발 시 `localhost`는 예외)
+2. **프로필 → 푸시 알림 → 활성화**
+3. 브라우저 알림 권한 허용
+4. iOS는 먼저 Garage를 **홈 화면에 추가**해야 함(iOS 16.4+)
 
-### When pushes are sent
+### 푸시 발송 시점
 
-- Daily at **03:00** and **08:00** (server local time), after reminder sync
-- For each `PENDING` reminder that is **actually due** (date or odometer) and not yet pushed (`pushNotifiedAt` is null)
-- Recipients: **ADMIN** users + users with access to that vehicle
-- Tapping the notification opens the vehicle **schedule** page
+- 매일 **03:00**, **08:00**(서버 로컬 시간)에 리마인더 동기화 후
+- `PENDING` 상태이면서 **실제로 기한이 된**(날짜 또는 주행거리) 리마인더 중 아직 푸시되지 않은 항목(`pushNotifiedAt`이 null)
+- 수신자: **ADMIN** 사용자 + 해당 차량에 접근 권한이 있는 사용자
+- 알림을 탭하면 차량 **정비 스케줄** 페이지로 이동
 
-Dismissed reminders are not pushed again. Completing a schedule item starts a new cycle and resets push eligibility when the due date/odometer changes.
+한 번 확인 처리한 리마인더는 다시 푸시되지 않습니다. 스케줄 항목을 완료 처리하면 새 주기가 시작되고, 기한 날짜/주행거리가 바뀌면 푸시 대상 여부도 다시 계산됩니다.
 
 ### API
 
-| Method | Path | Auth | Description |
+| 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| `GET` | `/api/push/config` | none | `{ configured, publicKey }` |
-| `GET` | `/api/push/status` | JWT | Current user's subscription state |
-| `POST` | `/api/push/subscribe` | JWT | Register browser push subscription |
-| `DELETE` | `/api/push/subscribe` | JWT | Remove subscription (`{ endpoint }`) |
+| `GET` | `/api/push/config` | 없음 | `{ configured, publicKey }` |
+| `GET` | `/api/push/status` | JWT | 현재 사용자의 구독 상태 |
+| `POST` | `/api/push/subscribe` | JWT | 브라우저 푸시 구독 등록 |
+| `DELETE` | `/api/push/subscribe` | JWT | 구독 해제(`{ endpoint }`) |
 
 ---
 
-## 13. API Explorer
+## 13. API 익스플로러
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | **Available** |
-| Access | ADMIN only, web UI `/api-explorer` |
-| Implementation | `apps/web/app/api-explorer/page.tsx` |
+| 상태 | **사용 가능** |
+| 접근 권한 | ADMIN 전용, 웹 UI `/api-explorer` |
+| 구현 | `apps/web/app/api-explorer/page.tsx` |
 
-A built-in page listing every REST endpoint in this document, grouped by how it authenticates:
+이 문서의 모든 REST 엔드포인트를 인증 방식별로 그룹화해 보여주는 내장 페이지입니다:
 
-- **JWT (로그인 세션)** — read-only `GET` endpoints are one-click testable using the admin's own session; the response is shown as formatted JSON.
-- **차량 apiToken** — pick a vehicle from a dropdown (its token is fetched the same way `/vehicles/[id]/integration` does), then test `GET /api/ingest/status` and `GET /api/ingest/reminders` live.
-- Endpoints that create/modify/delete data (`POST`/`PATCH`/`DELETE`) are listed for reference with a ready-to-copy `curl` command, but are **not** one-click runnable — this page is meant for safely checking that reads work (e.g. before wiring up a Home Assistant sensor), not for driving the app.
+- **JWT(로그인 세션)** — 읽기 전용 `GET` 엔드포인트는 관리자 본인의 세션으로 클릭 한 번에 테스트할 수 있고, 응답이 정돈된 JSON으로 표시됩니다.
+- **차량 apiToken** — 드롭다운에서 차량을 선택하면(`/vehicles/[id]/integration`과 동일한 방식으로 토큰을 가져옴) `GET /api/ingest/status`, `GET /api/ingest/reminders`를 바로 테스트할 수 있습니다.
+- 데이터를 생성·수정·삭제하는 엔드포인트(`POST`/`PATCH`/`DELETE`)는 참고용으로 바로 복사 가능한 `curl` 명령과 함께 나열되지만 **클릭 한 번으로 실행되지는 않습니다** — 이 페이지는 (예: Home Assistant 센서를 연결하기 전에) 읽기 동작이 정상인지 안전하게 확인하는 용도이지, 앱을 조작하는 용도가 아닙니다.
 
 ---
 
-## 14. EV charging station API (한국환경공단 EvCharger)
+## 14. 전기차 충전소 API (한국환경공단 EvCharger)
 
-| Field | Value |
+| 항목 | 값 |
 |---|---|
-| Status | Available (verified against live API) |
-| Setting key | `EV_CHARGER_API_KEY` (+ `EV_CHARGER_API_KEY_EXPIRES_AT`, plain date, not a secret) |
-| Where to set | `/integrations` UI or `.env` / `docker-compose` |
-| Issuer | [data.go.kr — 한국환경공단_전기자동차 충전소 정보](https://www.data.go.kr/data/15076352/openapi.do) |
-| Implementation | `apps/api/src/lib/evCharger.ts`, `apps/api/src/routes/evCharger.ts` |
+| 상태 | 사용 가능(실제 API로 검증됨) |
+| 설정 키 | `EV_CHARGER_API_KEY` (+ `EV_CHARGER_API_KEY_EXPIRES_AT`, 평문 날짜, 비밀값 아님) |
+| 설정 위치 | `/integrations` UI 또는 `.env` / `docker-compose` |
+| 발급처 | [data.go.kr — 한국환경공단_전기자동차 충전소 정보](https://www.data.go.kr/data/15076352/openapi.do) |
+| 구현 | `apps/api/src/lib/evCharger.ts`, `apps/api/src/routes/evCharger.ts` |
 
-### External API Garage calls
+### Garage가 호출하는 외부 API
 
 ```
 GET https://apis.data.go.kr/B552584/EvCharger/getChargerInfo
   ?serviceKey={EV_CHARGER_API_KEY}
   &dataType=JSON
   &numOfRows=1000&pageNo=1
-  &zcode={시도 코드, optional}
+  &zcode={시도 코드, 선택}
 ```
 
-Unlike Opinet, this API has **no lat/lon + radius search** — only `zcode` (시도, 2-digit) / `zscode` (시군구) region filtering. Garage works around this:
+오피넷과 달리 이 API는 **위경도 + 반경 검색을 지원하지 않고**, `zcode`(시도, 2자리) / `zscode`(시군구) 지역 필터만 제공합니다. Garage는 이를 다음과 같이 우회합니다:
 
-1. Frontend reverse-geocodes the vehicle's last-known coordinates (existing Kakao/Naver `reverseGeocode()`) to get an address string.
-2. Backend extracts the first token (시도 name, e.g. `서울특별시`) and maps it to a `zcode` via a static 17-entry table in `evCharger.ts` (no Kakao REST key needed — the map JS key can't call Kakao's REST-only `coord2regioncode`).
-3. All chargers in that 시도 are fetched, grouped by `statId` (one row per connector), and re-sorted by real `haversineKm()` distance — same "nearest first" UX as Opinet, at the cost of over-fetching within a large 시도.
+1. 프런트엔드가 차량의 마지막 위치 좌표를 (기존 카카오/네이버 `reverseGeocode()`로) 역지오코딩해 주소 문자열을 얻습니다.
+2. 백엔드가 첫 토큰(시도명, 예: `서울특별시`)을 추출해 `evCharger.ts`의 고정 17개 테이블로 `zcode`에 매핑합니다(카카오 REST 키 불필요 — 지도 JS 키로는 카카오의 REST 전용 `coord2regioncode`를 호출할 수 없기 때문).
+3. 해당 시도의 모든 충전소를 가져와 `statId`별로 그룹화(커넥터 하나당 한 행)하고, 실제 `haversineKm()` 거리로 재정렬합니다 — 큰 시도 안에서는 다소 과도하게 가져오는 대신, 오피넷과 동일한 "가까운 순" UX를 제공합니다.
 
-### Proxy API Garage exposes
+### Garage가 노출하는 프록시 API
 
-| Method | Path | Auth | Description |
+| 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| `GET` | `/api/ev-charger/configured` | JWT | Whether a key is set `{ configured: boolean }` |
-| `GET` | `/api/ev-charger/stations` | JWT | Nearby chargers via `lat`, `lon`, `address` (optional, for zcode resolution) query params |
+| `GET` | `/api/ev-charger/configured` | JWT | 키 설정 여부 `{ configured: boolean }` |
+| `GET` | `/api/ev-charger/stations` | JWT | `lat`, `lon`, `address`(선택, zcode 판별용) 쿼리 파라미터로 주변 충전소 조회 |
 
-**Response fields**: `id` (statId), `name`, `operator`, `distance` (m), `lat`, `lon`, `address`, `parkingFree`, `connectors[]` (`chgerId`, `type`, `status`, `output` kW)
+**응답 필드**: `id`(statId), `name`, `operator`, `distance`(m), `lat`, `lon`, `address`, `parkingFree`, `connectors[]`(`chgerId`, `type`, `status`, `output` kW)
 
-`status` is normalized from the API's `stat` code into `AVAILABLE | CHARGING | RESERVED | OUT_OF_SERVICE | UNKNOWN`. Both `type` (01–11) and `status` are locale-agnostic codes — the frontend translates them to a human-readable label (`NearbyStationsCard.tsx`), so the API never returns Korean-only display text for these fields.
+`status`는 API의 `stat` 코드를 `AVAILABLE | CHARGING | RESERVED | OUT_OF_SERVICE | UNKNOWN`으로 정규화합니다. `type`(01~11)과 `status` 모두 로케일 무관 코드이며, 프런트엔드가 사람이 읽을 수 있는 라벨로 번역합니다(`NearbyStationsCard.tsx`) — 즉 API는 이 필드들에 대해 한국어 전용 표시 텍스트를 절대 직접 반환하지 않습니다.
 
-Surfaced on the **vehicle overview page** (`NearbyStationsCard`) as a standalone "주변 충전소 찾기" card, separate from Quick Log — checking charger availability is a pre-departure decision for EV owners, not something tied to logging a completed charge. Each result links out via the existing nav deep-link buttons (T map / Kakao / Naver). Same top-5 cap and map-marker numbering as the Opinet flow above (§1) — there's no price field here, so only distance sort applies.
+**차량 개요 페이지**(`NearbyStationsCard`)에 빠른 입력과는 별개의 "주변 충전소 찾기" 독립 카드로 노출됩니다 — 충전소 여부 확인은 EV 차주에게 출발 전 의사결정 사항이지, 완료된 충전 기록과 묶일 개념이 아니기 때문입니다. 각 결과는 기존 내비 딥링크 버튼(티맵 / 카카오 / 네이버)으로 연결됩니다. 위 오피넷 흐름(§1)과 동일하게 상위 5개 제한과 지도 마커 번호 매김이 적용되지만, 가격 필드가 없으므로 거리순 정렬만 가능합니다.
 
-### Fallback behavior
+### 폴백 동작
 
-- Missing `EV_CHARGER_API_KEY`, unresolvable `zcode`, or API error → **4 mock chargers** returned (synthesized near the query coordinates)
-- No separate "configured" gate on the button — the card always shows a "찾기" button and silently falls back to mock data, since browsing chargers has no cost/price side effect worth blocking (unlike Opinet, which hides the button to avoid saving fake prices to a fuel log)
+- `EV_CHARGER_API_KEY`가 없거나, `zcode`를 판별할 수 없거나, API 오류 발생 시 → **모의(mock) 충전소 4개** 반환(쿼리 좌표 근처에 합성)
+- 버튼에 별도의 "설정됨" 게이트가 없습니다 — 카드는 항상 "찾기" 버튼을 보여주고 조용히 모의 데이터로 폴백합니다. 충전소를 둘러보는 행위 자체에는 막을 만한 비용/가격 부수효과가 없기 때문입니다(오피넷은 가짜 가격이 주유 기록에 저장되는 걸 막기 위해 버튼을 숨김).
 
-### Key expiration
+### 키 만료
 
-data.go.kr key applications default to a **2-year validity period** and expire automatically — there's no API to query the expiry date. `/integrations` has a dedicated date-input card (separate from the masked-secret rows) where the admin records the expiry manually; a warning banner appears starting 30 days out (`EV_CHARGER_API_KEY_EXPIRES_AT` is the one setting key whose plain value `GET /api/settings` returns, since it's a date, not a secret).
-
----
-
-## Adding a new integration (developers)
-
-**External API key (admin UI):**
-
-1. `packages/shared/src/schemas/settings.ts` — add key to `settingKeySchema`
-2. `apps/web/app/integrations/page.tsx` — `SETTING_META` label/help mapping
-3. `apps/web/lib/i18n/translations.ts` — ko/en translation keys
-4. Feature route — read via `getSetting("NEW_KEY")`
-5. `.env.example` — optional env var note
-
-**Inbound device integration:**
-
-1. `apps/api/src/routes/ingest.ts` or a dedicated route
-2. `packages/shared/src/schemas/` — Zod validation schema
-3. `apps/web/app/vehicles/[id]/integration/page.tsx` — setup instructions UI
+data.go.kr 키 신청은 기본적으로 **유효기간 2년**이며 자동 만료됩니다 — 만료일을 조회하는 API는 없습니다. `/integrations`에는 (마스킹된 비밀값 행과는 별도로) 관리자가 만료일을 직접 기록하는 전용 날짜 입력 카드가 있고, 만료 30일 전부터 경고 배너가 표시됩니다(`EV_CHARGER_API_KEY_EXPIRES_AT`은 `GET /api/settings`가 평문으로 반환하는 유일한 설정 키인데, 비밀값이 아니라 날짜이기 때문입니다).
 
 ---
 
-## 15. Hyundai Developers (connected car API)
+## 새 연동 추가하기 (개발자용)
 
-| Field | Value |
+**외부 API 키(관리자 UI):**
+
+1. `packages/shared/src/schemas/settings.ts` — `settingKeySchema`에 키 추가
+2. `apps/web/app/integrations/page.tsx` — `SETTING_META` 라벨/도움말 매핑
+3. `apps/web/lib/i18n/translations.ts` — ko/en 번역 키
+4. 기능 라우트 — `getSetting("NEW_KEY")`로 읽기
+5. `.env.example` — 선택적으로 환경변수 안내 추가
+
+**인바운드 기기 연동:**
+
+1. `apps/api/src/routes/ingest.ts` 또는 전용 라우트
+2. `packages/shared/src/schemas/` — Zod 검증 스키마
+3. `apps/web/app/vehicles/[id]/integration/page.tsx` — 설정 안내 UI
+
+---
+
+## 15. 현대 Developers(커넥티드카 API)
+
+| 항목 | 값 |
 |---|---|
-| Status | **Wired against the confirmed API spec, not yet live-tested** — every endpoint below is implemented and unit-tested against the console's own API specification pages. No account has actually completed the full OAuth + data-consent flow yet, so nothing has been verified against a real response. |
-| Setting keys | `HYUNDAI_CLIENT_ID`, `HYUNDAI_CLIENT_SECRET` |
-| Where to set | `/integrations` UI |
-| Issuer | [developers.hyundai.com](https://developers.hyundai.com) ("Hyundai Developers") |
-| Implementation | `apps/api/src/lib/hyundai.ts` (+ `hyundai.test.ts`), `apps/api/src/lib/hyundaiToken.ts`, `apps/api/src/routes/hyundai.ts`, `apps/api/src/routes/hyundaiWebhook.ts`, `apps/api/src/jobs/hyundaiSync.ts` |
+| 상태 | **확인된 API 규격서 기준으로 구현 완료, 아직 실제 검증 전** — 아래 모든 엔드포인트는 콘솔이 제공하는 API 규격서 페이지를 그대로 구현·단위테스트했습니다. 아직 실제 OAuth + 데이터 동의 흐름을 끝까지 완료한 계정이 없어서, 실제 응답으로는 검증되지 않았습니다. |
+| 설정 키 | `HYUNDAI_CLIENT_ID`, `HYUNDAI_CLIENT_SECRET` |
+| 설정 위치 | `/integrations` UI |
+| 발급처 | [developers.hyundai.com](https://developers.hyundai.com) ("현대 Developers") |
+| 구현 | `apps/api/src/lib/hyundai.ts`(+ `hyundai.test.ts`), `apps/api/src/lib/hyundaiToken.ts`, `apps/api/src/routes/hyundai.ts`, `apps/api/src/routes/hyundaiWebhook.ts`, `apps/api/src/jobs/hyundaiSync.ts` |
 
-### Why
+### 왜 필요한가
 
-Reviewed as an alternative to OBD-dongle-based ingest (see [OBD app](#2-obd-app-torque-pro)):
-domestic (Korea-registered) Bluelink-connected vehicles expose real odometer, EV battery/charging
-state, and dashboard warning lights directly from Hyundai's own cloud — no phone app, no Bluetooth
-dongle. Note this only gives periodic odometer/status *snapshots* (updated by the car itself at
-ignition-off) — not per-trip route/duration/speed history like the OBD/GPS ingest path produces;
-the two are complementary, not a replacement for one another.
+OBD 동글 기반 수집([OBD 앱](#2-obd-앱torque-pro) 참고)의 대안으로 검토했습니다:
+국내(한국 등록) 블루링크 연동 차량은 실제 주행거리, EV 배터리/충전 상태, 계기판 경고등을
+현대 클라우드에서 직접 가져올 수 있어 — 폰 앱도, 블루투스 동글도 필요 없습니다. 다만 이건
+(시동을 끌 때 차량이 갱신하는) 주기적인 주행거리/상태 *스냅샷*만 제공할 뿐, OBD/GPS 수집
+경로처럼 트립별 경로·시간·속도 이력을 주지는 않습니다 — 서로 대체재가 아니라 상호 보완
+관계입니다.
 
-### Automatic odometer sync
+### 자동 주행거리 동기화
 
-`apps/api/src/jobs/hyundaiSync.ts` runs once on server boot and twice daily (07:00, 19:00 — matching
-the `reminders` job's cadence, chosen because Bluelink odometer data only updates at ignition-off,
-so polling more often has no effect). For every `HyundaiVehicleLink`, it fetches mileage and bumps
-`Vehicle.odometer` **only if the fetched value is higher** than what's stored — the same
-non-destructive rule the OBD webhook ingest uses (`bumpOdometerIfHigher`), so a more-recent manual
-entry is never overwritten by a stale Bluelink read.
+`apps/api/src/jobs/hyundaiSync.ts`는 서버 부팅 시 1회, 그리고 하루 두 번(07:00, 19:00 —
+블루링크 주행거리 데이터가 시동을 끌 때만 갱신되므로 더 자주 폴링해도 의미가 없어서
+`reminders` 잡과 동일한 주기로 맞춤) 실행됩니다. 모든 `HyundaiVehicleLink`에 대해
+주행거리를 조회한 뒤, 가져온 값이 **기존 저장값보다 클 때만** `Vehicle.odometer`를
+갱신합니다 — OBD 웹훅 수집이 쓰는 것과 동일한 비파괴적 규칙(`bumpOdometerIfHigher`)이라,
+더 최근에 수동으로 입력한 값을 오래된 블루링크 값이 덮어쓰는 일이 없습니다.
 
-### Data model
+### 데이터 모델
 
-- `Setting` (`HYUNDAI_CLIENT_ID` / `HYUNDAI_CLIENT_SECRET`) — app-level OAuth client credentials, admin-managed, excluded from backup like other integration keys.
-- `HyundaiAccountLink` — one row per Garage `User` who has linked their own Hyundai account (access/refresh token, the `redirectUri` used at login so refresh can reuse it, and `hyundaiUserId` — Hyundai's own user id from `/user/profile`, used to match the deletion webhook below). Personal, not admin-scoped — each family member links their own Bluelink account.
-- `HyundaiVehicleLink` — maps one Garage `Vehicle` to one Hyundai `carId`, referencing whichever `HyundaiAccountLink` owns it (not necessarily the requester — token lookups always resolve through the vehicle's own link, per `getValidAccessTokenForVehicleLink` in the route file).
+- `Setting`(`HYUNDAI_CLIENT_ID` / `HYUNDAI_CLIENT_SECRET`) — 앱 레벨 OAuth 클라이언트 자격증명, 관리자가 관리, 다른 연동 키와 마찬가지로 백업에서 제외됩니다.
+- `HyundaiAccountLink` — 본인의 현대 계정을 연결한 Garage `User`마다 한 행(액세스/리프레시 토큰, 로그인 시 사용한 `redirectUri`(리프레시에 재사용하기 위해 저장), `hyundaiUserId`(`/user/profile`에서 받은 현대 측 사용자 ID, 아래 삭제 웹훅 매칭에 사용)). 관리자 전용이 아니라 개인용입니다 — 가족 구성원마다 각자의 블루링크 계정을 연결합니다.
+- `HyundaiVehicleLink` — Garage `Vehicle` 하나를 현대의 `carId` 하나에 매핑하고, 이를 소유한 `HyundaiAccountLink`를 참조합니다(요청자 본인이 아닐 수도 있음 — 토큰 조회는 항상 라우트 파일의 `getValidAccessTokenForVehicleLink`를 통해 차량 자신의 연결로 해결됩니다).
 
-### API Garage exposes (`/api/hyundai/*`, all JWT-authenticated)
+### Garage가 노출하는 API (`/api/hyundai/*`, 전부 JWT 인증)
 
-| Method | Path | Description |
+| 메서드 | 경로 | 설명 |
 |---|---|---|
-| `GET` | `/configured` | Whether admin has set Client ID/Secret |
-| `GET` | `/account` | Whether the current user has linked their own Hyundai account |
-| `GET` | `/authorize-url?redirectUri=` | Login URL to redirect the user to |
-| `POST` | `/link` | Exchange an authorization code for tokens, store against the current user |
-| `DELETE` | `/account` | Unlink the current user's Hyundai account (revokes the token and withdraws data consent) |
-| `GET` | `/vehicles` | List the linked account's Hyundai vehicles (candidates for matching to a Garage vehicle) |
-| `PUT` | `/vehicles/:vehicleId/link` | Link a Garage vehicle to a Hyundai `carId` |
-| `DELETE` | `/vehicles/:vehicleId/link` | Unlink |
-| `GET` | `/vehicles/:vehicleId/mileage` | Odometer + distance-to-empty |
-| `GET` | `/vehicles/:vehicleId/status` | Warning lights (7 types) |
-| `GET` | `/vehicles/:vehicleId/driving-habit` | Not yet available — see below |
+| `GET` | `/configured` | 관리자가 Client ID/Secret을 설정했는지 여부 |
+| `GET` | `/account` | 현재 사용자가 본인의 현대 계정을 연결했는지 여부 |
+| `GET` | `/authorize-url?redirectUri=` | 사용자를 리디렉션할 로그인 URL |
+| `POST` | `/link` | 인가 코드를 토큰으로 교환하고 현재 사용자에게 저장 |
+| `DELETE` | `/account` | 현재 사용자의 현대 계정 연결 해제(토큰 폐기 및 데이터 동의 철회) |
+| `GET` | `/vehicles` | 연결된 계정의 현대 차량 목록(Garage 차량과 매칭할 후보) |
+| `PUT` | `/vehicles/:vehicleId/link` | Garage 차량을 현대 `carId`에 연결 |
+| `DELETE` | `/vehicles/:vehicleId/link` | 연결 해제 |
+| `GET` | `/vehicles/:vehicleId/mileage` | 주행거리 + 잔여 주행가능거리 |
+| `GET` | `/vehicles/:vehicleId/status` | 경고등(7종) |
+| `GET` | `/vehicles/:vehicleId/driving-habit` | 아직 사용 불가 — 아래 참고 |
 
-`POST /api/hyundai/webhook` (no JWT, public) is Hyundai's "데이터 조회 불가 상태 알림" callback —
-register it as the Callback URL in the console's "설정 - 데이터 API" page. On account deletion,
-vehicle deletion, or consent withdrawal it deletes the corresponding `HyundaiAccountLink`/
-`HyundaiVehicleLink` row, per the 개인정보보호법 requirement to purge data immediately on notice.
+`POST /api/hyundai/webhook`(JWT 없음, 공개)은 현대의 "데이터 조회 불가 상태 알림" 콜백입니다 —
+콘솔의 "설정 - 데이터 API" 페이지에 콜백 URL로 등록하세요. 계정 삭제, 차량 삭제, 동의 철회
+시 해당하는 `HyundaiAccountLink`/`HyundaiVehicleLink` 행을 삭제합니다 — 통지 즉시 데이터를
+삭제해야 하는 개인정보보호법 요건에 따른 것입니다.
 
-### Confirmed against the console's own API specification (not just the walkthrough guide)
+### 콘솔이 제공하는 API 규격서 기준으로 확인함 (안내 가이드가 아니라)
 
-- Login: `GET https://prd.kr-ccapi.hyundai.com/api/v1/user/oauth2/authorize` (`response_type`, `client_id`, `redirect_uri`, `state`)
-- Token issue/refresh/revoke: `POST https://prd.kr-ccapi.hyundai.com/api/v1/user/oauth2/token`, `Authorization: Basic base64(client_id:client_secret)`, form-encoded, `grant_type` = `authorization_code` | `refresh_token` | `delete`. Access tokens last 24h, refresh tokens 1 year (server-controlled; not hardcoded here since `expires_in` is read from the actual response).
-- User profile: `GET https://prd.kr-ccapi.hyundai.com/api/v1/user/profile` → `{id, email, name, mobileNum, birthdate, lang, social}` (the field is `id`, not `userId`).
-- Data consent: `POST https://dev.kr-ccapi.hyundai.com/api/v1/car-service/terms/agreement` (`token`, `state`) — redirect-based like login, not a plain server-to-server call; required before *any* data endpoint works (otherwise every call fails with `5005 No Agreement Error`). Withdrawal: `GET .../api/v1/car-service/terms/reject`.
-- Vehicle list: `GET https://dev.kr-ccapi.hyundai.com/api/v1/car/profile/carlist` → `{cars: [{carId, carNickname, carType, carName, carSellname}]}`.
-- Connected-service subscription dates: `GET .../api/v1/car/profile/:carId/contract` → `{subscribeDate, endDate}` (YYYYMMDD).
-- Mileage: `GET .../api/v1/car/status/:carId/dte` → `{value, unit, timestamp}`; `GET .../api/v1/car/status/:carId/odometer` → `{odometers: [{value, unit, date, timestamp}]}`. Both use the same unit code (0:feet, 1:km, 2:meter, 3:miles).
-- EV battery/charging: `GET .../ev/battery` → `{soc}`; `GET .../ev/charging` → `{batteryPlugin, batteryCharge, soc, targetSOC, remainTime}`.
-- Warning lights (7): `GET .../api/v1/car/status/warning/:carId/{lowFuel|tirePressure|lampWire|smartKeyBattery|washerFluid|breakOil|engineOil}` → `{status: boolean}` (note `breakOil`, not `brakeOil` — that's the real path).
-- Every endpoint's error body is `{errCode, errMsg, errId}` — `hyundai.ts`'s `describeError()` surfaces this in logs instead of a bare HTTP status.
-- All data-api hosts are `dev.kr-ccapi.hyundai.com` — confirmed across every endpoint in the spec, so this is a fixed host rather than an environment flag.
+- 로그인: `GET https://prd.kr-ccapi.hyundai.com/api/v1/user/oauth2/authorize` (`response_type`, `client_id`, `redirect_uri`, `state`)
+- 토큰 발급/갱신/폐기: `POST https://prd.kr-ccapi.hyundai.com/api/v1/user/oauth2/token`, `Authorization: Basic base64(client_id:client_secret)`, form-encoded, `grant_type` = `authorization_code` | `refresh_token` | `delete`. 액세스 토큰은 24시간, 리프레시 토큰은 1년 유효(서버가 결정하는 값이라 여기서 하드코딩하지 않고 실제 응답의 `expires_in`을 읽음).
+- 사용자 프로필: `GET https://prd.kr-ccapi.hyundai.com/api/v1/user/profile` → `{id, email, name, mobileNum, birthdate, lang, social}` (필드명은 `userId`가 아니라 `id`).
+- 데이터 동의: `POST https://dev.kr-ccapi.hyundai.com/api/v1/car-service/terms/agreement` (`token`, `state`) — 로그인과 마찬가지로 리디렉션 기반이며 단순 서버-서버 호출이 아닙니다. 이걸 먼저 하지 않으면 데이터 엔드포인트가 전부 `5005 No Agreement Error`로 실패합니다. 철회: `GET .../api/v1/car-service/terms/reject`.
+- 차량 목록: `GET https://dev.kr-ccapi.hyundai.com/api/v1/car/profile/carlist` → `{cars: [{carId, carNickname, carType, carName, carSellname}]}`.
+- 커넥티드 서비스 가입 기간: `GET .../api/v1/car/profile/:carId/contract` → `{subscribeDate, endDate}` (YYYYMMDD).
+- 주행거리: `GET .../api/v1/car/status/:carId/dte` → `{value, unit, timestamp}`; `GET .../api/v1/car/status/:carId/odometer` → `{odometers: [{value, unit, date, timestamp}]}`. 둘 다 동일한 단위 코드 사용(0:feet, 1:km, 2:meter, 3:miles).
+- EV 배터리/충전: `GET .../ev/battery` → `{soc}`; `GET .../ev/charging` → `{batteryPlugin, batteryCharge, soc, targetSOC, remainTime}`.
+- 경고등(7종): `GET .../api/v1/car/status/warning/:carId/{lowFuel|tirePressure|lampWire|smartKeyBattery|washerFluid|breakOil|engineOil}` → `{status: boolean}` (오타가 아니라 실제로 `brakeOil`이 아닌 `breakOil` 경로입니다).
+- 모든 엔드포인트의 에러 바디는 `{errCode, errMsg, errId}` 형태 — `hyundai.ts`의 `describeError()`가 단순 HTTP 상태 코드 대신 이 내용을 로그에 남깁니다.
+- 모든 데이터 API 호스트는 `dev.kr-ccapi.hyundai.com`입니다 — 규격서의 모든 엔드포인트에서 동일하게 확인됨. 즉 환경별 플래그가 아니라 고정 호스트입니다.
 
-### Still not available
+### 아직 사용할 수 없는 것
 
-- **Last-parked location** and **90-day driving-habit safety score** — no endpoint for either has appeared in the specification pages reviewed so far. `fetchVehicleStatus`'s `lastParkedLat`/`lastParkedLon` stay `null`, and `fetchDrivingHabit` returns `null` until an endpoint is found.
-- No account has completed the OAuth + data-consent flow end-to-end yet, so the parsing logic above is verified against the spec's documented sample responses, not a live call.
+- **마지막 주차 위치**와 **90일 주행습관 안전점수** — 지금까지 검토한 규격서 페이지 어디에도 관련 엔드포인트가 없습니다. `fetchVehicleStatus`의 `lastParkedLat`/`lastParkedLon`은 계속 `null`이고, `fetchDrivingHabit`은 엔드포인트를 찾기 전까지 `null`을 반환합니다.
+- 아직 OAuth + 데이터 동의 흐름을 끝까지 완료한 계정이 없어서, 위 파싱 로직은 규격서에 문서화된 예시 응답 기준으로만 검증되었고 실제 호출로는 검증되지 않았습니다.
 
 ---
 
-## Related docs
+## 관련 문서
 
-- [ARCHITECTURE.md](./ARCHITECTURE.md) — system design & data flow
-- [PROGRESS.md](./PROGRESS.md) — implementation status & verification log
-- [README.md](../README.md) — install & deployment
+- [ARCHITECTURE.md](./ARCHITECTURE.md) — 시스템 설계 & 데이터 흐름
+- [PROGRESS.md](./PROGRESS.md) — 구현 현황 & 검증 로그
+- [README.md](../README.md) — 설치 & 배포

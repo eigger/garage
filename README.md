@@ -7,124 +7,124 @@
 [![Self-hosted](https://img.shields.io/badge/hosting-self--hosted-2563EB)](proxmox/ct/garage.sh)
 [![Docker](https://img.shields.io/badge/docker-ghcr.io%2Feigger%2Fgarage-2496ED?logo=docker&logoColor=white)](https://github.com/eigger/garage/pkgs/container/garage-api)
 
-**[한국어 README](./README.ko.md)**
+**[English README](./README.en.md)**
 
-Self-hosted family car management — maintenance schedules, fuel logs, reminders, OBD/GPS trips, and optional Home Assistant integrations.
+가족·홈랩용 셀프호스팅 차량 관리 — 정비 스케줄, 주유 기록, 알림, OBD/GPS 주행, Home Assistant 연동(선택).
 
-> See [GitHub Releases](https://github.com/eigger/garage/releases) for the latest version.
+> 최신 릴리스는 [GitHub Releases](https://github.com/eigger/garage/releases)에서 확인하세요.
 
-Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · [`docs/PROGRESS.md`](./docs/PROGRESS.md)
-
----
-
-## Features
-
-- Vehicles, users, and per-vehicle access ACL (admin / general)
-- Mobile-first responsive layout with fixed bottom navigation bar for one-handed reachability
-- Smart home redirect: automatically skips the vehicle list dashboard if the account has only one vehicle, landing straight on the vehicle overview
-- Maintenance + administrative schedules with distance/time dual reminders
-- Fuel-type maintenance presets and global admin/legal presets
-- Fuel logging with receipt attachments; Opinet nearby stations (optional)
-- EV charging station finder (K-eco API, optional) — same distance/price search as gas stations, numbered markers on the map
-- OBD ingest (Torque Pro) and REST/WebSocket telemetry; auto trip segmentation
-- Hyundai Bluelink connected-car integration (beta, Korea-only) — real odometer, distance-to-empty, and warning-light status with no OBD dongle, with automatic odometer sync; each family member links their own account under Profile
-- Trip reports, route maps (OSM / Kakao / Naver / T map) with direction arrows; inline trip notes editing and reverse geocoding
-- Dashboard reminder badges and vehicle summary cards (including last fuel cost)
-- Per-vehicle care level & badges (gamification) screen
-- Consolidated navigation (removed top header bar, version indicator in More sheet)
-- Admin backup/restore, PWA, ko/en i18n
-- First-run admin bootstrap when the user table is empty
+문서: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md) · [`docs/PROGRESS.md`](./docs/PROGRESS.md)
 
 ---
 
-## Screenshots & how to use
+## 기능
 
-### 1. Dashboard
+- 차량·사용자·차량별 접근 ACL (관리자 / 일반)
+- 모바일 우선의 고정형 하단 네비게이션 바로 한 손 조작 편의성 극대화
+- 스마트 홈 리다이렉트: 계정에 등록된 차량이 1대뿐인 경우 차량 목록 대시보드를 건너뛰고 바로 차량 개요로 진입
+- 정비 + 행정·법정 스케줄, 거리·시간 이중 알림
+- 연료 타입별 정비 프리셋, 전역 행정·법정 프리셋
+- 주유 기록·영수증 첨부, 오피넷 주변 주유소(선택)
+- 전기차 충전소 찾기(한국환경공단 API, 선택) — 주유소와 마찬가지로 거리순/가격순 검색, 지도에 번호 마커로 표시
+- OBD 수집(Torque Pro), REST/WebSocket 텔레메트리, 자동 트립 분할
+- 현대 블루링크 커넥티드카 연동(베타, 국내 전용) — OBD 동글 없이 실제 주행거리·주행가능거리·경고등 조회, 오도미터 자동 동기화. 가족 구성원 각자 프로필에서 본인 계정 연동
+- 주행 리포트, 경로 지도 (OSM / 카카오 / 네이버 / T맵) 및 진행 방향 화살표, 주행 개별 메모 추가/편집 및 역지오코딩
+- 대시보드 알림 배지 및 차량 요약 카드 (최근 주유 비용 포함)
+- 차량별 관리 레벨·뱃지(게이미피케이션) 전용 화면
+- 네비게이션 구조 단일화 (상단 헤더 제거 및 버전 표시 더보기 시트 이동)
+- 관리자 백업/복원, PWA, 한/영 i18n
+- 사용자 없을 때 최초 관리자 부트스트랩
 
-Home screen after login. For multiple vehicles, it shows the unified mobile-first dashboard where each vehicle card displays current odometer, recent distance, last fuel cost, and overdue/upcoming reminders. The bottom navigation bar provides quick access to Home, Quick Log, and a More sheet for settings.
+---
+
+## 스크린샷 & 사용 방법
+
+### 1. 대시보드
+
+로그인 후 홈 화면입니다. 차량이 여러 대인 경우에는 통합 대시보드가 표시되어 모바일에 최적화된 화면에서 각 차량 카드별 현재 주행거리, 최근 주행 거리, 최근 주유 비용, 지남/임박 알림 건수를 한눈에 볼 수 있습니다. 하단 네비게이션 바를 통해 홈, 빠른 입력, 설정으로 바로 이동할 수 있습니다.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/01-dashboard.png" alt="Dashboard" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/01-dashboard.png" alt="대시보드" width="375" />
 </p>
 
-### 2. Vehicle overview (EV vs. ICE)
+### 2. 차량 개요 (전기차 vs. 내연차)
 
-Per-vehicle hub featuring summary cards, monthly expense charts, recent trip details next to the map, and tab views for **Overview**, **Schedule**, and **History**. EV screens display charging status and battery-related metrics, while ICE screens display fuel metrics and integration with Opinet gas stations.
+차량별 허브입니다. 최근 지출 요약 카드, 월간 비용 차트, 마지막 주행 정보 및 지도가 제공됩니다. 전기차 화면은 충전 상태와 배터리 관련 정보를 표시하며 주변 충전소 찾기가 연동되고, 내연차 화면은 연료 게이지와 오피넷 기반 주변 주유소 찾기 연동을 제공합니다.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle-ev.png" alt="Vehicle overview (EV)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/02-vehicle-ev.png" alt="차량 개요 (전기차)" width="375" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/02-vehicle-ice.png" alt="Vehicle overview (ICE)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/02-vehicle-ice.png" alt="차량 개요 (내연차)" width="375" />
 </p>
 
-### 3. Quick Log (EV vs. ICE)
+### 3. 빠른 입력 (전기차 vs. 내연차)
 
-Log fuel or maintenance quickly from anywhere. EV charging inputs support price per kWh and station search, whereas ICE fueling inputs support brand logos (Opinet), fuel volume, and price per liter.
+어디서나 주유/충전 및 정비를 바로 기록하는 화면입니다. 전기차는 충전 전력량(kWh) 입력, kWh당 단가, 충전소 검색을 지원하며, 내연차는 정유사 브랜드 로고 선택(오피넷), 주유량(L), 리터당 단가 입력을 지원합니다.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/03-quick-log-ev.png" alt="Quick Log (EV)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/03-quick-log-ev.png" alt="빠른 입력 (전기차)" width="375" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/03-quick-log-ice.png" alt="Quick Log (ICE)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/03-quick-log-ice.png" alt="빠른 입력 (내연차)" width="375" />
 </p>
 
-### 4. Schedule (EV vs. ICE)
+### 4. 정비 스케줄 (전기차 vs. 내연차)
 
-Distance- and time-based maintenance / administrative items. Intervals and defaults differ based on the vehicle type (engine oil and filter vs. EV battery coolant).
+거리 및 시간 기준 정비 스케줄과 행정 알림을 관리합니다. 엔진오일/오일필터 교체 주기(내연차 전용) 등 차종에 최적화된 정비 프리셋이 기본 적용됩니다.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/04-schedule-ev.png" alt="Schedule (EV)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/04-schedule-ev.png" alt="정비 스케줄 (전기차)" width="375" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/04-schedule-ice.png" alt="Schedule (ICE)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/04-schedule-ice.png" alt="정비 스케줄 (내연차)" width="375" />
 </p>
 
-### 5. History (EV vs. ICE)
+### 5. 내역 (전기차 vs. 내연차)
 
-Trips, charging/fuel logs, and maintenance history in one place. Fuel efficiency is calculated between full-tank fills (`km/L` / `L/100km`) for ICE, and energy usage metrics are displayed for EV.
+주행 리포트, 충전/주유 로그, 정비 이력을 한곳에 모아 보여줍니다. 내연차는 풀탱크 기준 주유 연비(`km/L`)가 자동 계산되고, 전기차는 에너지 소모량 지표를 중심으로 내역을 표시합니다.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/05-history-ev.png" alt="History (EV)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/05-history-ev.png" alt="내역 (전기차)" width="375" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/05-history-ice.png" alt="History (ICE)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/05-history-ice.png" alt="내역 (내연차)" width="375" />
 </p>
 
-### 6. Vehicle care level (EV vs. ICE)
+### 6. 차량 관리 레벨 (전기차 vs. 내연차)
 
-Gamification screen: logging logs consistently levels up the vehicle and earns badges, tracked independently per vehicle.
+주유/충전 및 정비를 꾸준히 기록해 경험치를 모으고 차량 레벨을 올려 뱃지를 획득하는 화면입니다.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/07-level-ev.png" alt="Vehicle care level (EV)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/07-level-ev.png" alt="차량 관리 레벨 (전기차)" width="375" />
   &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/07-level-ice.png" alt="Vehicle care level (ICE)" width="375" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/07-level-ice.png" alt="차량 관리 레벨 (내연차)" width="375" />
 </p>
 
-### 7. More Sheet menus (Admin & Account)
+### 7. 더보기 시트 메뉴 (관리 및 계정)
 
-Screens for managing vehicles, users, maintenance presets, API integrations, profile configurations, and backups, all accessible from the bottom navigation bar.
+차량 등록/관리, 사용자 추가/수정, 연료타입별 정비 프리셋 설정, 지도/날씨/알림 API 연동, 백업/복원, 그리고 개인 프로필 변경 등 모든 관리용 설정 기능을 하단 네비게이션 시트에서 간편하게 사용할 수 있습니다.
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/06-integrations.png" alt="API Integrations" width="240" />
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/08-vehicles.png" alt="Manage vehicles" width="240" />
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/09-users.png" alt="Manage users" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/06-integrations.png" alt="API 연동" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/08-vehicles.png" alt="차량 관리" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/09-users.png" alt="사용자 관리" width="240" />
 </p>
 <p align="center">
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/10-presets.png" alt="Maintenance presets" width="240" />
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/11-backup.png" alt="Backup & Restore" width="240" />
-  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/12-profile.png" alt="Profile settings" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/10-presets.png" alt="정비 프리셋" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/11-backup.png" alt="백업 및 복원" width="240" />
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/12-profile.png" alt="프로필 설정" width="240" />
 </p>
 
 ---
 
-## Quick start
+## 빠른 시작
 
-### 1. Install
+### 1. 설치
 
-**Proxmox (recommended)**
+**Proxmox (권장)**
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/eigger/garage/master/proxmox/ct/garage.sh)"
 ```
 
-Open `http://<LXC_IP>` when finished.
+완료 후 브라우저에서 `http://<LXC_IP>` 로 접속합니다.
 
 **Docker Compose**
 
@@ -132,41 +132,41 @@ Open `http://<LXC_IP>` when finished.
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-Set `POSTGRES_PASSWORD` and `JWT_SECRET` in `.env` first.
+시작 전에 `.env`에 `POSTGRES_PASSWORD`, `JWT_SECRET`을 설정하세요.
 
-### 2. Create the first admin
+### 2. 최초 관리자 생성
 
-On a fresh install, `/login` shows **Create first admin** when no users exist.
+신규 설치 시 사용자가 없으면 `/login`에 **최초 관리자 생성**이 표시됩니다.
 
-1. Open `/login`
-2. Enter name, email, password
-3. Submit — you are signed in as `ADMIN`
+1. `/login` 열기
+2. 이름·이메일·비밀번호 입력
+3. 제출 → `ADMIN`으로 로그인됨
 
-Public sign-up is disabled. Later accounts are created only by an admin under **Manage users**.
+공개 회원가입은 없습니다. 이후 계정은 관리자가 **사용자 관리**에서만 만듭니다.
 
-### 3. Register a vehicle
+### 3. 차량 등록
 
-1. Go to the bottom nav's **More sheet** → **Manage vehicles**
-2. Fill name, plate, make/model/year, **fuel type**
-3. Save
+1. 하단 네비게이션 바 **더보기 시트** → **차량 관리**
+2. 이름, 번호판, 제조사/모델/연식, **연료 타입** 입력
+3. 저장
 
-Garage copies maintenance presets for that fuel type and administrative/legal schedule items (inspection, insurance, tax, …). Manage defaults under **Manage maintenance presets** (also under More sheet).
+해당 연료 타입 정비 프리셋과 행정·법정 스케줄(검사, 보험, 세금 등)이 자동으로 복사됩니다. 기본값은 더보기 시트 아래의 **정비 마스터 프리셋 관리**에서 수정합니다.
 
-### 4. Day-to-day
+### 4. 일상 사용
 
-| Task | Where |
+| 할 일 | 위치 |
 |---|---|
-| Log fuel / maintenance | Bottom nav → **Quick Log** |
-| Edit schedule intervals | Vehicle → **Schedule** |
-| History, efficiency, trips | Vehicle → **History** |
-| OBD / Torque / REST token | Vehicle → gear → **OBD & GPS** |
-| Family accounts | Bottom nav More sheet → **Manage users** |
-| Opinet / map API keys | Bottom nav More sheet → **API Integrations** |
-| Backup / restore | Bottom nav More sheet → **Backup/Restore** |
+| 주유 / 정비 기록 | 하단 네비게이션 → **빠른 입력** |
+| 주기 수정 | 차량 → **정비 스케줄** |
+| 이력·연비·주행 | 차량 → **내역** |
+| OBD / Torque / REST 토큰 | 차량 → 톱니바퀴 → **OBD & GPS** |
+| 가족 계정 | 하단 네비게이션 더보기 시트 → **사용자 관리** |
+| 오피넷 / 지도 API 키 | 하단 네비게이션 더보기 시트 → **API 연동 관리** |
+| 백업 / 복원 | 하단 네비게이션 더보기 시트 → **백업/복원** |
 
-### 5. OBD / Home Assistant (short)
+### 5. OBD / Home Assistant (요약)
 
-Telemetry uses the vehicle `apiToken` (not the login JWT):
+텔레메트리는 로그인 JWT가 아니라 차량 `apiToken`을 사용합니다.
 
 ```http
 POST /api/ingest/telemetry
@@ -176,65 +176,65 @@ Content-Type: application/json
 { "speed": 65, "lat": 37.56, "lon": 126.97, "odometer": 45230, "inVehicle": true }
 ```
 
-The `apiToken` alone identifies the vehicle — no `vehicleId` in the URL needed.
+`apiToken` 자체가 차량을 특정하므로 URL에 별도 `vehicleId`가 필요 없습니다.
 
-Fuel / maintenance record APIs: [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md).  
-Copy the ingest URL and token from **Vehicles → OBD & GPS**.
+주유·정비 기록 API는 [`docs/INTEGRATIONS.md`](./docs/INTEGRATIONS.md)를 참고하세요.  
+수집 URL·토큰은 **차량 → OBD & GPS**에서 복사합니다.
 
 ---
 
-## Project structure
+## 프로젝트 구조
 
 ```
 garage/
   apps/
     api/      # Fastify + Prisma
-    web/      # Next.js App Router (PWA, ko/en)
+    web/      # Next.js App Router (PWA, 한/영)
   packages/
-    shared/   # Shared Zod schemas / catalogs
+    shared/   # 공유 Zod 스키마 / 카탈로그
   docker-compose.yml / docker-compose.prod.yml
   Caddyfile
-  proxmox/    # LXC one-click install
+  proxmox/    # LXC 원클릭 설치
 ```
 
 ---
 
-## Local development
+## 로컬 개발
 
 ```sh
 npm install
-cp .env.example .env   # set POSTGRES_PASSWORD, JWT_SECRET
+cp .env.example .env   # POSTGRES_PASSWORD, JWT_SECRET 설정
 docker compose up -d postgres
 npm run prisma:migrate
-npm run seed -w apps/api   # optional if you prefer seed admin over bootstrap UI
+npm run seed -w apps/api   # 부트스트랩 UI 대신 시드 관리자를 쓸 때
 npm run dev:api            # :8080
 npm run dev:web            # :3000
 ```
 
-Open `http://localhost:3000/login`.
+`http://localhost:3000/login` 으로 접속합니다.
 
-Useful scripts: `npm run build`, `npm run test`, `npm run prisma:generate`.
+유용한 스크립트: `npm run build`, `npm run test`, `npm run prisma:generate`.
 
 ---
 
-## Production notes
+## 운영 참고
 
-- Stack: PostgreSQL 16 + API + Web + Caddy (`:80`)
-- API runs `prisma migrate deploy` on startup (prod compose)
-- Images: `ghcr.io/<owner>/garage-api` / `garage-web` (`latest` + semver tags)
-- Update LXC: `update` in the container (pulls compose images)
+- 구성: PostgreSQL 16 + API + Web + Caddy (`:80`)
+- 프로덕션 compose에서 API 기동 시 `prisma migrate deploy` 실행
+- 이미지: `ghcr.io/<owner>/garage-api` / `garage-web` (`latest` + semver)
+- LXC 업데이트: 컨테이너에서 `update` (compose 이미지 pull)
 
 ---
 
 ## CI/CD
 
-| Workflow | Trigger | Purpose |
+| 워크플로 | 트리거 | 목적 |
 |---|---|---|
-| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | Push / PR to `master` | Install, build, test |
-| [`.github/workflows/docker-release.yml`](./.github/workflows/docker-release.yml) | GitHub Release | Push images to GHCR |
+| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | `master` Push / PR | 설치·빌드·테스트 |
+| [`.github/workflows/docker-release.yml`](./.github/workflows/docker-release.yml) | GitHub Release | GHCR 이미지 푸시 |
 
 ---
 
-## License
+## 라이선스
 
-MIT. See [LICENSE](./LICENSE).
+MIT. [LICENSE](./LICENSE) 참고.

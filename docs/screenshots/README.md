@@ -2,8 +2,8 @@
 
 | Path | Locale |
 |---|---|
-| `ko/*.png` | Korean UI — used by [`README.ko.md`](../../README.ko.md) |
-| `en/*.png` | English UI — used by [`README.md`](../../README.md) |
+| `ko/*.png` | Korean UI — used by [`README.md`](../../README.md) |
+| `en/*.png` | English UI — used by [`README.en.md`](../../README.en.md) |
 
 | File | Screen |
 |---|---|
