@@ -8,6 +8,9 @@ import { isActivePoint, type TripDetectionPoint } from "../lib/tripDetection.js"
 // 마지막 포인트로부터 이만큼 지나야 더 이상 데이터가 이어질 걱정 없이 트립을 닫는다.
 const TRIP_GAP_MINUTES = 10;
 const IDLE_SPEED_THRESHOLD_KMH = 3;
+// 이동거리도 없고 소요시간도 없는 세그먼트는 트립이 아니다 — 판정이 어긋나 단일 포인트가
+// 활성으로 잡히더라도 "0km 0분" 트립이 만들어지지 않도록 하는 안전망.
+const MIN_TRIP_DISTANCE_KM = 0.05;
 // 시동을 켜도 기기가 와이파이/데이터에 실제로 붙기까지 시간이 걸려서, 트립의 첫
 // 텔레메트리 포인트가 이미 주행 중인 지점부터 잡히는 경우가 흔하다. 지도 경로만
 // 직전에 기록된 위치(보통 마지막 주차 지점)에서 이어지도록 보정하되, 그 지점이
@@ -30,7 +33,7 @@ export async function closeTrips(): Promise<void> {
   }
 }
 
-async function closeTripsForVehicle(vehicleId: string): Promise<void> {
+export async function closeTripsForVehicle(vehicleId: string): Promise<void> {
   const points = await prisma.telemetryRaw.findMany({
     where: { vehicleId, tripId: null, lat: { not: null }, lon: { not: null } },
     orderBy: { time: "asc" },
@@ -48,10 +51,30 @@ async function closeTripsForVehicle(vehicleId: string): Promise<void> {
   });
   if (points.length === 0) return;
 
+  // 활성 판정의 기준이 되는 prev는 "실제 직전 텔레메트리"여야 한다. 위 조회는 아직 트립에
+  // 배정되지 않은 포인트만 가져오므로, 첫 포인트의 prev는 이미 배정된(=조회에서 빠진)
+  // 직전 포인트에서 따로 가져와야 한다 — 그러지 않으면 prev가 null이거나 한참 전 포인트가
+  // 되어 오도미터 증가 규칙이 엉뚱하게 발동한다.
+  const seedPrevRow = await prisma.telemetryRaw.findFirst({
+    where: { vehicleId, time: { lt: points[0].time }, lat: { not: null }, lon: { not: null } },
+    orderBy: { time: "desc" },
+    select: {
+      time: true,
+      lat: true,
+      lon: true,
+      speed: true,
+      rpm: true,
+      odometer: true,
+      source: true,
+      inVehicle: true,
+    },
+  });
+
   const activePoints: Point[] = [];
-  let prev: TripDetectionPoint | null = null;
+  let prev: TripDetectionPoint | null = seedPrevRow;
   for (const p of points) {
     const detection: TripDetectionPoint = {
+      time: p.time,
       lat: p.lat,
       lon: p.lon,
       speed: p.speed,
@@ -165,12 +188,19 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
 
   const routePolyline = encodeRoute(routePoints);
 
+  const startTime = segment[0].time;
+  const endTime = segment[segment.length - 1].time;
+  const durationSec = (endTime.getTime() - startTime.getTime()) / 1000;
+
+  // 움직인 것도 아니고 시간이 흐른 것도 아니면 트립으로 남기지 않는다.
+  if (finalDistance < MIN_TRIP_DISTANCE_KM && durationSec <= 0) return;
+
   await prisma.$transaction(async (tx) => {
     const t = await tx.trip.create({
       data: {
         vehicleId,
-        startTime: segment[0].time,
-        endTime: segment[segment.length - 1].time,
+        startTime,
+        endTime,
         distanceKm: Math.round(finalDistance * 100) / 100,
         avgSpeed: avgSpeed !== null ? Math.round(avgSpeed * 10) / 10 : null,
         idleTimeSec: Math.round(idleTimeSec),
@@ -178,8 +208,11 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
       },
     });
 
+    // 활성 포인트만 배정하면 트립 구간 안의 비활성 포인트(신호 대기 중 rpm 0 등)가 영원히
+    // 미배정으로 남아 매번 다시 조회되고, 그 잔여 포인트들이 서로의 prev가 되면서 가짜
+    // 트립을 계속 만들어낸다. 트립 시간 구간에 속한 포인트는 전부 이 트립에 배정한다.
     await tx.telemetryRaw.updateMany({
-      where: { id: { in: segment.map((p) => p.id) } },
+      where: { vehicleId, tripId: null, time: { gte: startTime, lte: endTime } },
       data: { tripId: t.id },
     });
   });
