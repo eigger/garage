@@ -19,6 +19,16 @@ import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type Tab = "fuel" | "maintenance";
 
+type FrequentStation = {
+  location: string;
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  opinetStationId: string | null;
+  /** 이 주유소에서 마지막으로 기록한 원/리터. 오피넷 실시간 조회가 안 될 때만 폴백으로 쓴다. */
+  lastUnitPrice: number | null;
+};
+
 function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -138,7 +148,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const [stationCoords, setStationCoords] = useState<{ lat: number; lon: number; name: string } | null>(null);
   const [unitPrice, setUnitPrice] = useState("");
   const [locLoading, setLocLoading] = useState(false);
-  const [frequentStations, setFrequentStations] = useState<Array<{ location: string; address: string | null; latitude: number | null; longitude: number | null }>>([]);
+  const [frequentStations, setFrequentStations] = useState<FrequentStation[]>([]);
   const mapConfig = useMapProviders();
   const [showSearchModal, setShowSearchModal] = useState(false);
 
@@ -175,11 +185,21 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       .catch(() => {});
   }, [vehicleId]);
 
+  // 단가를 채우면서 이미 입력된 금액/리터 중 하나가 있으면 나머지를 자동 계산한다.
+  // 오피넷 검색 선택과 단골 버튼 탭이 공통으로 쓴다.
+  function applyUnitPrice(price: number) {
+    setUnitPrice(String(price));
+    if (cost && Number(cost) > 0) {
+      setLiters(String((Number(cost) / price).toFixed(2)));
+    } else if (liters && Number(liters) > 0) {
+      setCost(String(Math.round(Number(liters) * price)));
+    }
+  }
+
   // 오피넷은 sort=2(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
   async function applyStation(station: OpinetStationSummary) {
     setSelectedStationId(station.id);
     setLocation(station.name);
-    setUnitPrice(String(station.price));
     setStationAddress(null);
     setStationCoords(null);
 
@@ -194,10 +214,39 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       }
     }
 
-    if (cost && Number(cost) > 0) {
-      setLiters(String((Number(cost) / station.price).toFixed(2)));
-    } else if (liters && Number(liters) > 0) {
-      setCost(String(Math.round(Number(liters) * station.price)));
+    applyUnitPrice(station.price);
+  }
+
+  // 단골 버튼 탭 — 상호·주소·좌표는 즉시 채우고, 단가는 가능한 한 정확한 값을 쓴다:
+  // 오피넷 연동이 있으면 실시간 가격을 다시 조회해서 채우고, 없으면 이 주유소에서
+  // 마지막으로 실제 냈던 단가를 폴백으로 채운다(오늘 가격과 다를 수 있어 저장 전
+  // 확인이 필요하지만, 매번 손으로 입력하는 것보다는 낫다). 이력·위치 수정 화면의
+  // 단골 버튼은 건드리지 않는다 — 거긴 상호/주소/좌표만 채우는 별개의 코드다.
+  async function applyFrequentStation(item: FrequentStation) {
+    setLocation(item.location);
+    setStationAddress(item.address);
+    setStationCoords(
+      item.latitude !== null && item.longitude !== null
+        ? { lat: item.latitude, lon: item.longitude, name: item.location }
+        : null,
+    );
+    setSelectedStationId(item.opinetStationId ?? "");
+
+    if (item.opinetStationId && opinetConfigured) {
+      const res = await apiFetch(`/api/opinet/stations/${item.opinetStationId}`);
+      if (res.ok) {
+        const detail = await res.json();
+        setStationAddress(detail.roadAddress || detail.address || item.address);
+        if (detail.lat !== null && detail.lon !== null) {
+          setStationCoords({ lat: detail.lat, lon: detail.lon, name: detail.name });
+        }
+        applyUnitPrice(detail.price);
+        return;
+      }
+    }
+
+    if (item.lastUnitPrice !== null) {
+      applyUnitPrice(item.lastUnitPrice);
     }
   }
 
@@ -437,20 +486,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
             <button
               key={idx}
               type="button"
-              onClick={() => {
-                setLocation(item.location);
-                setStationAddress(item.address);
-                if (item.latitude !== null && item.longitude !== null) {
-                  setStationCoords({
-                    lat: item.latitude,
-                    lon: item.longitude,
-                    name: item.location,
-                  });
-                } else {
-                  setStationCoords(null);
-                }
-                setSelectedStationId("");
-              }}
+              onClick={() => applyFrequentStation(item)}
               style={{
                 fontSize: "11px",
                 padding: "4px 8px",
