@@ -1,4 +1,4 @@
-﻿-- CreateTable
+-- CreateTable
 CREATE TABLE "CheonanCardMerchant" (
     "konaSeq" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
