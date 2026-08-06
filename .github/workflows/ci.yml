@@ -111,6 +111,11 @@ jobs:
       - name: Run Prisma Migrate
         run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma --config apps/api/prisma.config.ts
 
+      # @garage/shared는 dist/를 가리키므로(패키지 main), 테스트 import 전에 빌드가 필요하다.
+      # 루트 `npm test`는 build:shared를 포함하지만, 이 잡은 test:integration만 직접 호출한다.
+      - name: Build shared package
+        run: npm run build:shared
+
       - name: Run backup/restore integration tests
         run: npm run test:integration -w apps/api
 
