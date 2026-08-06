@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
@@ -20,14 +19,26 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [checkingBootstrap, setCheckingBootstrap] = useState(true);
   const [needsBootstrap, setNeedsBootstrap] = useState(false);
+  const [bootstrapUnreachable, setBootstrapUnreachable] = useState(false);
 
-  useEffect(() => {
+  // API가 죽어 있을 때 이 조회를 '사용자가 있다'로 뭉개면, 설치가 실패한 상태가
+  // 평범한 로그인 화면으로 위장돼 원인을 찾기 어렵다. 실패는 실패로 드러낸다.
+  const checkBootstrap = useCallback(() => {
+    setCheckingBootstrap(true);
+    setBootstrapUnreachable(false);
     fetch(`${API_URL}/api/auth/bootstrap/status`)
-      .then((res) => (res.ok ? res.json() : { needsBootstrap: false }))
-      .then((data: { needsBootstrap: boolean }) => setNeedsBootstrap(data.needsBootstrap))
-      .catch(() => setNeedsBootstrap(false))
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`bootstrap status ${res.status}`);
+        const data: { needsBootstrap: boolean } = await res.json();
+        setNeedsBootstrap(data.needsBootstrap);
+      })
+      .catch(() => setBootstrapUnreachable(true))
       .finally(() => setCheckingBootstrap(false));
   }, []);
+
+  useEffect(() => {
+    checkBootstrap();
+  }, [checkBootstrap]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -101,6 +112,20 @@ export default function LoginPage() {
     return (
       <main className="container">
         <PageLoader />
+      </main>
+    );
+  }
+
+  // 서버에 닿지 못하면 로그인 폼을 띄우지 않는다 — 아직 설치가 끝나지 않았거나 API가
+  // 죽은 상태이고, 여기서 로그인 시도를 시켜봐야 실패만 반복된다.
+  if (bootstrapUnreachable) {
+    return (
+      <main className="container">
+        <h1>{t("appTitle")}</h1>
+        <p style={{ color: "var(--color-danger)" }}>{t("connectionError")}</p>
+        <button type="button" onClick={checkBootstrap}>
+          {t("retry")}
+        </button>
       </main>
     );
   }
