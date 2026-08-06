@@ -121,7 +121,8 @@ export default function VehiclesPage() {
               {v.name} {v.plate ? `(${v.plate})` : ""}
               {v.fuelType ? ` · ${t(fuelTypeLabelKey(v.fuelType))}` : ""}
             </Link>
-            {isAdmin && (
+            {/* 관리자이거나 본인이 등록한 차량일 때만 삭제할 수 있다(서버도 같은 규칙으로 막는다). */}
+            {(isAdmin || v.createdByUserId === user.id) && (
               <button
                 type="button"
                 className="btn-action btn-action-danger"
@@ -135,8 +136,9 @@ export default function VehiclesPage() {
         ))}
       </ul>
 
-      {isAdmin && (
-        <>
+      {/* 차량 등록은 일반 사용자도 할 수 있다 — 등록하면 그 차량은 자동으로 본인 목록에 들어오고,
+          가족과 함께 쓰려면 차량 상세의 "차량 공유"에서 구성원을 추가하면 된다. */}
+      <>
           <h2>{t("addVehicle")}</h2>
           <form onSubmit={handleSubmit} className="form" noValidate>
             <input
@@ -185,7 +187,6 @@ export default function VehiclesPage() {
             {error && <p className="error-text">{error}</p>}
           </form>
         </>
-      )}
     </main>
   );
 }

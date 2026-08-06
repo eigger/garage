@@ -44,12 +44,14 @@ function extractVehicleId(pathname: string | null): string | null {
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isPending, logout } = useAuth();
   const { t, locale } = useSettings();
   const [moreOpen, setMoreOpen] = useState(false);
   const [lastVehicleId, setLastVehicleIdState] = useState<string | null>(null);
   const [updateInfo, setUpdateInfo] = useState<{ latestVersion: string; updateAvailable: boolean } | null>(null);
   const [dueCount, setDueCount] = useState(0);
+  // 현재 보고 있는 차량을 이 사용자가 관리할 수 있는지 — 접근권한·연동 메뉴 노출 여부를 가른다.
+  const [canManageVehicle, setCanManageVehicle] = useState(false);
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
@@ -68,13 +70,16 @@ export function BottomNav() {
   useEffect(() => {
     if (!user || !vehicleId) {
       setDueCount(0);
+      setCanManageVehicle(false);
       return;
     }
     Promise.all([
       apiFetch(`/api/consumable-parts?vehicleId=${vehicleId}`),
       apiFetch(`/api/vehicles/${vehicleId}/odometer`),
+      apiFetch(`/api/vehicles/${vehicleId}`),
     ])
-      .then(async ([partsRes, odoRes]) => {
+      .then(async ([partsRes, odoRes, vehicleRes]) => {
+        setCanManageVehicle(vehicleRes.ok ? (await vehicleRes.json()).canManage === true : false);
         if (!partsRes.ok || !odoRes.ok) {
           setDueCount(0);
           return;
@@ -83,7 +88,10 @@ export function BottomNav() {
         const odometer = (await odoRes.json()).odometer as number;
         setDueCount(countScheduleStatuses(parts, odometer).due);
       })
-      .catch(() => setDueCount(0));
+      .catch(() => {
+        setDueCount(0);
+        setCanManageVehicle(false);
+      });
   }, [user, vehicleId]);
 
   useEffect(() => {
@@ -116,7 +124,8 @@ export function BottomNav() {
     setMoreOpen(false);
   }, [pathname]);
 
-  if (!user || pathname === "/login") return null;
+  // 승인 대기 계정은 어느 탭을 눌러도 403만 받는다 — 네비게이션 자체를 감춘다.
+  if (!user || isPending || pathname === "/login") return null;
 
   const basePath = vehicleId ? `/vehicles/${vehicleId}` : null;
 
@@ -272,12 +281,12 @@ export function BottomNav() {
                   <button type="button" className="sheet-item" onClick={() => go(`${basePath}/level`)}>
                     <AwardIcon size={20} /> {t("navLevel")}
                   </button>
-                  {isAdmin && (
+                  {canManageVehicle && (
                     <button type="button" className="sheet-item" onClick={() => go(`${basePath}/access`)}>
                       <LockIcon size={20} /> {t("navAccess")}
                     </button>
                   )}
-                  {isAdmin && (
+                  {canManageVehicle && (
                     <button type="button" className="sheet-item" onClick={() => go(`${basePath}/integration`)}>
                       <LinkIcon size={20} /> {t("navIntegration")}
                     </button>
@@ -286,13 +295,15 @@ export function BottomNav() {
               </>
             )}
 
-            {isAdmin && (
-              <>
-                <div className="sheet-group-label">{t("navMoreMenuHeading")}</div>
-                <div className="sheet-grid">
-                  <button type="button" className="sheet-item" onClick={() => go("/vehicles")}>
-                    <CarIcon size={20} /> {t("manageVehicles")}
-                  </button>
+            {/* 차량 관리는 일반 사용자에게도 열어둔다 — 자기 차량을 직접 등록하려면 이 화면이
+                유일한 입구다. 사용자 관리·프리셋·연동키는 관리자 전용으로 남긴다. */}
+            <div className="sheet-group-label">{t("navMoreMenuHeading")}</div>
+            <div className="sheet-grid">
+              <button type="button" className="sheet-item" onClick={() => go("/vehicles")}>
+                <CarIcon size={20} /> {t("manageVehicles")}
+              </button>
+              {isAdmin && (
+                <>
                   <button type="button" className="sheet-item" onClick={() => go("/users")}>
                     <UsersIcon size={20} /> {t("manageUsers")}
                   </button>
@@ -305,9 +316,9 @@ export function BottomNav() {
                   <button type="button" className="sheet-item" onClick={() => go("/api-explorer")}>
                     <TerminalIcon size={20} /> {t("navApiExplorer")}
                   </button>
-                </div>
-              </>
-            )}
+                </>
+              )}
+            </div>
 
             <div className="sheet-group-label">{t("navAccountMenuHeading")}</div>
             <div className="sheet-grid">

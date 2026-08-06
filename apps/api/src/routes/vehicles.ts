@@ -15,7 +15,7 @@ import {
   BADGE_KEYS,
 } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
-import { canAccessVehicle } from "../lib/access.js";
+import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
 import { syncReminders } from "../jobs/reminders.js";
@@ -81,15 +81,31 @@ async function applyPresetsToVehicle(vehicleId: string, fuelType: string): Promi
   });
 }
 
-// apiToken은 인증 없이 텔레메트리를 주입할 수 있는 자격 증명이라 관리자만 봐야 한다.
-// 접근권한만 있는 일반 사용자에게는 나머지 필드는 그대로 두고 이 필드만 가린다.
-function omitApiTokenUnlessAdmin<T extends { apiToken?: string | null }>(
+// apiToken은 인증 없이 텔레메트리를 주입할 수 있는 자격 증명이라, 그 차량을 관리할 수
+// 있는 사람(관리자 또는 등록자)만 봐야 한다. 접근권한만 있는 사용자에게는 나머지 필드는
+// 그대로 두고 이 필드만 가린다.
+function omitApiTokenUnlessManager<T extends { apiToken?: string | null }>(
   vehicle: T,
-  role: "ADMIN" | "GENERAL",
+  canManage: boolean,
 ): T {
-  if (role === "ADMIN") return vehicle;
+  if (canManage) return vehicle;
   const { apiToken, ...rest } = vehicle;
   return rest as T;
+}
+
+// "위치 열람 허용"이 꺼진 사용자에게는 좌표·속도를 아예 내려주지 않는다. 예전에는 이
+// 플래그가 저장만 되고 어디서도 검사되지 않아서, 관리자가 체크를 꺼둬도 실제로는 위치가
+// 그대로 보이고 있었다.
+function omitLocationUnlessAllowed<
+  T extends {
+    latitude?: number | null;
+    longitude?: number | null;
+    locationUpdatedAt?: Date | string | null;
+    speed?: number | null;
+  },
+>(vehicle: T, canViewLocation: boolean): T {
+  if (canViewLocation) return vehicle;
+  return { ...vehicle, latitude: null, longitude: null, locationUpdatedAt: null, speed: null };
 }
 
 export async function vehicleRoutes(app: FastifyInstance) {
@@ -103,14 +119,15 @@ export async function vehicleRoutes(app: FastifyInstance) {
     const vehicles = await prisma.vehicle.findMany({
       where: { access: { some: { userId: sub } } },
     });
-    return vehicles.map((v) => omitApiTokenUnlessAdmin(v, role));
+    return vehicles.map((v) => omitApiTokenUnlessManager(v, v.createdByUserId === sub));
   });
 
   app.get("/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const { sub, role } = request.user;
 
-    if (!(await canAccessVehicle(sub, role, id))) {
+    const access = await getVehicleAccess(sub, role, id);
+    if (!access.canAccess) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
@@ -168,31 +185,52 @@ export async function vehicleRoutes(app: FastifyInstance) {
       locationUpdatedAt: latestLocation?.time ?? null,
       speed: latestLocation?.speed ?? null,
       currentInsurer: latestInsuranceRecord?.shop ?? null,
+      canManage: access.canManage,
+      canViewLocation: access.canViewLocation,
     };
 
-    return omitApiTokenUnlessAdmin(responseData, role);
+    return omitLocationUnlessAllowed(
+      omitApiTokenUnlessManager(responseData, access.canManage),
+      access.canViewLocation,
+    );
   });
 
-  // 차량 등록/수정/삭제는 관리자만.
-  app.post("/", { preHandler: [app.requireAdmin] }, async (request, reply) => {
+  // 차량 등록은 일반 사용자도 할 수 있다. 등록한 사람에게는 그 차량의 접근권한을 바로
+  // 부여하고(안 그러면 자기가 만든 차량이 목록에 뜨지 않는다) 등록자로 기록해둔다 —
+  // 이후 수정·삭제·가족 공유를 관리자 없이 스스로 할 수 있게 하기 위해서다.
+  app.post("/", async (request, reply) => {
     const parsed = vehicleSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-    const vehicle = await prisma.vehicle.create({
-      data: {
-        ...parsed.data,
-        apiToken: randomUUID(),
-      },
+    const { sub } = request.user;
+    const vehicle = await prisma.$transaction(async (tx) => {
+      const created = await tx.vehicle.create({
+        data: {
+          ...parsed.data,
+          apiToken: randomUUID(),
+          createdByUserId: sub,
+        },
+      });
+      await tx.userVehicleAccess.create({
+        data: { userId: sub, vehicleId: created.id, canViewLocation: true },
+      });
+      return created;
     });
+
     if (vehicle.fuelType) await applyPresetsToVehicle(vehicle.id, vehicle.fuelType);
     await ensureAdminSchedule(vehicle.id);
     return reply.code(201).send(vehicle);
   });
 
-  app.patch("/:id", { preHandler: [app.requireAdmin] }, async (request, reply) => {
+  app.patch("/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
     const parsed = vehicleUpdateSchema.safeParse(request.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+
+    const { sub, role } = request.user;
+    if (!(await getVehicleAccess(sub, role, id)).canManage) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
 
     const existing = await prisma.vehicle.findUnique({ where: { id } });
     if (!existing) return reply.code(404).send({ error: "vehicle not found" });
@@ -208,8 +246,12 @@ export async function vehicleRoutes(app: FastifyInstance) {
     return vehicle;
   });
 
-  app.delete("/:id", { preHandler: [app.requireAdmin] }, async (request, reply) => {
+  app.delete("/:id", async (request, reply) => {
     const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await getVehicleAccess(sub, role, id)).canManage) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
     await prisma.vehicle.delete({ where: { id } });
     return reply.code(204).send();
   });
@@ -636,9 +678,16 @@ export async function vehicleRoutes(app: FastifyInstance) {
     };
   });
 
-  // 일반 사용자별 차량 접근권한 + 실시간 위치 열람 플래그 관리. 관리자 전용.
-  app.get("/:id/access", { preHandler: [app.requireAdmin] }, async (request) => {
+  // 차량별 접근권한 + 실시간 위치 열람 플래그 관리. 관리자뿐 아니라 그 차량을 등록한
+  // 사람도 다룰 수 있다 — 부부가 같은 차를 함께 쓰는 것처럼, 한 차량을 여러 명이 보는 게
+  // 기본 사용 형태인데 매번 관리자를 거쳐야 하면 공유가 사실상 막힌다.
+  app.get("/:id/access", async (request, reply) => {
     const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await getVehicleAccess(sub, role, id)).canManage) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
     const access = await prisma.userVehicleAccess.findMany({
       where: { vehicleId: id },
       include: { user: { select: { id: true, name: true, email: true } } },
@@ -651,53 +700,77 @@ export async function vehicleRoutes(app: FastifyInstance) {
     }));
   });
 
-  app.put(
-    "/:id/access/:userId",
-    { preHandler: [app.requireAdmin] },
-    async (request, reply) => {
-      const { id, userId } = request.params as { id: string; userId: string };
-      const parsed = vehicleAccessSchema.safeParse(request.body);
-      if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
+  app.put("/:id/access/:userId", async (request, reply) => {
+    const { id, userId } = request.params as { id: string; userId: string };
+    const parsed = vehicleAccessSchema.safeParse(request.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.flatten() });
 
-      const access = await prisma.userVehicleAccess.upsert({
-        where: { userId_vehicleId: { userId, vehicleId: id } },
-        update: { canViewLocation: parsed.data.canViewLocation },
-        create: { userId, vehicleId: id, canViewLocation: parsed.data.canViewLocation },
-      });
-      return access;
-    },
-  );
+    const { sub, role } = request.user;
+    if (!(await getVehicleAccess(sub, role, id)).canManage) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
 
-  app.delete(
-    "/:id/access/:userId",
-    { preHandler: [app.requireAdmin] },
-    async (request, reply) => {
-      const { id, userId } = request.params as { id: string; userId: string };
-      const existing = await prisma.userVehicleAccess.findUnique({
-        where: { userId_vehicleId: { userId, vehicleId: id } },
-      });
-      if (!existing) return reply.code(404).send({ error: "access not found" });
+    // 승인 대기 중인 계정에 미리 권한을 붙여둘 수는 없다 — 승인 절차를 우회하는 셈이 된다.
+    const target = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { status: true },
+    });
+    if (!target) return reply.code(404).send({ error: "user not found" });
+    if (target.status !== "ACTIVE") {
+      return reply.code(400).send({ error: "user not active" });
+    }
 
-      await prisma.userVehicleAccess.delete({
-        where: { userId_vehicleId: { userId, vehicleId: id } },
-      });
-      return reply.code(204).send();
-    },
-  );
+    const access = await prisma.userVehicleAccess.upsert({
+      where: { userId_vehicleId: { userId, vehicleId: id } },
+      update: { canViewLocation: parsed.data.canViewLocation },
+      create: { userId, vehicleId: id, canViewLocation: parsed.data.canViewLocation },
+    });
+    return access;
+  });
 
-  app.post(
-    "/:id/token/reset",
-    { preHandler: [app.requireAdmin] },
-    async (request, reply) => {
-      const { id } = request.params as { id: string };
-      const existing = await prisma.vehicle.findUnique({ where: { id } });
-      if (!existing) return reply.code(404).send({ error: "vehicle not found" });
+  app.delete("/:id/access/:userId", async (request, reply) => {
+    const { id, userId } = request.params as { id: string; userId: string };
+    const { sub, role } = request.user;
+    if (!(await getVehicleAccess(sub, role, id)).canManage) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
 
-      const updated = await prisma.vehicle.update({
-        where: { id },
-        data: { apiToken: randomUUID() },
-      });
-      return { apiToken: updated.apiToken };
-    },
-  );
+    const existing = await prisma.userVehicleAccess.findUnique({
+      where: { userId_vehicleId: { userId, vehicleId: id } },
+    });
+    if (!existing) return reply.code(404).send({ error: "access not found" });
+
+    // 등록자 본인의 접근권한까지 빼버리면 그 차량은 목록에서 사라지는데 관리 권한은
+    // createdByUserId에 남아 있어서 상태가 어긋난다. 등록자는 차량을 삭제할 수는 있어도
+    // 자기 자신을 공유 목록에서 뺄 수는 없게 한다.
+    const vehicle = await prisma.vehicle.findUnique({
+      where: { id },
+      select: { createdByUserId: true },
+    });
+    if (vehicle?.createdByUserId === userId) {
+      return reply.code(400).send({ error: "cannot remove the vehicle owner" });
+    }
+
+    await prisma.userVehicleAccess.delete({
+      where: { userId_vehicleId: { userId, vehicleId: id } },
+    });
+    return reply.code(204).send();
+  });
+
+  app.post("/:id/token/reset", async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const { sub, role } = request.user;
+    if (!(await getVehicleAccess(sub, role, id)).canManage) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    const existing = await prisma.vehicle.findUnique({ where: { id } });
+    if (!existing) return reply.code(404).send({ error: "vehicle not found" });
+
+    const updated = await prisma.vehicle.update({
+      where: { id },
+      data: { apiToken: randomUUID() },
+    });
+    return { apiToken: updated.apiToken };
+  });
 }

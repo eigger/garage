@@ -1,36 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
-import type { User, VehicleAccess } from "../../../../lib/types";
-import type { TranslationKey } from "../../../../lib/i18n/translations";
-
-type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
+import { useConfirm } from "../../../../lib/confirm-context";
+import { PageLoader } from "../../../../components/PageLoader";
+import type { DirectoryUser, Vehicle, VehicleAccess } from "../../../../lib/types";
 
 export default function VehicleAccessPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
+  const router = useRouter();
   const { t } = useSettings();
-
-  return <VehicleAccessSection vehicleId={vehicleId} t={t} />;
-}
-
-function VehicleAccessSection({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const { showToast } = useToast();
-  const [users, setUsers] = useState<User[]>([]);
+  const confirm = useConfirm();
+
+  const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  const [directory, setDirectory] = useState<DirectoryUser[]>([]);
   const [access, setAccess] = useState<VehicleAccess[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function load() {
-    const [usersRes, accessRes] = await Promise.all([
-      apiFetch("/api/auth/users"),
+    const [vehicleRes, directoryRes, accessRes] = await Promise.all([
+      apiFetch(`/api/vehicles/${vehicleId}`),
+      apiFetch("/api/auth/users/directory"),
       apiFetch(`/api/vehicles/${vehicleId}/access`),
     ]);
-    if (usersRes.ok) setUsers(await usersRes.json());
-    if (accessRes.ok) setAccess(await accessRes.json());
+    // 관리 권한이 없으면 접근권한 조회 자체가 403이다 — 차량 화면으로 돌려보낸다.
+    if (!accessRes.ok) {
+      router.replace(`/vehicles/${vehicleId}`);
+      return;
+    }
+    if (vehicleRes.ok) setVehicle(await vehicleRes.json());
+    if (directoryRes.ok) setDirectory(await directoryRes.json());
+    setAccess(await accessRes.json());
     setLoading(false);
   }
 
@@ -38,83 +45,141 @@ function VehicleAccessSection({ vehicleId, t }: { vehicleId: string; t: Translat
     load();
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function setHasAccess(userId: string, hasAccess: boolean) {
-    const res = hasAccess
-      ? await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
-          method: "PUT",
-          body: JSON.stringify({ canViewLocation: false }),
-        })
-      : await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, { method: "DELETE" });
-    if (res.ok) {
-      showToast(t("toastSaved"), "success");
-    } else {
-      showToast(t("toastError"), "error");
+  async function addMember(userId: string) {
+    setBusy(true);
+    try {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
+        method: "PUT",
+        body: JSON.stringify({ canViewLocation: false }),
+      });
+      showToast(res.ok ? t("toastSaved") : t("toastError"), res.ok ? "success" : "error");
+      setSelectedUserId("");
+      await load();
+    } finally {
+      setBusy(false);
     }
-    await load();
+  }
+
+  async function removeMember(userId: string) {
+    if (!(await confirm(t("removeAccessConfirm")))) return;
+    setBusy(true);
+    try {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
+        method: "DELETE",
+      });
+      showToast(res.ok ? t("toastDeleted") : t("toastError"), res.ok ? "success" : "error");
+      await load();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function setCanViewLocation(userId: string, canViewLocation: boolean) {
-    const res = await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
-      method: "PUT",
-      body: JSON.stringify({ canViewLocation }),
-    });
-    if (res.ok) {
-      showToast(t("toastSaved"), "success");
-    } else {
-      showToast(t("toastError"), "error");
+    setBusy(true);
+    try {
+      const res = await apiFetch(`/api/vehicles/${vehicleId}/access/${userId}`, {
+        method: "PUT",
+        body: JSON.stringify({ canViewLocation }),
+      });
+      showToast(res.ok ? t("toastSaved") : t("toastError"), res.ok ? "success" : "error");
+      await load();
+    } finally {
+      setBusy(false);
     }
-    await load();
   }
 
-  if (loading) return null;
+  if (loading) return <PageLoader />;
 
-  const generalUsers = users.filter((u) => u.role === "GENERAL");
+  const sharedIds = new Set(access.map((a) => a.userId));
+  const addable = directory.filter((d) => !sharedIds.has(d.id));
+  const ownerId = vehicle?.createdByUserId ?? null;
 
   return (
-    <section>
-      <h2>{t("vehicleAccessHeading")}</h2>
-      {generalUsers.length === 0 ? (
-        <p>{t("noGeneralUsers")}</p>
+    <section className="card">
+      <h2 style={{ margin: "0 0 4px", fontSize: 16 }}>{t("shareVehicleHeading")}</h2>
+      <p style={{ margin: "0 0 12px", fontSize: 13, color: "var(--color-text-muted)" }}>
+        {t("shareVehicleDesc")}
+      </p>
+
+      {access.length === 0 ? (
+        <p style={{ fontSize: 14, color: "var(--color-text-muted)" }}>{t("noGeneralUsers")}</p>
       ) : (
         <ul className="list">
-          {generalUsers.map((u) => {
-            const entry = access.find((a) => a.userId === u.id);
-            const hasAccess = !!entry;
-            return (
-              <li
-                key={u.id}
-                className="list-item"
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}
-              >
-                <span>
-                  {u.name} ({u.email})
+          {access.map((a) => (
+            <li key={a.userId} className="list-item" style={{ display: "block" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <span style={{ minWidth: 0 }}>
+                  {a.name}
+                  {a.userId === ownerId && (
+                    <span style={{ marginLeft: 6, fontSize: 12, color: "var(--color-text-muted)" }}>
+                      ({t("vehicleOwnerLabel")})
+                    </span>
+                  )}
+                  <br />
+                  <span style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{a.email}</span>
                 </span>
-                <span style={{ display: "flex", gap: 16, flexShrink: 0 }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
-                    <input
-                      type="checkbox"
-                      checked={hasAccess}
-                      onChange={(e) => setHasAccess(u.id, e.target.checked)}
-                      style={{ minHeight: "auto", width: "auto" }}
-                    />
-                    {t("accessAllowed")}
-                  </label>
-                  <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 14 }}>
-                    <input
-                      type="checkbox"
-                      checked={entry?.canViewLocation ?? false}
-                      disabled={!hasAccess}
-                      onChange={(e) => setCanViewLocation(u.id, e.target.checked)}
-                      style={{ minHeight: "auto", width: "auto" }}
-                    />
-                    {t("viewLocationAllowed")}
-                  </label>
-                </span>
-              </li>
-            );
-          })}
+                {/* 등록자를 공유 목록에서 빼면 자기 차량이 목록에서 사라지므로 서버가 막는다. */}
+                {a.userId !== ownerId && (
+                  <button
+                    type="button"
+                    className="btn-action btn-action-danger"
+                    disabled={busy}
+                    onClick={() => removeMember(a.userId)}
+                    style={{ flexShrink: 0 }}
+                  >
+                    {t("removeAccess")}
+                  </button>
+                )}
+              </div>
+              <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, marginTop: 8 }}>
+                <input
+                  type="checkbox"
+                  checked={a.canViewLocation}
+                  disabled={busy}
+                  onChange={(e) => setCanViewLocation(a.userId, e.target.checked)}
+                  style={{ minHeight: "auto", width: "auto" }}
+                />
+                {t("viewLocationAllowed")}
+              </label>
+            </li>
+          ))}
         </ul>
       )}
+
+      <div style={{ marginTop: 16 }}>
+        <div style={{ fontSize: 13, marginBottom: 6 }}>{t("addMember")}</div>
+        {addable.length === 0 ? (
+          <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
+            {t("noMembersToAdd")}
+          </p>
+        ) : (
+          <div style={{ display: "flex", gap: 8 }}>
+            <select
+              className="form-select"
+              value={selectedUserId}
+              disabled={busy}
+              onChange={(e) => setSelectedUserId(e.target.value)}
+              style={{ flex: 1 }}
+            >
+              <option value="">{t("selectMember")}</option>
+              {addable.map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn-action"
+              disabled={busy || !selectedUserId}
+              onClick={() => addMember(selectedUserId)}
+              style={{ flexShrink: 0 }}
+            >
+              {t("save")}
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

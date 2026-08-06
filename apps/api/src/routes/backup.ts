@@ -153,6 +153,30 @@ export async function backupRoutes(app: FastifyInstance) {
         }));
       }
 
+      // 이메일 소문자 정규화 이전에 만들어진 백업에는 대소문자가 섞인 주소가 들어있을 수 있다.
+      // 로그인은 입력을 소문자로 맞춰 조회하므로, 그대로 복원하면 그 계정은 비밀번호가 맞아도
+      // 영영 로그인되지 않는다 — 마이그레이션과 똑같이 여기서도 정규화한다.
+      if (Array.isArray(dbData.users)) {
+        dbData.users = dbData.users.map((u: Record<string, unknown>) => ({
+          ...u,
+          email: typeof u.email === "string" ? u.email.trim().toLowerCase() : u.email,
+        }));
+
+        // 정규화하면 서로 충돌하는 계정이 있으면 unique 위반으로 복원 전체가 실패한다.
+        // 어떤 주소가 문제인지 알려주지 않으면 원인을 찾을 방법이 없다.
+        const seen = new Map<string, number>();
+        for (const u of dbData.users as Array<{ email?: string }>) {
+          if (typeof u.email !== "string") continue;
+          seen.set(u.email, (seen.get(u.email) ?? 0) + 1);
+        }
+        const conflicts = [...seen.entries()].filter(([, n]) => n > 1).map(([email]) => email);
+        if (conflicts.length > 0) {
+          return reply.code(400).send({
+            error: `Backup contains accounts whose emails differ only by case: ${conflicts.join(", ")}. Remove or rename the duplicates in the backup before restoring.`,
+          });
+        }
+      }
+
       // 4. Run DB transaction to restore data
       // We clear tables in reverse dependency order, and insert in correct order
       await prisma.$transaction(async (tx) => {

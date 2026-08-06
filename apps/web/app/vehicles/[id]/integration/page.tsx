@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { apiFetch } from "../../../../lib/api";
-import { useAuth } from "../../../../lib/auth-context";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../../components/PageLoader";
 import { useToast } from "../../../../lib/toast-context";
@@ -16,7 +15,6 @@ import { SmartphoneIcon, HomeIcon } from "../../../../components/icons";
 export default function VehicleIntegrationPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
-  const { isAdmin } = useAuth();
   const { t, formatDistance } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -138,7 +136,7 @@ export default function VehicleIntegrationPage() {
   }
 
   if (loading) return <PageLoader />;
-  if (!isAdmin || !vehicle) return null;
+  if (!vehicle?.canManage) return null;
 
   const linkedCandidate = hyundaiCandidates.find((c) => c.carId === hyundaiCarId);
 

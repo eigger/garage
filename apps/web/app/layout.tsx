@@ -7,6 +7,7 @@ import { AuthProvider } from "../lib/auth-context";
 import { ToastProvider } from "../lib/toast-context";
 import { ConfirmProvider } from "../lib/confirm-context";
 import { BottomNav } from "../components/BottomNav";
+import { PendingApprovalGate } from "../components/PendingApprovalGate";
 
 export const metadata: Metadata = {
   title: "Garage",
@@ -41,7 +42,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <ToastProvider>
             <ConfirmProvider>
               <AuthProvider>
-                {children}
+                <PendingApprovalGate>{children}</PendingApprovalGate>
                 <BottomNav />
               </AuthProvider>
             </ConfirmProvider>

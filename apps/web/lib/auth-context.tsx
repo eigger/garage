@@ -9,6 +9,9 @@ interface AuthContextValue {
   user: User | null;
   loading: boolean;
   isAdmin: boolean;
+  // 회원가입 직후 관리자 승인을 기다리는 상태. 로그인은 돼 있지만 데이터 API는 전부 403이라
+  // 일반 화면을 그리면 안 된다 — layout에서 승인 대기 화면으로 대체한다.
+  isPending: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
   requireAuth: () => void;
@@ -28,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     const res = await apiFetch("/api/auth/me");
+    // 401은 토큰이 만료됐거나(90일) 서버가 세션을 무효화한 경우 — 비밀번호 초기화나
+    // 계정 삭제 직후가 여기에 해당한다. 남은 토큰을 지우고 로그인 화면으로 돌린다.
     if (res.status === 401) {
       clearToken();
       setUser(null);
@@ -63,7 +68,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, isAdmin: user?.role === "ADMIN", login, logout, requireAuth }}
+      value={{
+        user,
+        loading,
+        isAdmin: user?.role === "ADMIN" && user?.status === "ACTIVE",
+        isPending: user?.status === "PENDING",
+        login,
+        logout,
+        requireAuth,
+      }}
     >
       {children}
     </AuthContext.Provider>

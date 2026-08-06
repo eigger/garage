@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [checkingBootstrap, setCheckingBootstrap] = useState(true);
   const [needsBootstrap, setNeedsBootstrap] = useState(false);
   const [bootstrapUnreachable, setBootstrapUnreachable] = useState(false);
+  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [signUpDone, setSignUpDone] = useState(false);
 
   // API가 죽어 있을 때 이 조회를 '사용자가 있다'로 뭉개면, 설치가 실패한 상태가
   // 평범한 로그인 화면으로 위장돼 원인을 찾기 어렵다. 실패는 실패로 드러낸다.
@@ -57,6 +59,48 @@ export default function LoginPage() {
       const data = await res.json();
       await login(data.token);
       router.push("/");
+    } catch {
+      setError(t("connectionError"));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // 회원가입은 계정만 만들고 로그인시키지 않는다 — 승인 전에는 어차피 아무 데이터도 못 보므로,
+  // 로그인된 빈 화면보다 "승인 대기 중"이라고 명확히 알려주는 편이 낫다.
+  async function handleSignUpSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    if (password !== confirmPassword) {
+      setError(t("passwordConfirmMismatch"));
+      return;
+    }
+    if (password.length < 8) {
+      setError(t("passwordTooShort"));
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password }),
+      });
+      if (!res.ok) {
+        if (res.status === 409) {
+          const data = await res.json().catch(() => null);
+          // 아직 관리자가 한 명도 없으면 회원가입이 아니라 최초 관리자 생성으로 가야 한다.
+          setError(data?.error === "bootstrap required" ? t("loginError") : t("emailAlreadyUsed"));
+          if (data?.error === "bootstrap required") setNeedsBootstrap(true);
+          return;
+        }
+        setError(t("saveError"));
+        return;
+      }
+      setSignUpDone(true);
+      setName("");
+      setPassword("");
+      setConfirmPassword("");
     } catch {
       setError(t("connectionError"));
     } finally {
@@ -176,6 +220,74 @@ export default function LoginPage() {
             {error && <p className="error-text">{error}</p>}
           </form>
         </>
+      ) : signUpDone ? (
+        <>
+          <p>{t("signUpDone")}</p>
+          <button
+            type="button"
+            onClick={() => {
+              setSignUpDone(false);
+              setMode("login");
+              setError(null);
+            }}
+          >
+            {t("backToLogin")}
+          </button>
+        </>
+      ) : mode === "signup" ? (
+        <>
+          <h2 style={{ fontSize: 18 }}>{t("signUpTitle")}</h2>
+          <form onSubmit={handleSignUpSubmit} className="form">
+            <input
+              type="text"
+              autoComplete="name"
+              placeholder={t("name")}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              placeholder={t("emailPlaceholder")}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder={t("passwordPlaceholder")}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+            <input
+              type="password"
+              autoComplete="new-password"
+              placeholder={t("confirmPassword")}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+            />
+            <button type="submit" disabled={loading}>
+              {loading ? t("saving") : t("signUpSubmit")}
+            </button>
+            {error && <p className="error-text">{error}</p>}
+          </form>
+          <button
+            type="button"
+            className="btn-action"
+            style={{ marginTop: 12 }}
+            onClick={() => {
+              setMode("login");
+              setError(null);
+            }}
+          >
+            {t("backToLogin")}
+          </button>
+        </>
       ) : (
         <>
           <p>{t("loginIntro")}</p>
@@ -202,6 +314,28 @@ export default function LoginPage() {
             </button>
             {error && <p className="error-text">{error}</p>}
           </form>
+          <p style={{ marginTop: 16, fontSize: 14, color: "var(--color-text-muted)" }}>
+            {t("haveNoAccount")}{" "}
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signup");
+                setError(null);
+              }}
+              style={{
+                background: "none",
+                border: "none",
+                padding: 0,
+                minHeight: "auto",
+                color: "var(--color-primary)",
+                textDecoration: "underline",
+                cursor: "pointer",
+                fontSize: 14,
+              }}
+            >
+              {t("signUp")}
+            </button>
+          </p>
         </>
       )}
     </main>
