@@ -308,6 +308,56 @@ model Attachment {
   vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 }
 
+// 천안사랑카드로 결제 가능한 주유소. 코나카드 검색 API를 스냅샷해 오피넷 UNI_ID와
+// 매핑해둔다. 가맹 여부의 authoritative 소스는 코나카드 쪽이다.
+model CheonanCardMerchant {
+  konaSeq     Int      @id // 코나카드 seq — 그대로 PK로 쓴다
+  name        String // simpleNm (코나카드 상호, 법인명일 수 있음)
+  address     String
+  tel         String?
+  bizType     String // "5608" 주유소 / "5609" 충전소(LPG)
+  lat         Float? // 코나카드 좌표 (26%가 null)
+  lon         Float?
+
+  // 오피넷 매칭 결과 — null이면 가격 정보를 붙일 수 없다(가맹점인 건 여전히 유효)
+  opinetId    String?
+  matchMethod String? // "name" | "coord" | "manual"
+  opinetName  String? // OS_NM — 화면에는 이쪽을 우선 표시
+  brand       String? // POLL_DIV_CD
+  roadAddress String? // NEW_ADR
+  opinetLat   Float?
+  opinetLon   Float?
+  lpgYn       String? // N/Y/C
+
+  syncedAt    DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@index([opinetId])
+}
+
+// 유종별 현재가 캐시. opinetId 단위.
+model CheonanCardStationPrice {
+  opinetId  String
+  prodCd    String // B027 휘발유 / D047 경유 / K015 부탄 / B034 고급휘발유
+  price     Int
+  tradeAt   DateTime // TRADE_DT + TRADE_TM 조합
+  updatedAt DateTime @updatedAt
+
+  @@id([opinetId, prodCd])
+}
+
+// 온디맨드 갱신의 신선도 판정과 동시 실행 가드에 쓰는 단일 행 상태.
+// 행이 하나뿐이므로 id는 항상 1을 쓴다.
+model CheonanCardSyncState {
+  id                   Int       @id @default(1)
+  merchantSyncedAt     DateTime? // 가맹점 목록 + UNI_ID 매핑 최종 성공 시각 (TTL 7일)
+  pricesSyncedAt       DateTime? // 가격 최종 성공 시각 — 게시 경계와 비교
+  merchantSyncStartedAt DateTime? // 진행 중 표시. 10분 지나면 무시(프로세스 재시작 대비)
+  priceSyncStartedAt   DateTime? // 진행 중 표시. 10분 지나면 무시(프로세스 재시작 대비)
+  lastError            String?
+  updatedAt            DateTime  @updatedAt
+}
+
 // PWA Web Push 구독 (사용자·기기별)
 model PushSubscription {
   id        String   @id @default(cuid())

@@ -1,6 +1,17 @@
 # Garage 프로젝트 진행 현황
 
-마지막 업데이트: 2026-07-09 (v0.2.0-beta 릴리즈 준비: 버전 상향, 카탈로그 key/i18n 전환, 푸시 locale, 지도/내비/트립 UX 확장, 베타용 사용자 편의성 개선 1~5 반영)
+마지막 업데이트: 2026-08-06 (천안사랑카드 가맹 주유소 연동 구현)
+
+## 0.1. 천안사랑카드 가맹 주유소 (2026-08-06)
+
+계획서: [`docs/plans/cheonan-card-gas-stations.md`](./plans/cheonan-card-gas-stations.md)
+
+- **§3 오피넷 호출 절감**: `aroundAll`/`lowTop10` 좌표·주소 파싱 → 거리순/가격순·이득순에서 `detailById` 추가 호출 제거
+- **옵트인 기능**: `CHEONAN_CARD_ENABLED` + 오피넷 키. 기본 꺼짐(외부 호출 0). `/integrations` 토글
+- **온디맨드 동기화**: 가맹점(코나카드, TTL 7일) + 가격(오피넷 게시 경계, KST). stale-while-revalidate
+- **화면**: `/vehicles/[id]/cheonan-card` — 가격순/거리순, 전 유종 가격, unmatched 섹션
+- **마이그레이션**: `20260806000000_add_cheonan_card_gas_stations`
+- **검증**: `cheonanCardPure` 단위 테스트 + `apps/api` `tsc` 통과. 실키로 켠 뒤 첫 동기화·거리순/가격순 확인 필요. `SIGUNCD`는 주소 `"천안"` 폴백으로 동작 중(areaCode.do로 확정 권장)
 
 ## 0. v0.2.0-beta 릴리즈 준비 요약 (2026-07-09)
 

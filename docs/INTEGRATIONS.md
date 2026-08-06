@@ -8,6 +8,7 @@ Garage가 사용하거나 노출하는 모든 외부 서비스·기기 연동을
 | 연동 | 방향 | 상태 | 설정 | 용도 |
 |---|---|---|---|---|
 | [오피넷](#1-오피넷opinet-주유소-가격-api) | Garage → 외부 | **사용 가능** | `/integrations` 또는 `OPINET_API_KEY` | 주변 주유소 및 가격 |
+| [천안사랑카드 가맹 주유소](#13-천안사랑카드-가맹-주유소) | Garage → 외부 | **옵트인** | `/integrations`의 `CHEONAN_CARD_ENABLED` + 오피넷 키 | 천안사랑카드 결제 가능 주유소 전체 목록·가격 |
 | [전기차 충전소(한국환경공단)](#11-전기차-충전소-api-한국환경공단-evcharger) | Garage → 외부 | **사용 가능** | `/integrations` 또는 `EV_CHARGER_API_KEY` | 주변 충전소, 실시간 상태, 커넥터 타입 |
 | [OBD 앱(Torque Pro)](#2-obd-앱torque-pro) | 외부 → Garage | **사용 가능** | 차량별 `apiToken` | OBD/GPS 텔레메트리 수집 |
 | [REST 텔레메트리](#3-rest-텔레메트리-수집) | 외부 ↔ Garage | **사용 가능** | 차량별 `apiToken` | HA / 범용 JSON 수집 + 상태·리마인더 조회 |
@@ -63,9 +64,9 @@ GET https://www.opinet.co.kr/api/aroundAll.do
   &sort={1=가격순, 2=거리순}
 ```
 
-- 좌표: 브라우저 GPS(WGS84) → KATEC 변환 (`proj4`)
-- 연료 코드: `GASOLINE`→`B027`, `DIESEL`→`D047`, `LPG`→`K015`, `ELECTRIC`→건너뜀(빈 배열)
-- `sort`는 `NearbyStationsCard` UI의 거리순/가격순 토글에서 그대로 전달됩니다 — 토글할 때마다 오피넷을 직접 재조회(클라이언트 캐시를 재정렬하는 방식이 아님)하므로, 화면에 표시되는 5개 결과가 내비/지도 좌표로 실제 상세 조회한 대상과 항상 일치합니다.
+- 좌표: 브라우저 GPS(WGS84) → KATEC 변환 (`proj4`). `aroundAll.do`/`lowTop10.do` 응답의 `GIS_X_COOR`/`GIS_Y_COOR`를 WGS84로 변환해 목록에 `lat`/`lon`으로 포함하므로, 거리순/가격순 조회 시 항목별 `detailById` 호출이 필요 없다.
+- 연료 코드: `GASOLINE`/`HYBRID`→`B027`, `DIESEL`→`D047`, `LPG`→`K015`, `ELECTRIC`→건너뜀(빈 배열)
+- `sort`는 `NearbyStationsCard` UI의 거리순/가격순 토글에서 그대로 전달됩니다 — 토글할 때마다 오피넷을 직접 재조회합니다.
 
 ### Garage가 노출하는 프록시 API
 
@@ -75,9 +76,9 @@ GET https://www.opinet.co.kr/api/aroundAll.do
 | `GET` | `/api/opinet/stations` | JWT | `lat`, `lon`, `fuelType`, `sort`(`distance` \| `price`, 기본 `distance`) 쿼리 파라미터로 주변 주유소 조회 |
 | `GET` | `/api/opinet/stations/:id` | JWT | 주유소 상세 — 주소, 도로명주소, WGS84 좌표 |
 
-**목록 응답 필드**: `id`, `name`, `brand`, `brandLabel`, `distance`(m), `price`(원/L)
+**목록 응답 필드**: `id`, `name`, `brand`, `brandLabel`, `distance`(m), `price`(원/L), `lat`, `lon`
 
-**상세 응답 필드**: 요약 필드 + `address`, `roadAddress`, `lat`, `lon`, `tel`
+**상세 응답 필드**: 요약 필드 + `address`, `roadAddress`, `tel`
 
 **빠른 입력**에서 주유소를 선택하면 Garage가 상세 정보를 조회해 주유 기록에 `latitude`, `longitude`, `address`, `opinetStationId`를 저장합니다. 저장된 좌표는 이후 내역 화면의 내비게이션 버튼에 쓰입니다.
 
@@ -935,6 +936,34 @@ OBD 동글 기반 수집([OBD 앱](#2-obd-앱torque-pro) 참고)의 대안으로
 
 - **마지막 주차 위치**와 **90일 주행습관 안전점수** — 지금까지 검토한 규격서 페이지 어디에도 관련 엔드포인트가 없습니다. `fetchVehicleStatus`의 `lastParkedLat`/`lastParkedLon`은 계속 `null`이고, `fetchDrivingHabit`은 엔드포인트를 찾기 전까지 `null`을 반환합니다.
 - 아직 OAuth + 데이터 동의 흐름을 끝까지 완료한 계정이 없어서, 위 파싱 로직은 규격서에 문서화된 예시 응답 기준으로만 검증되었고 실제 호출로는 검증되지 않았습니다.
+
+---
+
+## 13. 천안사랑카드 가맹 주유소
+
+| 항목 | 값 |
+|---|---|
+| 상태 | **옵트인** (기본 비활성). `CHEONAN_CARD_ENABLED=true`이고 오피넷 키가 있을 때만 동작 |
+| 설정 키 | `CHEONAN_CARD_ENABLED` (`"true"` / `"false"`, 미설정=꺼짐) |
+| 설정 위치 | `/integrations` 토글 또는 `.env` / docker-compose |
+| 가맹점 소스 | 코나카드 비공식 검색 API (`POST https://search.konacard.co.kr/api/v1/payable-merchants`, `id=34`) |
+| 가격 소스 | 오피넷 `searchByName.do` / `detailById.do` (캐시) |
+| 구현 | `apps/api/src/lib/cheonanCard*.ts`, `apps/api/src/routes/cheonanCard.ts`, `apps/web/app/vehicles/[id]/cheonan-card` |
+| 설계 문서 | [docs/plans/cheonan-card-gas-stations.md](./plans/cheonan-card-gas-stations.md) |
+
+### 동작 요약
+
+- cron 없음. 화면 조회 시 캐시가 낡았을 때만 백그라운드 갱신(stale-while-revalidate).
+- 가맹점 목록 TTL 7일, 가격 TTL은 오피넷 게시 경계(KST 1·2·9·12·16·19시).
+- 끈 상태에서는 외부 API 호출 0건. 캐시 데이터는 삭제하지 않음.
+- UI: 차량 개요 `NearbyStationsCard` 하단 링크 → `/vehicles/[id]/cheonan-card` (가격순/거리순, 전 유종 가격 표시).
+
+### Garage API
+
+| 메서드 | 경로 | 인증 | 설명 |
+|---|---|---|---|
+| `GET` | `/api/cheonan-card/config` | JWT | `{ enabled, label, merchantCount, merchantSyncedAt }` |
+| `GET` | `/api/cheonan-card/stations` | JWT | `fuelType` 필수. `lat`/`lon`/`sort`/`maxKm` 선택. `status`: preparing \| refreshing \| fresh |
 
 ---
 

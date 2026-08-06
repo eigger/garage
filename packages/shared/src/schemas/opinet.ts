@@ -7,6 +7,9 @@ export const opinetStationSummarySchema = z.object({
   brandLabel: z.string(),
   distance: z.number(),
   price: z.number(),
+  // aroundAll.do가 내려주는 GIS 좌표를 WGS84로 변환한 값. 파싱 실패 시 null.
+  lat: z.number().nullable(),
+  lon: z.number().nullable(),
 });
 
 export const opinetStationDetailSchema = opinetStationSummarySchema.extend({

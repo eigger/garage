@@ -25,6 +25,7 @@ Docs: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md) · [`docs/INTEGRATIONS.md
 - Maintenance + administrative schedules with distance/time dual reminders
 - Fuel-type maintenance presets and global admin/legal presets
 - Fuel logging with receipt attachments; Opinet nearby stations (optional)
+- Cheonan Love Card affiliated gas stations (opt-in) — full list by price/distance with all fuel prices
 - EV charging station finder (K-eco API, optional) — same distance/price search as gas stations, numbered markers on the map
 - OBD ingest (Torque Pro) and REST/WebSocket telemetry; auto trip segmentation
 - Hyundai Bluelink connected-car integration (beta, Korea-only) — real odometer, distance-to-empty, and warning-light status with no OBD dongle, with automatic odometer sync; each family member links their own account under Profile
