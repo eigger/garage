@@ -23,6 +23,9 @@ async function waitReady(page) {
 
 async function shot(page, filePath) {
   await waitReady(page);
+  await page.evaluate(() => {
+    document.querySelectorAll("nextjs-portal").forEach((el) => el.remove());
+  }).catch(() => {});
   await page.screenshot({ path: filePath, fullPage: false });
   console.log("saved", path.relative(OUT, filePath), "→", (await page.innerText("body")).slice(0, 70).replace(/\n/g, " "));
 }
@@ -103,6 +106,9 @@ async function captureLocale(locale) {
 
     await page.goto(`${BASE}/vehicles/${vehicleId}/analytics`, { waitUntil: "domcontentloaded" });
     await shot(page, path.join(dir, `13-analytics-${typeSuffix}.png`));
+
+    await page.goto(`${BASE}/vehicles/${vehicleId}/stations`, { waitUntil: "domcontentloaded" });
+    await shot(page, path.join(dir, `14-stations-${typeSuffix}.png`));
   }
 
   await page.goto(`${BASE}/integrations`, { waitUntil: "domcontentloaded" });

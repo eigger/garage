@@ -24,6 +24,10 @@
 | `10-presets.png` | Manage maintenance presets |
 | `11-backup.png` | System backup & restore |
 | `12-profile.png` | Profile settings |
+| `13-analytics-ev.png` | Analytics & Reports (EV) |
+| `13-analytics-ice.png` | Analytics & Reports (ICE) |
+| `14-stations-ev.png` | Station search (EV chargers) |
+| `14-stations-ice.png` | Station search (Opinet / Cheonan card) |
 
 ```sh
 # both locales

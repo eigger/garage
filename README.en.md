@@ -98,7 +98,27 @@ Gamification screen: logging logs consistently levels up the vehicle and earns b
   <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/07-level-ice.png" alt="Vehicle care level (ICE)" width="375" />
 </p>
 
-### 7. More Sheet menus (Admin & Account)
+### 7. Analytics & Reports (EV vs. ICE)
+
+Displays mileage, expenditure, and energy efficiency charts with 1-week / 1-month period filters, plus CSV/Excel report exports for trip, fuel, and maintenance logs.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/13-analytics-ev.png" alt="Analytics & Reports (EV)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/13-analytics-ice.png" alt="Analytics & Reports (ICE)" width="375" />
+</p>
+
+### 8. Gas station & EV charger finder (EV vs. ICE)
+
+Unified search menu combining Opinet gas stations, Cheonan Love Card affiliated stations, and K-eco EV charging stations with numbered map markers sorted by distance or price.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/14-stations-ev.png" alt="EV charger finder (EV)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/en/14-stations-ice.png" alt="Gas station finder (ICE)" width="375" />
+</p>
+
+### 9. More Sheet menus (Admin & Account)
 
 Screens for managing vehicles, users, maintenance presets, API integrations, profile configurations, and backups, all accessible from the bottom navigation bar.
 
@@ -167,6 +187,8 @@ General users can register their own vehicles too, not just admins. Whoever regi
 | Log fuel / maintenance | Bottom nav → **Quick Log** |
 | Edit schedule intervals | Vehicle → **Schedule** |
 | History, efficiency, trips | Vehicle → **History** |
+| Analytics & Reports export | Vehicle → **Analytics** |
+| Gas station / EV charger finder | Vehicle → **Stations** |
 | OBD / Torque / REST token | Vehicle → gear → **OBD & GPS** |
 | Family accounts | Bottom nav More sheet → **Manage users** |
 | Opinet / map API keys | Bottom nav More sheet → **API Integrations** |

@@ -98,7 +98,27 @@
   <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/07-level-ice.png" alt="차량 관리 레벨 (내연차)" width="375" />
 </p>
 
-### 7. 더보기 시트 메뉴 (관리 및 계정)
+### 7. 통계 & 리포트 내보내기 (전기차 vs. 내연차)
+
+주행거리·비용·연비 통계 차트를 제공하며 1주/1달 단위 기간 필터링 및 주행·주유·정비 이력의 CSV/Excel 내보내기를 지원합니다.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/13-analytics-ev.png" alt="통계 & 리포트 (전기차)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/13-analytics-ice.png" alt="통계 & 리포트 (내연차)" width="375" />
+</p>
+
+### 8. 주유소 & 충전소 찾기 (전기차 vs. 내연차)
+
+오피넷 기반 주변 주유소, 천안사랑카드 가맹 주유소, 환경공단 EV 충전소 검색을 단일 메뉴에서 지도 번호 마커와 함께 거리순/가격순으로 제공합니다.
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/14-stations-ev.png" alt="충전소 찾기 (전기차)" width="375" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="https://raw.githubusercontent.com/eigger/garage/master/docs/screenshots/ko/14-stations-ice.png" alt="주유소 찾기 (내연차)" width="375" />
+</p>
+
+### 9. 더보기 시트 메뉴 (관리 및 계정)
 
 차량 등록/관리, 사용자 추가/수정, 연료타입별 정비 프리셋 설정, 지도/날씨/알림 API 연동, 백업/복원, 그리고 개인 프로필 변경 등 모든 관리용 설정 기능을 하단 네비게이션 시트에서 간편하게 사용할 수 있습니다.
 
@@ -167,6 +187,8 @@ docker compose -f docker-compose.prod.yml up -d
 | 주유 / 정비 기록 | 하단 네비게이션 → **빠른 입력** |
 | 주기 수정 | 차량 → **정비 스케줄** |
 | 이력·연비·주행 | 차량 → **내역** |
+| 통계 & 리포트 내보내기 | 차량 → **통계** |
+| 주유소 / 충전소 찾기 | 차량 → **주유소/충전소** |
 | OBD / Torque / REST 토큰 | 차량 → 톱니바퀴 → **OBD & GPS** |
 | 가족 계정 | 하단 네비게이션 더보기 시트 → **사용자 관리** |
 | 오피넷 / 지도 API 키 | 하단 네비게이션 더보기 시트 → **API 연동 관리** |

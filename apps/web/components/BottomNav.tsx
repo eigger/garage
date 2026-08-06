@@ -96,8 +96,8 @@ export function BottomNav() {
 
   useEffect(() => {
     if (!user) return;
-    fetch("/health")
-      .then((res) => res.json())
+    apiFetch("/health")
+      .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.updateAvailable === "boolean") {
           setUpdateInfo({
