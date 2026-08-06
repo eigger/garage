@@ -12,12 +12,22 @@ import { RecenterButton } from "./RecenterButton";
 
 const DEFAULT_ZOOM = 16;
 const STATION_MARKER_COLOR = "#f59e0b";
+/** 선택 강조 — 브랜드 primary에 가까운 녹색 */
+const SELECTED_STATION_MARKER_COLOR = "#18523f";
 /** Kakao Maps는 zoom이 아니라 level(작을수록 확대). DEFAULT_ZOOM≈16에 가까운 값. */
 const KAKAO_DEFAULT_LEVEL = 3;
 
 // number는 NearbyStationsCard의 리스트 순번(1부터)과 맞춰서, 지도 마커와 리스트 항목을
 // 클릭/호버 없이도 번호로 바로 매칭할 수 있게 한다.
 export type StationMarker = { id: string; lat: number; lon: number; name: string; number: number };
+
+function markerColor(id: string, selectedStationId?: string | null): string {
+  return id === selectedStationId ? SELECTED_STATION_MARKER_COLOR : STATION_MARKER_COLOR;
+}
+
+function markerSize(id: string, selectedStationId?: string | null): number {
+  return id === selectedStationId ? 28 : 24;
+}
 
 function totalMapPoints(stations: StationMarker[], showOriginMarker: boolean): number {
   return stations.length + (showOriginMarker ? 1 : 0);
@@ -73,6 +83,11 @@ function LeafletFitBounds({
   return null;
 }
 
+type StationMapExtras = {
+  selectedStationId?: string | null;
+  onStationClick?: (id: string) => void;
+};
+
 function OsmLocationMap({
   lat,
   lon,
@@ -80,6 +95,8 @@ function OsmLocationMap({
   isDark,
   showOriginMarker,
   active,
+  selectedStationId,
+  onStationClick,
 }: {
   lat: number;
   lon: number;
@@ -87,10 +104,12 @@ function OsmLocationMap({
   isDark: boolean;
   showOriginMarker: boolean;
   active: boolean;
-}) {
+} & StationMapExtras) {
   const [markerIcon, setMarkerIcon] = useState<any>(null);
   const [leaflet, setLeaflet] = useState<any>(null);
   const pinColor = isDark ? "#34d399" : "#18523f";
+  const onClickRef = useRef(onStationClick);
+  onClickRef.current = onStationClick;
 
   useEffect(() => {
     let cancelled = false;
@@ -128,25 +147,33 @@ function OsmLocationMap({
       <TileLayer attribution={tile.attribution} url={tile.url} />
       {showOriginMarker && markerIcon && <Marker position={[lat, lon]} icon={markerIcon} />}
       {leaflet &&
-        stations.map((s) => (
-          <Marker
-            key={s.id}
-            position={[s.lat, s.lon]}
-            icon={leaflet.icon({
-              iconUrl: numberedMarkerDataUri(s.number, STATION_MARKER_COLOR),
-              iconSize: [24, 24],
-              iconAnchor: [12, 12],
-            })}
-          >
-            <Popup>{s.name}</Popup>
-          </Marker>
-        ))}
+        stations.map((s) => {
+          const size = markerSize(s.id, selectedStationId);
+          return (
+            <Marker
+              key={s.id}
+              position={[s.lat, s.lon]}
+              eventHandlers={{
+                click: () => onClickRef.current?.(s.id),
+              }}
+              icon={leaflet.icon({
+                iconUrl: numberedMarkerDataUri(s.number, markerColor(s.id, selectedStationId)),
+                iconSize: [size, size],
+                iconAnchor: [size / 2, size / 2],
+              })}
+            >
+              <Popup>{s.name}</Popup>
+            </Marker>
+          );
+        })}
       {showOriginMarker && <LeafletRecenterControl lat={lat} lon={lon} />}
       <LeafletFitBounds lat={lat} lon={lon} stations={stations} includeOrigin={showOriginMarker} />
       <LeafletInvalidateOnShow active={active} />
     </MapContainer>
   );
 }
+
+type StationMarkerHandle = { id: string; number: number; marker: any };
 
 function KakaoLocationMap({
   lat,
@@ -156,6 +183,8 @@ function KakaoLocationMap({
   isDark,
   showOriginMarker,
   active,
+  selectedStationId,
+  onStationClick,
 }: {
   lat: number;
   lon: number;
@@ -164,9 +193,12 @@ function KakaoLocationMap({
   isDark: boolean;
   showOriginMarker: boolean;
   active: boolean;
-}) {
+} & StationMapExtras) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const stationMarkersRef = useRef<StationMarkerHandle[]>([]);
+  const onClickRef = useRef(onStationClick);
+  onClickRef.current = onStationClick;
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -178,6 +210,7 @@ function KakaoLocationMap({
     // stations 변경으로 지도를 다시 만드는 경로 — 재생성이 끝날 때까지 ready를 내려
     // 실패 시 이전 지도의 컨트롤이 남지 않게 하고, 표시 직후 relayout이 다시 돌게 한다.
     setReady(false);
+    stationMarkersRef.current = [];
 
     loadKakaoMaps(appKey)
       .then(() => {
@@ -197,10 +230,17 @@ function KakaoLocationMap({
         }
 
         for (const s of stations) {
-          new kakao.Marker({
+          const size = markerSize(s.id, selectedStationId);
+          const marker = new kakao.Marker({
             position: new kakao.LatLng(s.lat, s.lon),
-            image: new kakao.MarkerImage(numberedMarkerDataUri(s.number, STATION_MARKER_COLOR), new kakao.Size(24, 24)),
-          }).setMap(map);
+            image: new kakao.MarkerImage(
+              numberedMarkerDataUri(s.number, markerColor(s.id, selectedStationId)),
+              new kakao.Size(size, size),
+            ),
+          });
+          marker.setMap(map);
+          kakao.event.addListener(marker, "click", () => onClickRef.current?.(s.id));
+          stationMarkersRef.current.push({ id: s.id, number: s.number, marker });
         }
 
         // 점 1개짜리 bounds는 최대 줌으로 붙는다 — 2개 이상일 때만 fitBounds.
@@ -223,7 +263,24 @@ function KakaoLocationMap({
     return () => {
       cancelled = true;
     };
+    // selectedStationId는 별도 effect에서 아이콘만 갱신 — 지도 remount 방지.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appKey, lat, lon, stations, showOriginMarker]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const kakao = (window as any).kakao?.maps;
+    if (!kakao) return;
+    for (const { id, number, marker } of stationMarkersRef.current) {
+      const size = markerSize(id, selectedStationId);
+      marker.setImage(
+        new kakao.MarkerImage(
+          numberedMarkerDataUri(number, markerColor(id, selectedStationId)),
+          new kakao.Size(size, size),
+        ),
+      );
+    }
+  }, [selectedStationId, ready]);
 
   useEffect(() => {
     if (!active || !ready || !mapRef.current) return;
@@ -266,6 +323,8 @@ function NaverLocationMap({
   isDark,
   showOriginMarker,
   active,
+  selectedStationId,
+  onStationClick,
 }: {
   lat: number;
   lon: number;
@@ -274,9 +333,12 @@ function NaverLocationMap({
   isDark: boolean;
   showOriginMarker: boolean;
   active: boolean;
-}) {
+} & StationMapExtras) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const stationMarkersRef = useRef<StationMarkerHandle[]>([]);
+  const onClickRef = useRef(onStationClick);
+  onClickRef.current = onStationClick;
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -286,6 +348,7 @@ function NaverLocationMap({
 
     let cancelled = false;
     setReady(false);
+    stationMarkersRef.current = [];
 
     loadNaverMaps(clientId)
       .then(() => {
@@ -305,11 +368,17 @@ function NaverLocationMap({
         }
 
         for (const s of stations) {
-          new naver.Marker({
+          const size = markerSize(s.id, selectedStationId);
+          const marker = new naver.Marker({
             map,
             position: new naver.LatLng(s.lat, s.lon),
-            icon: { url: numberedMarkerDataUri(s.number, STATION_MARKER_COLOR), size: new naver.Size(24, 24) },
+            icon: {
+              url: numberedMarkerDataUri(s.number, markerColor(s.id, selectedStationId)),
+              size: new naver.Size(size, size),
+            },
           });
+          naver.Event.addListener(marker, "click", () => onClickRef.current?.(s.id));
+          stationMarkersRef.current.push({ id: s.id, number: s.number, marker });
         }
 
         if (totalMapPoints(stations, showOriginMarker) >= 2) {
@@ -334,7 +403,21 @@ function NaverLocationMap({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId, lat, lon, stations, showOriginMarker]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const naver = (window as any).naver?.maps;
+    if (!naver) return;
+    for (const { id, number, marker } of stationMarkersRef.current) {
+      const size = markerSize(id, selectedStationId);
+      marker.setIcon({
+        url: numberedMarkerDataUri(number, markerColor(id, selectedStationId)),
+        size: new naver.Size(size, size),
+      });
+    }
+  }, [selectedStationId, ready]);
 
   useEffect(() => {
     if (!active || !ready || !mapRef.current) return;
@@ -377,6 +460,8 @@ function TmapLocationMap({
   isDark,
   showOriginMarker,
   active,
+  selectedStationId,
+  onStationClick,
 }: {
   lat: number;
   lon: number;
@@ -385,9 +470,12 @@ function TmapLocationMap({
   isDark: boolean;
   showOriginMarker: boolean;
   active: boolean;
-}) {
+} & StationMapExtras) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const stationMarkersRef = useRef<StationMarkerHandle[]>([]);
+  const onClickRef = useRef(onStationClick);
+  onClickRef.current = onStationClick;
   const [error, setError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -397,6 +485,7 @@ function TmapLocationMap({
 
     let cancelled = false;
     setReady(false);
+    stationMarkersRef.current = [];
 
     loadTmapSdk(appKey)
       .then(() => {
@@ -418,11 +507,14 @@ function TmapLocationMap({
         }
 
         for (const s of stations) {
-          new Tmapv2.Marker({
+          const marker = new Tmapv2.Marker({
             position: new Tmapv2.LatLng(s.lat, s.lon),
-            icon: numberedMarkerDataUri(s.number, STATION_MARKER_COLOR),
+            icon: numberedMarkerDataUri(s.number, markerColor(s.id, selectedStationId)),
+            iconSize: new Tmapv2.Size(markerSize(s.id, selectedStationId), markerSize(s.id, selectedStationId)),
             map,
           });
+          marker.addListener("click", () => onClickRef.current?.(s.id));
+          stationMarkersRef.current.push({ id: s.id, number: s.number, marker });
         }
 
         if (totalMapPoints(stations, showOriginMarker) >= 2) {
@@ -444,7 +536,25 @@ function TmapLocationMap({
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appKey, lat, lon, stations, showOriginMarker]);
+
+  useEffect(() => {
+    if (!ready) return;
+    const Tmapv2 = (window as any).Tmapv2;
+    if (!Tmapv2) return;
+    for (const { id, number, marker } of stationMarkersRef.current) {
+      const size = markerSize(id, selectedStationId);
+      try {
+        marker.setIcon(numberedMarkerDataUri(number, markerColor(id, selectedStationId)));
+        if (typeof marker.setIconSize === "function") {
+          marker.setIconSize(new Tmapv2.Size(size, size));
+        }
+      } catch {
+        // Tmap 버전에 따라 setIcon 시그니처가 다를 수 있다.
+      }
+    }
+  }, [selectedStationId, ready]);
 
   useEffect(() => {
     if (!active || !ready || !mapRef.current) return;
@@ -504,6 +614,8 @@ type LastLocationMapProps = {
   showOriginMarker?: boolean;
   /** display:none으로 숨겼다가 다시 보일 때 리사이즈. 기본 true. */
   active?: boolean;
+  selectedStationId?: string | null;
+  onStationClick?: (id: string) => void;
 };
 
 export function LastLocationMap({
@@ -516,6 +628,8 @@ export function LastLocationMap({
   stations = [],
   showOriginMarker = true,
   active = true,
+  selectedStationId = null,
+  onStationClick,
 }: LastLocationMapProps) {
   const isDark = useIsDarkMode();
 
@@ -529,6 +643,8 @@ export function LastLocationMap({
         isDark={isDark}
         showOriginMarker={showOriginMarker}
         active={active}
+        selectedStationId={selectedStationId}
+        onStationClick={onStationClick}
       />
     );
   }
@@ -543,6 +659,8 @@ export function LastLocationMap({
         isDark={isDark}
         showOriginMarker={showOriginMarker}
         active={active}
+        selectedStationId={selectedStationId}
+        onStationClick={onStationClick}
       />
     );
   }
@@ -557,6 +675,8 @@ export function LastLocationMap({
         isDark={isDark}
         showOriginMarker={showOriginMarker}
         active={active}
+        selectedStationId={selectedStationId}
+        onStationClick={onStationClick}
       />
     );
   }
@@ -569,6 +689,8 @@ export function LastLocationMap({
       isDark={isDark}
       showOriginMarker={showOriginMarker}
       active={active}
+      selectedStationId={selectedStationId}
+      onStationClick={onStationClick}
     />
   );
 }

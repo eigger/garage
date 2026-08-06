@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { apiFetch } from "../lib/api";
 import { useSettings } from "../lib/i18n/settings-context";
 import { reverseGeocode } from "../lib/maps/geocode";
 import type { MapProvidersConfig } from "../lib/maps/types";
+import { pickDefaultProvider } from "../lib/maps/types";
 import { NavLaunchButtons } from "./NavLaunchButtons";
 import type { StationMarker } from "./maps/LastLocationMap";
 import type { OpinetStationSummary, EvChargerSummary, ChargerStatus, OpinetValuePicksResponse } from "@garage/shared";
 import type { FuelType } from "../lib/types";
 import type { TranslationKey } from "../lib/i18n/translations";
-import Link from "next/link";
 
 type NearbyStationsCardProps = {
   vehicleId: string;
@@ -18,7 +19,6 @@ type NearbyStationsCardProps = {
   lat: number;
   lon: number;
   mapConfig: MapProvidersConfig;
-  onResultsChange?: (stations: StationMarker[]) => void;
 };
 
 type SortMode = "distance" | "price" | "value";
@@ -56,6 +56,11 @@ const CHGER_TYPE_LABEL_KEY: Record<string, TranslationKey> = {
 
 const RESULT_LIMIT = 5;
 
+const LastLocationMap = dynamic(
+  () => import("./maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
+  { ssr: false },
+);
+
 // 지도 마커와 같은 색·숫자를 써서, provider별 클릭 이벤트 구현 없이도 리스트 항목과
 // 지도 마커를 번호로 서로 대응시킬 수 있게 한다.
 function StationBadge({ number }: { number: number }) {
@@ -80,26 +85,17 @@ function StationBadge({ number }: { number: number }) {
   );
 }
 
-export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, onResultsChange }: NearbyStationsCardProps) {
+export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig }: NearbyStationsCardProps) {
   const { t, formatDistance, formatCurrency } = useSettings();
   const isElectric = fuelType === "ELECTRIC";
+  const mapProvider = pickDefaultProvider(mapConfig);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("distance");
   const [gasStations, setGasStations] = useState<OpinetStationSummary[]>([]);
   const [chargers, setChargers] = useState<EvChargerSummary[]>([]);
   const [valuePicks, setValuePicks] = useState<OpinetValuePicksResponse | null>(null);
-  const [cheonanEnabled, setCheonanEnabled] = useState(false);
-
-  useEffect(() => {
-    if (isElectric) return;
-    apiFetch("/api/cheonan-card/config")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data: { enabled?: boolean } | null) => {
-        if (data?.enabled) setCheonanEnabled(true);
-      })
-      .catch(() => {});
-  }, [isElectric]);
+  const [markers, setMarkers] = useState<StationMarker[]>([]);
 
   // 거리순/가격순은 각각 오피넷에 따로 조회한다 — aroundAll이 좌표를 포함하므로
   // 추가 detailById 없이 네비·지도에 바로 쓸 수 있다.
@@ -115,14 +111,14 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
         const all: EvChargerSummary[] = res.ok ? await res.json() : [];
         const data = all.slice(0, RESULT_LIMIT);
         setChargers(data);
-        onResultsChange?.(data.map((s, i) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name, number: i + 1 })));
+        setMarkers(data.map((s, i) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name, number: i + 1 })));
       } else if (mode === "value") {
         const address = await reverseGeocode(mapConfig, lat, lon);
         const url = `/api/opinet/value-picks?vehicleId=${vehicleId}&lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}${address ? `&address=${encodeURIComponent(address)}` : ""}`;
         const res = await apiFetch(url);
         const data: OpinetValuePicksResponse | null = res.ok ? await res.json() : null;
         setValuePicks(data);
-        onResultsChange?.(
+        setMarkers(
           (data?.picks ?? []).map((p, i) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name, number: i + 1 })),
         );
       } else {
@@ -131,7 +127,7 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
         const data = all.slice(0, RESULT_LIMIT);
         setGasStations(data);
         // 좌표가 없어 걸러지는 항목이 있어도 리스트 순번(number)은 원래 위치를 유지한다.
-        onResultsChange?.(
+        setMarkers(
           data
             .map((s, i) => ({ station: s, number: i + 1 }))
             .filter(({ station: s }) => s.lat != null && s.lon != null)
@@ -142,6 +138,13 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
       setLoading(false);
     }
   }
+
+  // 가격만 바뀌는 재검색에서도 좌표 키가 같으면 지도 remount를 피한다.
+  const mapMarkerKey = useMemo(
+    () => markers.map((s) => `${s.id}:${s.lat}:${s.lon}:${s.number}`).join("|"),
+    [markers],
+  );
+  const stableMarkers = useMemo(() => markers, [mapMarkerKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <section className="card" style={{ marginTop: 12 }}>
@@ -187,6 +190,31 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
           {isElectric ? t("nearbyChargersHint") : t("nearbyGasStationsHint")}
         </p>
+      )}
+
+      {stableMarkers.length > 0 && (
+        <div
+          style={{
+            position: "relative",
+            width: "100%",
+            height: 220,
+            borderRadius: 8,
+            overflow: "hidden",
+            border: "1px solid var(--color-border)",
+            marginBottom: 12,
+          }}
+        >
+          <LastLocationMap
+            lat={lat}
+            lon={lon}
+            provider={mapProvider}
+            kakaoAppKey={mapConfig.kakaoAppKey}
+            naverClientId={mapConfig.naverClientId}
+            tmapAppKey={mapConfig.tmapAppKey}
+            stations={stableMarkers}
+            showOriginMarker
+          />
+        </div>
       )}
 
       {searched && !loading && isElectric && chargers.length === 0 && (
@@ -312,17 +340,6 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
               </div>
             );
           })}
-        </div>
-      )}
-
-      {cheonanEnabled && !isElectric && (
-        <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--color-border)" }}>
-          <Link
-            href={`/vehicles/${vehicleId}/cheonan-card`}
-            style={{ fontSize: 13, color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
-          >
-            {t("cheonanCardViewAll")}
-          </Link>
         </div>
       )}
     </section>
