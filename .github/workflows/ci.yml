@@ -70,3 +70,50 @@ jobs:
 
       - name: Run Tests
         run: npm run test
+
+  # 설치와 업데이트가 깨지지 않는지 자동으로 검증한다. 프로덕션 compose가
+  # `prisma migrate deploy && node ...`로 기동하는 구조라, 마이그레이션이 실패하면
+  # API 컨테이너가 아예 뜨지 않는다 — 릴리스 전에 반드시 걸러야 하는 실패다.
+  migrations:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: garage
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout
+        # 업그레이드 검증이 직전 릴리스 태그의 마이그레이션을 꺼내 쓰므로 전체 히스토리와
+        # 태그가 필요하다.
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Prisma Generate
+        run: npm run prisma:generate -w apps/api
+        env:
+          DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
+
+      - name: Check fresh install and upgrade paths
+        run: scripts/ci/check-migrations.sh
+        env:
+          DATABASE_URL_BASE: postgresql://garage:test@localhost:5432
