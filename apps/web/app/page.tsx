@@ -229,7 +229,15 @@ function HomeInner() {
       <h2 style={{ margin: "0 0 8px" }}>{t("vehiclesHeading")}</h2>
 
       {vehicles.length === 0 ? (
-        <p>{t("noVehicles")}</p>
+        // 승인 직후이거나 아직 배정받은 차량이 없는 구성원이 처음 보는 화면이다.
+        // 차량 등록은 이제 일반 사용자도 할 수 있는데 메뉴가 더보기 시트 안에 있어서,
+        // 여기서 길을 열어주지 않으면 로그인해도 할 수 있는 게 없는 것처럼 보인다.
+        <>
+          <p>{t("noVehicles")}</p>
+          <Link href="/vehicles" className="btn-action" style={{ display: "inline-block" }}>
+            {t("addVehicle")}
+          </Link>
+        </>
       ) : (
         <ul className="list">
           {vehicles.map((v) => (
