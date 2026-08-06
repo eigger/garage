@@ -73,7 +73,7 @@ const SETTING_META: Record<
 // 오피넷/EV충전소는 "연료·충전", 지도 3종은 "지도", VAPID 쌍+발신자는 "알림"으로 묶어
 // 연동 성격이 비슷한 것끼리 섹션을 나눈다. 새 연동을 추가할 때는 해당하는 그룹의 keys에만 추가하면 된다.
 const GROUPS: { key: string; titleKey: TranslationKey; keys: string[] }[] = [
-  { key: "fuel", titleKey: "integrationGroupFuel", keys: ["OPINET_API_KEY", "EV_CHARGER_API_KEY", "EV_CHARGER_API_KEY_EXPIRES_AT"] },
+  { key: "fuel", titleKey: "integrationGroupFuel", keys: ["OPINET_API_KEY", "EV_CHARGER_API_KEY", "EV_CHARGER_API_KEY_EXPIRES_AT", "CHEONAN_CARD_ENABLED"] },
   { key: "map", titleKey: "integrationGroupMap", keys: ["KAKAO_MAP_APP_KEY", "NAVER_MAP_CLIENT_ID", "TMAP_APP_KEY"] },
   { key: "connectedCar", titleKey: "integrationGroupConnectedCar", keys: ["HYUNDAI_CLIENT_ID", "HYUNDAI_CLIENT_SECRET"] },
   { key: "notification", titleKey: "integrationGroupNotification", keys: ["VAPID_PUBLIC_KEY", "VAPID_PRIVATE_KEY", "VAPID_SUBJECT"] },
@@ -132,6 +132,9 @@ export default function IntegrationsPage() {
             }
             if (key === "EV_CHARGER_API_KEY_EXPIRES_AT") {
               return <EvChargerExpiryCard key={key} settings={settings} onChanged={load} t={t} showToast={showToast} />;
+            }
+            if (key === "CHEONAN_CARD_ENABLED") {
+              return <CheonanCardToggleCard key={key} settings={settings} onChanged={load} t={t} showToast={showToast} />;
             }
             const entry = settings.find((e) => e.key === key);
             if (!entry) return null;
@@ -265,6 +268,97 @@ function EvChargerExpiryCard({
           {submitting ? t("saving") : t("save")}
         </button>
       </form>
+    </section>
+  );
+}
+
+function CheonanCardToggleCard({
+  settings,
+  onChanged,
+  t,
+  showToast,
+}: {
+  settings: SettingEntry[];
+  onChanged: () => void;
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string;
+  showToast: (message: string, type?: "success" | "error") => void;
+}) {
+  const entry = settings.find((e) => e.key === "CHEONAN_CARD_ENABLED");
+  const on = entry?.value === "true";
+  const [submitting, setSubmitting] = useState(false);
+
+  async function handleToggle() {
+    setSubmitting(true);
+    try {
+      const next = on ? "false" : "true";
+      const res = await apiFetch("/api/settings/CHEONAN_CARD_ENABLED", {
+        method: "PUT",
+        body: JSON.stringify({ value: next }),
+      });
+      if (res.ok) {
+        showToast(t("toastSaved"), "success");
+        onChanged();
+      } else {
+        showToast(t("toastError"), "error");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <section className="card" style={{ marginTop: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <strong>{t("cheonanCardEnabledLabel")}</strong>
+          <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "4px 0 0" }}>
+            {t("cheonanCardEnabledHelp")}
+          </p>
+          <p
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: on ? "var(--color-success)" : "var(--color-text-muted)",
+              margin: "8px 0 0",
+            }}
+          >
+            {on ? t("cheonanCardEnabledOn") : t("cheonanCardEnabledOff")}
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          onClick={handleToggle}
+          disabled={submitting}
+          style={{
+            flexShrink: 0,
+            width: 48,
+            height: 28,
+            minHeight: 28,
+            padding: 0,
+            borderRadius: 14,
+            border: "none",
+            background: on ? "var(--color-primary)" : "var(--color-surface-secondary)",
+            position: "relative",
+            cursor: submitting ? "wait" : "pointer",
+          }}
+        >
+          <span
+            style={{
+              position: "absolute",
+              top: 3,
+              left: on ? 23 : 3,
+              width: 22,
+              height: 22,
+              borderRadius: "50%",
+              background: "#fff",
+              transition: "left 0.15s ease",
+              boxShadow: "0 1px 2px rgba(0,0,0,0.2)",
+            }}
+          />
+        </button>
+      </div>
     </section>
   );
 }

@@ -81,33 +81,27 @@ export async function opinetRoutes(app: FastifyInstance) {
       price: baselineStation.price,
     };
 
-    // 후보 좌표는 목록 응답에 없어 상세 조회로 보강해야 거리를 계산할 수 있다.
-    const details = await Promise.all(
-      candidates
-        .filter((c) => c.id !== baselineStation.id && !c.id.startsWith("MOCK_"))
-        .map((c) => fetchStationDetail(c.id)),
-    );
-
-    const picks = details
-      .filter((d): d is NonNullable<typeof d> => d !== null && d.lat !== null && d.lon !== null)
-      .map((d) => {
-        const distanceKm = haversineKm(latNum, lonNum, d.lat as number, d.lon as number);
+    // lowTop10 응답에 좌표·주소가 포함되므로 detailById 추가 호출 없이 이득을 계산한다.
+    const picks = candidates
+      .filter((c) => c.id !== baselineStation.id && !c.id.startsWith("MOCK_") && c.lat !== null && c.lon !== null)
+      .map((c) => {
+        const distanceKm = haversineKm(latNum, lonNum, c.lat as number, c.lon as number);
         const extraRoundTripKm = Math.max(0, distanceKm - baselineDistanceKm) * 2;
         const netGain = computeNetGain({
           baselinePrice: baselineStation.price,
-          candidatePrice: d.price,
+          candidatePrice: c.price,
           extraRoundTripKm,
           avgLiters,
           kmPerLiter,
         });
         return {
-          id: d.id,
-          name: d.name,
-          brandLabel: d.brandLabel,
-          lat: d.lat as number,
-          lon: d.lon as number,
+          id: c.id,
+          name: c.name,
+          brandLabel: c.brandLabel,
+          lat: c.lat as number,
+          lon: c.lon as number,
           distanceM: Math.round(distanceKm * 1000),
-          price: d.price,
+          price: c.price,
           extraRoundTripKm,
           netGain: Math.round(netGain),
         };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { apiFetch } from "../lib/api";
 import { useSettings } from "../lib/i18n/settings-context";
 import { reverseGeocode } from "../lib/maps/geocode";
@@ -10,6 +10,7 @@ import type { StationMarker } from "./maps/LastLocationMap";
 import type { OpinetStationSummary, EvChargerSummary, ChargerStatus, OpinetValuePicksResponse } from "@garage/shared";
 import type { FuelType } from "../lib/types";
 import type { TranslationKey } from "../lib/i18n/translations";
+import Link from "next/link";
 
 type NearbyStationsCardProps = {
   vehicleId: string;
@@ -86,13 +87,22 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
   const [searched, setSearched] = useState(false);
   const [sortMode, setSortMode] = useState<SortMode>("distance");
   const [gasStations, setGasStations] = useState<OpinetStationSummary[]>([]);
-  const [gasCoords, setGasCoords] = useState<Record<string, { lat: number; lon: number }>>({});
   const [chargers, setChargers] = useState<EvChargerSummary[]>([]);
   const [valuePicks, setValuePicks] = useState<OpinetValuePicksResponse | null>(null);
+  const [cheonanEnabled, setCheonanEnabled] = useState(false);
 
-  // 거리순/가격순은 각각 오피넷에 따로 조회한다 — 한 번 받아온 목록을 클라이언트에서
-  // 재정렬하면, 상위 N개만 상세 조회(좌표)해둔 상태라 정렬을 바꿨을 때 원래 상위권 밖에
-  // 있던 항목이 새로 보이면서 네비 버튼이 빠지는 문제가 있었다.
+  useEffect(() => {
+    if (isElectric) return;
+    apiFetch("/api/cheonan-card/config")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data: { enabled?: boolean } | null) => {
+        if (data?.enabled) setCheonanEnabled(true);
+      })
+      .catch(() => {});
+  }, [isElectric]);
+
+  // 거리순/가격순은 각각 오피넷에 따로 조회한다 — aroundAll이 좌표를 포함하므로
+  // 추가 detailById 없이 네비·지도에 바로 쓸 수 있다.
   async function handleSearch(mode: SortMode) {
     setLoading(true);
     setSearched(true);
@@ -120,29 +130,12 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
         const all: OpinetStationSummary[] = res.ok ? await res.json() : [];
         const data = all.slice(0, RESULT_LIMIT);
         setGasStations(data);
-
-        // 요약 응답에는 좌표가 없어 네비 연동 + 지도 표기를 위해 화면에 보이는 항목만 상세 조회로 보강한다.
-        const entries = await Promise.all(
-          data
-            .filter((s) => !s.id.startsWith("MOCK_"))
-            .map(async (s) => {
-              const detailRes = await apiFetch(`/api/opinet/stations/${s.id}`);
-              if (!detailRes.ok) return null;
-              const detail = await detailRes.json();
-              return detail.lat !== null && detail.lon !== null
-                ? ([s.id, { lat: detail.lat, lon: detail.lon }] as const)
-                : null;
-            })
-        );
-        const coordsMap = Object.fromEntries(entries.filter((e): e is readonly [string, { lat: number; lon: number }] => e !== null));
-        setGasCoords(coordsMap);
-        // 좌표가 없어 걸러지는 항목이 있어도(드물게 상세조회 실패 등) 리스트 순번(number)은
-        // 원래 위치 그대로 유지해 지도 마커 번호와 항상 일치하게 한다.
+        // 좌표가 없어 걸러지는 항목이 있어도 리스트 순번(number)은 원래 위치를 유지한다.
         onResultsChange?.(
           data
             .map((s, i) => ({ station: s, number: i + 1 }))
-            .filter(({ station: s }) => coordsMap[s.id])
-            .map(({ station: s, number }) => ({ id: s.id, lat: coordsMap[s.id].lat, lon: coordsMap[s.id].lon, name: s.name, number }))
+            .filter(({ station: s }) => s.lat != null && s.lon != null)
+            .map(({ station: s, number }) => ({ id: s.id, lat: s.lat as number, lon: s.lon as number, name: s.name, number })),
         );
       }
     } finally {
@@ -296,7 +289,7 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
       {!isElectric && sortMode !== "value" && gasStations.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {gasStations.map((station, i) => {
-            const coords = gasCoords[station.id];
+            const hasCoords = station.lat != null && station.lon != null;
             return (
               <div key={station.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
@@ -311,14 +304,25 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig, o
                 <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", margin: "2px 0 8px" }}>
                   {station.price.toLocaleString()}원
                 </div>
-                {coords && (
+                {hasCoords && (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <NavLaunchButtons compact destination={{ lat: coords.lat, lon: coords.lon, name: station.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
+                    <NavLaunchButtons compact destination={{ lat: station.lat as number, lon: station.lon as number, name: station.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
                   </div>
                 )}
               </div>
             );
           })}
+        </div>
+      )}
+
+      {cheonanEnabled && !isElectric && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: "1px solid var(--color-border)" }}>
+          <Link
+            href={`/vehicles/${vehicleId}/cheonan-card`}
+            style={{ fontSize: 13, color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
+          >
+            {t("cheonanCardViewAll")}
+          </Link>
         </div>
       )}
     </section>

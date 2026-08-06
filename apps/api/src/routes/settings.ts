@@ -1,12 +1,16 @@
 import type { FastifyInstance } from "fastify";
-import { settingKeySchema, settingUpdateSchema } from "@garage/shared";
+import { settingKeySchema, settingUpdateSchema, type SettingKey } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { setSetting } from "../lib/settings.js";
+import { triggerCheonanCardWarmup } from "../lib/cheonanCardPrices.js";
 
 function mask(value: string): string {
   if (value.length <= 4) return "••••";
   return `••••${value.slice(-4)}`;
 }
+
+const PLAIN_VALUE_KEYS = new Set<string>(["EV_CHARGER_API_KEY_EXPIRES_AT", "CHEONAN_CARD_ENABLED"]);
+const SETTING_KEYS = [...settingKeySchema.options] as SettingKey[];
 
 export async function settingsRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
@@ -15,14 +19,13 @@ export async function settingsRoutes(app: FastifyInstance) {
   // 연동 관리 화면 목록 조회 — 실제 키 값은 절대 내려주지 않고 마스킹된 형태와
   // 출처(관리 화면에서 저장 vs .env 폴백)만 알려준다.
   app.get("/", async () => {
-    const keys = settingKeySchema.options;
-    const rows = await prisma.setting.findMany({ where: { key: { in: keys as unknown as string[] } } });
+    const rows = await prisma.setting.findMany({ where: { key: { in: SETTING_KEYS } } });
     const byKey = new Map(rows.map((r) => [r.key, r.value]));
 
-    // 만료일은 비밀값이 아니라 만료 경고 UI에 필요해서, 이 키에 한해 원문 값도 함께 내려준다.
-    const isPlainValueKey = (key: string) => key === "EV_CHARGER_API_KEY_EXPIRES_AT";
+    // 만료일·기능 토글은 비밀값이 아니라 UI에 원문이 필요해서 평문으로 내려준다.
+    const isPlainValueKey = (key: string) => PLAIN_VALUE_KEYS.has(key);
 
-    return keys.map((key) => {
+    return SETTING_KEYS.map((key) => {
       const dbValue = byKey.get(key);
       if (dbValue) {
         return {
@@ -56,8 +59,16 @@ export async function settingsRoutes(app: FastifyInstance) {
     const bodyParsed = settingUpdateSchema.safeParse(request.body);
     if (!bodyParsed.success) return reply.code(400).send({ error: bodyParsed.error.flatten() });
 
-    await setSetting(keyParsed.data, bodyParsed.data.value.trim());
-    return { key: keyParsed.data, configured: true };
+    const key = keyParsed.data;
+    const value = bodyParsed.data.value.trim();
+    await setSetting(key, value);
+
+    // 천안사랑카드를 켜는 순간 백그라운드 워밍업(응답 블로킹 없음)
+    if (key === "CHEONAN_CARD_ENABLED" && value === "true") {
+      triggerCheonanCardWarmup(app.log);
+    }
+
+    return { key, configured: true };
   });
 
   app.delete("/:key", async (request, reply) => {

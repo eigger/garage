@@ -308,6 +308,26 @@ model Attachment {
   vehicle   Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
 }
 
+// 유종별 현재가 캐시. opinetId는 정적 seed(cheonan-card-stations.json)의 키를 참조한다(FK 아님).
+model CheonanCardStationPrice {
+  opinetId  String
+  prodCd    String // B027 휘발유 / B034 고급휘발유 / D047 경유 / K015 자동차부탄 / C004 실내등유
+  price     Int
+  tradeAt   DateTime // TRADE_DT + TRADE_TM 조합
+  updatedAt DateTime @updatedAt
+
+  @@id([opinetId, prodCd])
+}
+
+// 온디맨드 가격 갱신의 신선도 판정과 동시 실행 가드. 행이 하나뿐이라 id는 항상 1.
+model CheonanCardPriceSyncState {
+  id             Int       @id @default(1)
+  pricesSyncedAt DateTime?
+  startedAt      DateTime? // 진행 중 표시. 10분 지나면 무시
+  lastError      String?
+  updatedAt      DateTime  @updatedAt
+}
+
 // PWA Web Push 구독 (사용자·기기별)
 model PushSubscription {
   id        String   @id @default(cuid())

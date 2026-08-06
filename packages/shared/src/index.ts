@@ -9,6 +9,7 @@ export * from "./schemas/records.js";
 export * from "./schemas/settings.js";
 export * from "./schemas/maps.js";
 export * from "./schemas/opinet.js";
+export * from "./schemas/cheonanCard.js";
 export * from "./schemas/evCharger.js";
 export * from "./schemas/hyundai.js";
 export * from "./gamification.js";
