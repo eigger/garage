@@ -31,6 +31,7 @@ import {
   AwardIcon,
   DownloadIcon,
   BugIcon,
+  SearchIcon,
 } from "./icons";
 
 // 차량 상세 화면(/vehicles/[id]/*)에 있을 때만 경로에서 차량 id를 뽑아낸다.
@@ -138,6 +139,8 @@ export function BottomNav() {
     basePath ? `${basePath}/level` : null,
     basePath ? `${basePath}/access` : null,
     basePath ? `${basePath}/integration` : null,
+    basePath ? `${basePath}/stations` : null,
+    basePath ? `${basePath}/cheonan-card` : null,
     "/vehicles",
     "/users",
     "/maintenance-presets",
@@ -146,7 +149,9 @@ export function BottomNav() {
     "/profile",
     "/backup",
   ].filter((r): r is string => r !== null);
-  const moreActive = moreOpen || moreRoutes.some((r) => pathname === r);
+  const moreActive =
+    moreOpen ||
+    moreRoutes.some((r) => pathname === r || (r.endsWith("/stations") && pathname?.startsWith(r)));
 
   return (
     <>
@@ -258,6 +263,9 @@ export function BottomNav() {
               <>
                 <div className="sheet-group-label">{t("navVehicleMenuHeading")}</div>
                 <div className="sheet-grid">
+                  <button type="button" className="sheet-item" onClick={() => go(`${basePath}/stations`)}>
+                    <SearchIcon size={20} /> {t("navStationsSearch")}
+                  </button>
                   <button type="button" className="sheet-item" onClick={() => go(`${basePath}/analytics`)}>
                     <BarChartIcon size={20} /> {t("navAnalytics")}
                   </button>
