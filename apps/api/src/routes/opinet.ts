@@ -2,10 +2,13 @@ import { FastifyInstance } from "fastify";
 import type { OpinetValuePicksResponse } from "@garage/shared";
 import { getSetting } from "../lib/settings.js";
 import {
+  attachAllFuelPrices,
   computeNetGain,
   fetchLowPriceCandidates,
   fetchNearbyStations,
   fetchStationDetail,
+  fetchStationPrices,
+  FUEL_CODE_MAP,
 } from "../lib/opinet.js";
 import { getVehicleFuelStats } from "../lib/fuelStats.js";
 import { haversineKm } from "../lib/geo.js";
@@ -34,7 +37,13 @@ export async function opinetRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "lat, lon, and fuelType are required" });
     }
 
-    return fetchNearbyStations(Number(lat), Number(lon), fuelType, sort === "price" ? "price" : "distance");
+    const stations = await fetchNearbyStations(
+      Number(lat),
+      Number(lon),
+      fuelType,
+      sort === "price" ? "price" : "distance",
+    );
+    return attachAllFuelPrices(stations, fuelType);
   });
 
   // "이득순" — 가까운 주유소 대비, 지역 최저가 후보를 왕복 기름값까지 감안한
@@ -59,6 +68,7 @@ export async function opinetRoutes(app: FastifyInstance) {
 
     const latNum = Number(lat);
     const lonNum = Number(lon);
+    const primaryProdCd = FUEL_CODE_MAP[fuelType] ?? "B027";
 
     const [{ kmPerLiter, avgLiters }, nearby, candidates] = await Promise.all([
       getVehicleFuelStats(vehicleId),
@@ -82,7 +92,7 @@ export async function opinetRoutes(app: FastifyInstance) {
     };
 
     // lowTop10 응답에 좌표·주소가 포함되므로 detailById 추가 호출 없이 이득을 계산한다.
-    const picks = candidates
+    const rawPicks = candidates
       .filter((c) => c.id !== baselineStation.id && !c.id.startsWith("MOCK_") && c.lat !== null && c.lon !== null)
       .map((c) => {
         const distanceKm = haversineKm(latNum, lonNum, c.lat as number, c.lon as number);
@@ -102,6 +112,8 @@ export async function opinetRoutes(app: FastifyInstance) {
           lon: c.lon as number,
           distanceM: Math.round(distanceKm * 1000),
           price: c.price,
+          primaryProdCd,
+          prices: [{ prodCd: primaryProdCd, price: c.price }],
           extraRoundTripKm,
           netGain: Math.round(netGain),
         };
@@ -109,6 +121,20 @@ export async function opinetRoutes(app: FastifyInstance) {
       .filter((p) => p.netGain > 0)
       .sort((a, b) => b.netGain - a.netGain)
       .slice(0, VALUE_PICK_RESULT_LIMIT);
+
+    const picks = await Promise.all(
+      rawPicks.map(async (pick) => {
+        const fetched = await fetchStationPrices(pick.id);
+        if (!fetched?.length) return pick;
+        const prices = fetched.map((p) => ({ prodCd: p.prodCd, price: p.price }));
+        const primary = prices.find((p) => p.prodCd === primaryProdCd);
+        return {
+          ...pick,
+          price: primary?.price ?? pick.price,
+          prices,
+        };
+      }),
+    );
 
     const response: OpinetValuePicksResponse = { baseline, insufficientData: false, picks };
     return response;

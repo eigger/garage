@@ -9,7 +9,16 @@ import type { MapProvidersConfig } from "../lib/maps/types";
 import { pickDefaultProvider } from "../lib/maps/types";
 import { NavLaunchButtons } from "./NavLaunchButtons";
 import type { StationMarker } from "./maps/LastLocationMap";
-import type { OpinetStationSummary, EvChargerSummary, ChargerStatus, OpinetValuePicksResponse } from "@garage/shared";
+import {
+  OPINET_PROD_DISPLAY_ORDER,
+  OPINET_PROD_LABELS,
+  type OpinetFuelPriceSummary,
+  type OpinetProdCd,
+  type OpinetStationSummary,
+  type EvChargerSummary,
+  type ChargerStatus,
+  type OpinetValuePicksResponse,
+} from "@garage/shared";
 import type { FuelType } from "../lib/types";
 import type { TranslationKey } from "../lib/i18n/translations";
 
@@ -50,6 +59,61 @@ function formatLocationTime(iso: string | null | undefined, locale: string): str
     minute: "2-digit",
     hour12: false,
   });
+}
+
+function prodLabel(prodCd: string, locale: string): string {
+  const entry = OPINET_PROD_LABELS[prodCd as OpinetProdCd];
+  if (!entry) return prodCd;
+  return locale === "en" ? entry.en : entry.ko;
+}
+
+function orderedPrices(prices: OpinetFuelPriceSummary[]): OpinetFuelPriceSummary[] {
+  return [...prices].sort((a, b) => {
+    const ai = OPINET_PROD_DISPLAY_ORDER.indexOf(a.prodCd as OpinetProdCd);
+    const bi = OPINET_PROD_DISPLAY_ORDER.indexOf(b.prodCd as OpinetProdCd);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+}
+
+/** 천안사랑 목록과 동일: 주유종 강조 + 나머지 유종 보조 표시 */
+function FuelPriceBlock({
+  primaryProdCd,
+  prices,
+  locale,
+}: {
+  primaryProdCd: string;
+  prices: OpinetFuelPriceSummary[];
+  locale: string;
+}) {
+  const ordered = orderedPrices(prices);
+  const primary = ordered.find((p) => p.prodCd === primaryProdCd) ?? ordered[0];
+  const secondary = ordered.filter((p) => p.prodCd !== primary?.prodCd);
+  if (!primary) return null;
+  return (
+    <>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-primary)", margin: "2px 0 2px" }}>
+        {prodLabel(primary.prodCd, locale)} {primary.price.toLocaleString()}원
+      </div>
+      {secondary.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            flexWrap: "wrap",
+            gap: "4px 10px",
+            fontSize: 12,
+            color: "var(--color-text-muted)",
+            marginBottom: 4,
+          }}
+        >
+          {secondary.map((p) => (
+            <span key={p.prodCd}>
+              {prodLabel(p.prodCd, locale)} {p.price.toLocaleString()}
+            </span>
+          ))}
+        </div>
+      )}
+    </>
+  );
 }
 
 type SortMode = "distance" | "price" | "value";
@@ -403,9 +467,7 @@ export function NearbyStationsCard({
                 </span>
                 <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{formatDistance(pick.distanceM / 1000)}</span>
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", margin: "2px 0 2px" }}>
-                {pick.price.toLocaleString()}원
-              </div>
+              <FuelPriceBlock primaryProdCd={pick.primaryProdCd} prices={pick.prices} locale={locale} />
               <div
                 style={{
                   display: "inline-block",
@@ -444,9 +506,7 @@ export function NearbyStationsCard({
                   </span>
                   <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{station.distance}m</span>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-primary)", margin: "2px 0 8px" }}>
-                  {station.price.toLocaleString()}원
-                </div>
+                <FuelPriceBlock primaryProdCd={station.primaryProdCd} prices={station.prices} locale={locale} />
                 {hasCoords && (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                     <NavLaunchButtons compact destination={{ lat: station.lat as number, lon: station.lon as number, name: station.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />

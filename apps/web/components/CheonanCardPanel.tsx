@@ -429,6 +429,8 @@ export function CheonanCardPanel({
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {data.stations.slice(0, MAP_MARKER_LIMIT).map((station, i) => {
               const selected = selectedStationId === station.id;
+              const primary = station.prices.find((p) => p.prodCd === data.primaryProdCd);
+              const secondary = station.prices.filter((p) => p.prodCd !== data.primaryProdCd);
               return (
                 <div
                   key={station.id}
@@ -446,34 +448,57 @@ export function CheonanCardPanel({
                     }
                   }}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 8,
                     borderTop: i === 0 ? undefined : "1px solid var(--color-border)",
                     paddingTop: i === 0 ? 0 : 8,
                     margin: "0 -8px",
                     paddingLeft: 8,
                     paddingRight: 8,
-                    paddingBottom: 4,
+                    paddingBottom: 6,
                     borderRadius: 6,
                     background: selected ? "var(--color-surface-secondary)" : undefined,
                     cursor: "pointer",
                   }}
                 >
-                  <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
-                    <StationBadge number={i + 1} selected={selected} />
-                    <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {station.brandLabel ? `[${station.brandLabel}] ` : ""}
-                      {station.name}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+                    <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                      <StationBadge number={i + 1} selected={selected} />
+                      <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {station.brandLabel ? `[${station.brandLabel}] ` : ""}
+                        {station.name}
+                      </span>
                     </span>
-                  </span>
-                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>
-                    {station.primaryPrice != null
-                      ? `${station.primaryPrice.toLocaleString()}원`
-                      : t("cheonanCardFuelNotSold")}
-                    {station.distanceM != null ? ` · ${formatDistance(station.distanceM / 1000)}` : ""}
-                  </span>
+                    {station.distanceM != null && (
+                      <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>
+                        {formatDistance(station.distanceM / 1000)}
+                      </span>
+                    )}
+                  </div>
+                  <div
+                    style={{
+                      marginLeft: 24,
+                      marginTop: 2,
+                      fontSize: 12,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {station.primaryPrice != null && primary ? (
+                      <>
+                        <span style={{ fontWeight: 600, color: "var(--color-primary)" }}>
+                          {prodLabel(primary.prodCd)} {primary.price.toLocaleString()}원
+                        </span>
+                        {secondary.length > 0 && (
+                          <span style={{ color: "var(--color-text-muted)" }}>
+                            {" · "}
+                            {secondary.map((p) => `${prodLabel(p.prodCd)} ${p.price.toLocaleString()}`).join(" · ")}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ color: "var(--color-text-muted)" }}>{t("cheonanCardFuelNotSold")}</span>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -1,3 +1,4 @@
+import { OPINET_PROD_DISPLAY_ORDER } from "@garage/shared";
 import { katecToWgs84, wgs84ToKatec, haversineKm } from "./geo.js";
 import { getSetting } from "./settings.js";
 
@@ -59,13 +60,21 @@ export const FUEL_CODE_MAP: Record<string, string> = {
   HYBRID: "B027",
 };
 
+export type OpinetStationFuelPrice = {
+  prodCd: string;
+  price: number;
+};
+
 export type OpinetStationSummary = {
   id: string;
   name: string;
   brand: string;
   brandLabel: string;
   distance: number;
+  /** 차량 주유종 단가(정렬·이득순용). */
   price: number;
+  primaryProdCd: string;
+  prices: OpinetStationFuelPrice[];
   lat: number | null;
   lon: number | null;
 };
@@ -75,6 +84,64 @@ export type OpinetStationDetail = OpinetStationSummary & {
   roadAddress: string | null;
   tel: string | null;
 };
+
+function orderFuelPrices(prices: OpinetStationFuelPrice[]): OpinetStationFuelPrice[] {
+  return [...prices].sort((a, b) => {
+    const ai = OPINET_PROD_DISPLAY_ORDER.indexOf(a.prodCd as (typeof OPINET_PROD_DISPLAY_ORDER)[number]);
+    const bi = OPINET_PROD_DISPLAY_ORDER.indexOf(b.prodCd as (typeof OPINET_PROD_DISPLAY_ORDER)[number]);
+    return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+  });
+}
+
+function withPrimaryPrice(
+  station: Omit<OpinetStationSummary, "price" | "primaryProdCd" | "prices"> & {
+    price: number;
+  },
+  primaryProdCd: string,
+  prices: OpinetStationFuelPrice[],
+): OpinetStationSummary {
+  const ordered = orderFuelPrices(prices);
+  const primary = ordered.find((p) => p.prodCd === primaryProdCd);
+  return {
+    ...station,
+    primaryProdCd,
+    price: primary?.price ?? station.price,
+    prices: ordered.length > 0 ? ordered : [{ prodCd: primaryProdCd, price: station.price }],
+  };
+}
+
+/** aroundAll 상위 N곳만 detailById로 다유종을 붙인다(오피넷 호출 절약). */
+const ENRICH_PRICE_LIMIT = 10;
+
+export async function attachAllFuelPrices(
+  stations: OpinetStationSummary[],
+  fuelType: string,
+  limit = ENRICH_PRICE_LIMIT,
+): Promise<OpinetStationSummary[]> {
+  const primaryProdCd = FUEL_CODE_MAP[fuelType] ?? "B027";
+  const head = stations.slice(0, limit);
+  const rest = stations.slice(limit);
+
+  const enrichedHead = await Promise.all(
+    head.map(async (station) => {
+      if (station.id.startsWith("MOCK_")) return station;
+      const fetched = await fetchStationPrices(station.id);
+      if (!fetched?.length) {
+        return withPrimaryPrice(station, primaryProdCd, [{ prodCd: primaryProdCd, price: station.price }]);
+      }
+      return withPrimaryPrice(
+        station,
+        primaryProdCd,
+        fetched.map((p) => ({ prodCd: p.prodCd, price: p.price })),
+      );
+    }),
+  );
+
+  return [
+    ...enrichedHead,
+    ...rest.map((s) => withPrimaryPrice(s, primaryProdCd, [{ prodCd: primaryProdCd, price: s.price }])),
+  ];
+}
 
 export function brandLabelOf(code: string): string {
   return BRANDS[code.trim().toUpperCase()] ?? "자가상표";
@@ -106,11 +173,11 @@ export async function fetchNearbyStations(
 
   try {
     const { x, y } = wgs84ToKatec(lon, lat);
-    const prodcd = FUEL_CODE_MAP[fuelType] ?? "B027";
+    const primaryProdCd = FUEL_CODE_MAP[fuelType] ?? "B027";
     // 오피넷 API의 sort 파라미터는 1=가격순, 2=거리순이다 (실제 API 응답으로 확인됨,
     // 공식 문서에 적힌 것과 반대라 헷갈리기 쉬움).
     const opinetSort = sort === "price" ? 1 : 2;
-    const url = `https://www.opinet.co.kr/api/aroundAll.do?code=${apiKey}&out=json&x=${x}&y=${y}&radius=5000&prodcd=${prodcd}&sort=${opinetSort}`;
+    const url = `https://www.opinet.co.kr/api/aroundAll.do?code=${apiKey}&out=json&x=${x}&y=${y}&radius=5000&prodcd=${primaryProdCd}&sort=${opinetSort}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Opinet API responded with status ${res.status}`);
 
@@ -127,16 +194,21 @@ export async function fetchNearbyStations(
         coords != null
           ? Math.round(haversineKm(lat, lon, coords.lat, coords.lon) * 1000)
           : Number(s.DISTANCE);
-      return {
-        id: String(s.UNI_ID),
-        name: String(s.OS_NM),
-        brand: brandCode,
-        brandLabel: brandLabelOf(brandCode),
-        distance,
-        price: Number(s.PRICE),
-        lat: coords?.lat ?? null,
-        lon: coords?.lon ?? null,
-      };
+      const price = Number(s.PRICE);
+      return withPrimaryPrice(
+        {
+          id: String(s.UNI_ID),
+          name: String(s.OS_NM),
+          brand: brandCode,
+          brandLabel: brandLabelOf(brandCode),
+          distance,
+          price,
+          lat: coords?.lat ?? null,
+          lon: coords?.lon ?? null,
+        },
+        primaryProdCd,
+        [{ prodCd: primaryProdCd, price }],
+      );
     });
   } catch {
     return sortMockStations(mockStations(fuelType), sort);
@@ -232,20 +304,36 @@ export async function fetchStationDetail(uniId: string): Promise<OpinetStationDe
     const brandCode = String(row.POLL_DIV_CD || row.POLL_DIV_CO || "ETC").trim().toUpperCase();
     const coords = coordsFromKatec(row);
 
-    const oilPrice = Array.isArray(row.OIL_PRICE) ? row.OIL_PRICE[0] : row.OIL_PRICE;
-    const price = oilPrice ? Number((oilPrice as Record<string, unknown>).PRICE) : NaN;
+    const rawPrices = row.OIL_PRICE;
+    const priceList = Array.isArray(rawPrices) ? rawPrices : rawPrices ? [rawPrices] : [];
+    const prices: OpinetStationFuelPrice[] = [];
+    for (const item of priceList) {
+      const rec = item as Record<string, unknown>;
+      const prodCd = String(rec.PRODCD ?? "").trim();
+      const price = Number(rec.PRICE);
+      if (!prodCd || !Number.isFinite(price)) continue;
+      prices.push({ prodCd, price });
+    }
+    const primaryProdCd = prices[0]?.prodCd ?? "B027";
+    const primaryPrice = prices[0]?.price ?? 0;
 
     return {
-      id: String(row.UNI_ID),
-      name: String(row.OS_NM),
-      brand: brandCode,
-      brandLabel: brandLabelOf(brandCode),
-      distance: 0,
-      price: Number.isFinite(price) ? price : 0,
+      ...withPrimaryPrice(
+        {
+          id: String(row.UNI_ID),
+          name: String(row.OS_NM),
+          brand: brandCode,
+          brandLabel: brandLabelOf(brandCode),
+          distance: 0,
+          price: primaryPrice,
+          lat: coords?.lat ?? null,
+          lon: coords?.lon ?? null,
+        },
+        primaryProdCd,
+        prices,
+      ),
       address: row.VAN_ADR ? String(row.VAN_ADR) : null,
       roadAddress: row.NEW_ADR ? String(row.NEW_ADR) : null,
-      lat: coords?.lat ?? null,
-      lon: coords?.lon ?? null,
       tel: row.TEL ? String(row.TEL) : null,
     };
   } catch {
@@ -391,11 +479,38 @@ export async function fetchAroundStations(
 
 function mockStations(fuelType: string): OpinetStationSummary[] {
   // 목 데이터도 좌표를 넣어 네비/지도 경로가 깨지지 않게 한다(서울시청 인근).
-  const basePrice = fuelType === "DIESEL" ? 1430 : fuelType === "LPG" ? 1010 : 1650;
-  return [
-    { id: "MOCK_SKE", name: "하늘길 SK에너지 주유소", brand: "SKE", brandLabel: "SK에너지", distance: 240, price: basePrice - 5, lat: 37.5675, lon: 126.9785 },
-    { id: "MOCK_GSC", name: "동행 GS칼텍스 주유소", brand: "GSC", brandLabel: "GS칼텍스", distance: 450, price: basePrice + 12, lat: 37.5655, lon: 126.980 },
-    { id: "MOCK_SOL", name: "믿음 가득 S-OIL 주유소", brand: "SOL", brandLabel: "S-OIL", distance: 820, price: basePrice - 10, lat: 37.564, lon: 126.975 },
-    { id: "MOCK_HDO", name: "오션 현대오일뱅크 주유소", brand: "HDO", brandLabel: "현대오일뱅크", distance: 1100, price: basePrice + 5, lat: 37.57, lon: 126.982 },
+  const primaryProdCd = FUEL_CODE_MAP[fuelType] ?? "B027";
+  const gasoline = 1650;
+  const diesel = 1430;
+  const lpg = 1010;
+  const primary =
+    fuelType === "DIESEL" ? diesel : fuelType === "LPG" ? lpg : gasoline;
+
+  const rows = [
+    { id: "MOCK_SKE", name: "하늘길 SK에너지 주유소", brand: "SKE", brandLabel: "SK에너지", distance: 240, delta: -5, lat: 37.5675, lon: 126.9785 },
+    { id: "MOCK_GSC", name: "동행 GS칼텍스 주유소", brand: "GSC", brandLabel: "GS칼텍스", distance: 450, delta: 12, lat: 37.5655, lon: 126.98 },
+    { id: "MOCK_SOL", name: "믿음 가득 S-OIL 주유소", brand: "SOL", brandLabel: "S-OIL", distance: 820, delta: -10, lat: 37.564, lon: 126.975 },
+    { id: "MOCK_HDO", name: "오션 현대오일뱅크 주유소", brand: "HDO", brandLabel: "현대오일뱅크", distance: 1100, delta: 5, lat: 37.57, lon: 126.982 },
   ];
+
+  return rows.map((r) =>
+    withPrimaryPrice(
+      {
+        id: r.id,
+        name: r.name,
+        brand: r.brand,
+        brandLabel: r.brandLabel,
+        distance: r.distance,
+        price: primary + r.delta,
+        lat: r.lat,
+        lon: r.lon,
+      },
+      primaryProdCd,
+      [
+        { prodCd: "B027", price: gasoline + r.delta },
+        { prodCd: "D047", price: diesel + r.delta },
+        { prodCd: "K015", price: lpg + Math.round(r.delta / 2) },
+      ],
+    ),
+  );
 }
