@@ -67,7 +67,10 @@ export function circleMarkerDataUri(color: string): string {
 // provider마다 클릭 이벤트 API가 달라 상호 강조(hover/click highlight) 대신
 // 이 방식으로 "어떤 게 어떤 마커인지"를 알 수 있게 한다.
 export function numberedMarkerDataUri(num: number, color: string): string {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="${color}" stroke="#fff" stroke-width="2"/><text x="12" y="16.5" font-family="sans-serif" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">${num}</text></svg>`;
+  const fontSize = num >= 100 ? 8 : num >= 10 ? 10 : 12;
+  // baseline을 폰트 크기에 맞춰 가운데로 — 자릿수가 늘어도 숫자가 아래로 처지지 않게.
+  const textY = (12 + fontSize * 0.36).toFixed(1);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="12" cy="12" r="10" fill="${color}" stroke="#fff" stroke-width="2"/><text x="12" y="${textY}" font-family="sans-serif" font-size="${fontSize}" font-weight="700" fill="#fff" text-anchor="middle">${num}</text></svg>`;
   return `data:image/svg+xml;base64,${typeof window !== "undefined" ? window.btoa(svg) : Buffer.from(svg).toString("base64")}`;
 }
 
