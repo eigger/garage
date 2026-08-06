@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { settingKeySchema, settingUpdateSchema, type SettingKey } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { setSetting } from "../lib/settings.js";
-import { triggerCheonanCardWarmup } from "../lib/cheonanCardSync.js";
+import { triggerCheonanCardWarmup } from "../lib/cheonanCardPrices.js";
 
 function mask(value: string): string {
   if (value.length <= 4) return "••••";

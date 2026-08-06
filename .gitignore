@@ -13,3 +13,6 @@ uploads/
 # AI agent tooling config (local-only, not part of the app)
 .claude/
 .agents/
+
+# 로컬 설계 메모 — 커밋하지 않는다
+docs/plans/

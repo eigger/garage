@@ -946,23 +946,24 @@ OBD 동글 기반 수집([OBD 앱](#2-obd-앱torque-pro) 참고)의 대안으로
 | 상태 | **옵트인** (기본 비활성). `CHEONAN_CARD_ENABLED=true`이고 오피넷 키가 있을 때만 동작 |
 | 설정 키 | `CHEONAN_CARD_ENABLED` (`"true"` / `"false"`, 미설정=꺼짐) |
 | 설정 위치 | `/integrations` 토글 또는 `.env` / docker-compose |
-| 가맹점 소스 | 코나카드 비공식 검색 API (`POST https://search.konacard.co.kr/api/v1/payable-merchants`, `id=34`) |
-| 가격 소스 | 오피넷 `searchByName.do` / `detailById.do` (캐시) |
+| 가맹점 소스 | 정적 seed `apps/api/src/data/cheonan-card-stations.json` (오프라인 빌드: `scripts/build-cheonan-card-seed.mjs`) |
+| 가격 소스 | 오피넷 `detailById.do` (온디맨드 캐시) |
 | 구현 | `apps/api/src/lib/cheonanCard*.ts`, `apps/api/src/routes/cheonanCard.ts`, `apps/web/app/vehicles/[id]/cheonan-card` |
 | 설계 문서 | [docs/plans/cheonan-card-gas-stations.md](./plans/cheonan-card-gas-stations.md) |
 
 ### 동작 요약
 
-- cron 없음. 화면 조회 시 캐시가 낡았을 때만 백그라운드 갱신(stale-while-revalidate).
-- 가맹점 목록 TTL 7일, 가격 TTL은 오피넷 게시 경계(KST 1·2·9·12·16·19시).
-- 끈 상태에서는 외부 API 호출 0건. 캐시 데이터는 삭제하지 않음.
+- cron 없음. 화면 조회 시 가격 캐시가 낡았을 때만 백그라운드 갱신(stale-while-revalidate).
+- 가맹점↔오피넷 매칭은 런타임이 아니라 seed 빌드 시 1회. 코나카드 API는 런타임에 호출하지 않음.
+- 가격 TTL은 오피넷 게시 경계(KST 1·2·9·12·16·19시).
+- 끈 상태에서는 외부 API 호출 0건. 가격 캐시는 삭제하지 않음.
 - UI: 차량 개요 `NearbyStationsCard` 하단 링크 → `/vehicles/[id]/cheonan-card` (가격순/거리순, 전 유종 가격 표시).
 
 ### Garage API
 
 | 메서드 | 경로 | 인증 | 설명 |
 |---|---|---|---|
-| `GET` | `/api/cheonan-card/config` | JWT | `{ enabled, label, merchantCount, merchantSyncedAt }` |
+| `GET` | `/api/cheonan-card/config` | JWT | `{ enabled, label, stationCount, seedGeneratedAt }` |
 | `GET` | `/api/cheonan-card/stations` | JWT | `fuelType` 필수. `lat`/`lon`/`sort`/`maxKm` 선택. `status`: preparing \| refreshing \| fresh |
 
 ---

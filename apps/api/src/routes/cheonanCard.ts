@@ -1,11 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import {
   buildStationsResponse,
-  ensureFreshMerchants,
   ensureFreshPrices,
   getConfigResponse,
-} from "../lib/cheonanCardSync.js";
-import { isCheonanCardEnabled } from "../lib/cheonanCard.js";
+} from "../lib/cheonanCardPrices.js";
+import { CHEONAN_CARD, isCheonanCardEnabled, loadCheonanCardSeed } from "../lib/cheonanCard.js";
 
 export async function cheonanCardRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
@@ -31,19 +30,19 @@ export async function cheonanCardRoutes(app: FastifyInstance) {
 
     // HYBRID는 휘발유(B027)와 동일. ELECTRIC만 빈 목록.
     if (fuelType === "ELECTRIC") {
+      const seed = loadCheonanCardSeed();
       return {
-        label: "천안사랑카드",
+        label: CHEONAN_CARD.label,
         status: "fresh" as const,
         primaryProdCd: "B027",
         stations: [],
         unmatched: [],
-        merchantSyncedAt: null,
         pricesSyncedAt: null,
+        seedGeneratedAt: seed.generatedAt,
       };
     }
 
-    // 갱신은 백그라운드 — 응답을 블로킹하지 않는다. 가격은 가맹점 동기화 뒤에 체이닝된다.
-    ensureFreshMerchants(app.log);
+    // 갱신은 백그라운드 — 응답을 블로킹하지 않는다.
     ensureFreshPrices(app.log);
 
     const latNum = lat != null && lat !== "" ? Number(lat) : undefined;

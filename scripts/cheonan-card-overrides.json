@@ -1,0 +1,16 @@
+{
+  "_comment": "seq → opinetId(UNI_ID) | null. null이면 unmatched로 남긴다. 계획서 §8 수동 검수 대상.",
+  "overrides": {
+    "5331488": null,
+    "5765922": null,
+    "92413": null,
+    "1021664": null,
+    "6310724": null,
+    "2136724": null,
+    "4241122": null,
+    "170010": null,
+    "255342": null,
+    "6065907": null,
+    "679010": null
+  }
+}

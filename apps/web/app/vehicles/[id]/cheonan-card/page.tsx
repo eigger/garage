@@ -12,9 +12,8 @@ import type { Vehicle } from "../../../../lib/types";
 type SortMode = "price" | "distance";
 type DistanceFilter = 5 | 10 | 20 | "all";
 
-// A3: preparing(첫 동기화 ~35s+)과 refreshing(가격만 ~15s) 재시도 예산을 분리한다.
-const PREPARING_MAX_RETRIES = 12; // ~60s
-const REFRESHING_MAX_RETRIES = 6; // ~30s
+// 가격 갱신 ≈14초. preparing/refreshing 모두 동일 예산으로 충분하다.
+const MAX_RETRIES = 6; // ~30s
 const RETRY_INTERVAL_MS = 5000;
 
 function StationBadge({ number }: { number: number }) {
@@ -72,16 +71,17 @@ export default function CheonanCardPage() {
       .then(setVehicle);
   }, [vehicleId]);
 
+  // config는 마운트 시 1회만 — 정렬/거리 필터를 바꿀 때마다 다시 부를 이유가 없고,
+  // 서버에서 seed 파일 읽기까지 딸려온다.
+  useEffect(() => {
+    apiFetch("/api/cheonan-card/config")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((config: { enabled?: boolean } | null) => setEnabled(!!config?.enabled))
+      .catch(() => setEnabled(false));
+  }, []);
+
   const load = useCallback(async () => {
-    const configRes = await apiFetch("/api/cheonan-card/config");
-    if (!configRes.ok) {
-      setEnabled(false);
-      setLoading(false);
-      return;
-    }
-    const config = await configRes.json();
-    setEnabled(!!config.enabled);
-    if (!config.enabled) {
+    if (!enabled) {
       setLoading(false);
       return;
     }
@@ -100,13 +100,20 @@ export default function CheonanCardPage() {
       setData(body);
     }
     setLoading(false);
-  }, [vehicle, sort, maxKm]);
+  }, [enabled, vehicle, sort, maxKm]);
 
   useEffect(() => {
-    if (vehicle === null) return;
+    if (enabled === null) return;
+    if (enabled && vehicle === null) return;
     setLoading(true);
     load();
-  }, [vehicle, load]);
+  }, [enabled, vehicle, load]);
+
+  // 정렬·거리 필터를 바꾸는 건 사용자의 명시적 재시도다 — 소진 상태를 풀어준다.
+  useEffect(() => {
+    retriesRef.current = 0;
+    setRetryExhausted(false);
+  }, [sort, maxKm]);
 
   useEffect(() => {
     if (!data) return;
@@ -116,8 +123,7 @@ export default function CheonanCardPage() {
       return;
     }
     if (data.status !== "preparing" && data.status !== "refreshing") return;
-    const maxRetries = data.status === "preparing" ? PREPARING_MAX_RETRIES : REFRESHING_MAX_RETRIES;
-    if (retriesRef.current >= maxRetries) {
+    if (retriesRef.current >= MAX_RETRIES) {
       setRetryExhausted(true);
       return;
     }
@@ -175,6 +181,9 @@ export default function CheonanCardPage() {
               {data.status === "refreshing" && (
                 <span style={{ marginLeft: 8, color: "var(--color-primary)" }}>· {t("cheonanCardRefreshing")}</span>
               )}
+              {data.status === "preparing" && (
+                <span style={{ marginLeft: 8, color: "var(--color-primary)" }}>· {t("cheonanCardPreparing")}</span>
+              )}
             </p>
           )}
         </div>
@@ -225,13 +234,13 @@ export default function CheonanCardPage() {
         </p>
       )}
 
-      {data?.status === "preparing" && data.stations.length === 0 && (
-        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>
-          {retryExhausted ? t("cheonanCardRetryLater") : t("cheonanCardPreparing")}
+      {retryExhausted && data && data.status !== "fresh" && (
+        <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 12px" }}>
+          {t("cheonanCardRetryLater")}
         </p>
       )}
 
-      {data && data.status !== "preparing" && data.stations.length === 0 && data.unmatched.length === 0 && (
+      {data && data.stations.length === 0 && data.unmatched.length === 0 && (
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("cheonanCardEmpty")}</p>
       )}
 
@@ -241,8 +250,9 @@ export default function CheonanCardPage() {
             const primary = station.prices.find((p) => p.prodCd === data.primaryProdCd);
             const secondary = station.prices.filter((p) => p.prodCd !== data.primaryProdCd);
             const tradeAt = primary?.tradeAt ?? station.prices[0]?.tradeAt ?? null;
+            const pricesPending = data.status === "preparing" && station.prices.length === 0;
             return (
-              <div key={`${station.id}-${station.konaSeq}`} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
+              <div key={station.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                   <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
                     <StationBadge number={i + 1} />
@@ -258,7 +268,17 @@ export default function CheonanCardPage() {
                   )}
                 </div>
 
-                {station.primaryPrice != null && primary ? (
+                {pricesPending ? (
+                  <div
+                    style={{
+                      height: 18,
+                      width: 120,
+                      margin: "6px 0",
+                      borderRadius: 4,
+                      background: "var(--color-surface-secondary)",
+                    }}
+                  />
+                ) : station.primaryPrice != null && primary ? (
                   <div style={{ fontSize: 15, fontWeight: 600, color: "var(--color-primary)", margin: "4px 0 2px" }}>
                     {prodLabel(primary.prodCd)} {primary.price.toLocaleString()}원
                   </div>
@@ -268,7 +288,7 @@ export default function CheonanCardPage() {
                   </div>
                 )}
 
-                {secondary.length > 0 && (
+                {!pricesPending && secondary.length > 0 && (
                   <div style={{ display: "flex", flexWrap: "wrap", gap: "4px 10px", fontSize: 12, color: "var(--color-text-muted)", marginBottom: 4 }}>
                     {secondary.map((p) => (
                       <span key={p.prodCd}>
@@ -280,19 +300,21 @@ export default function CheonanCardPage() {
 
                 {tradeAt && (
                   <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginBottom: 6 }}>
-                    {formatAsOfTime(tradeAt, locale)} 기준
+                    {t("cheonanCardItemAsOf", { time: formatAsOfTime(tradeAt, locale) })}
                   </div>
                 )}
 
-                {station.lat != null && station.lon != null && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                    <NavLaunchButtons
-                      compact
-                      destination={{ lat: station.lat, lon: station.lon, name: station.name }}
-                      labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
-                    />
-                  </div>
-                )}
+                <div style={{ fontSize: 12, color: "var(--color-text-muted)", marginBottom: 6 }}>
+                  {station.roadAddress ?? station.address}
+                </div>
+
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <NavLaunchButtons
+                    compact
+                    destination={{ lat: station.lat, lon: station.lon, name: station.name }}
+                    labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }}
+                  />
+                </div>
               </div>
             );
           })}
@@ -306,7 +328,7 @@ export default function CheonanCardPage() {
           </h3>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {data.unmatched.map((m) => (
-              <div key={m.konaSeq} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
+              <div key={m.seq} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
                 <strong style={{ fontSize: 13 }}>{m.name}</strong>
                 <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{m.address}</div>
                 {m.tel && <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{m.tel}</div>}

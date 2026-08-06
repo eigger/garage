@@ -8,7 +8,7 @@ export const settingKeySchema = z.enum([
   // data.go.kr 활용신청은 기본 이용기간이 2년이라 갱신을 안 하면 자동 만료된다.
   // 만료일은 API로 조회할 방법이 없어 관리자가 직접 입력해두고, 다가오면 경고를 띄운다.
   "EV_CHARGER_API_KEY_EXPIRES_AT",
-  // 천안사랑카드 가맹 주유소 기능 on/off. "true"일 때만 코나카드·오피넷 호출.
+  // 천안사랑카드 가맹 주유소 기능 on/off. "true"이고 오피넷 키가 있을 때만 가격 갱신.
   // 미설정/"false"/그 외 = 비활성. 비밀값이 아니므로 평문으로 내려보낸다.
   "CHEONAN_CARD_ENABLED",
   "KAKAO_MAP_APP_KEY",

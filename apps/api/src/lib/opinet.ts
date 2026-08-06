@@ -26,9 +26,16 @@ const OPINET_AREA_BY_SIDO: Record<string, string> = {
   "세종특별자치시": "19",
 };
 
-function resolveOpinetArea(address?: string | null): string | undefined {
+/**
+ * lowTop10.do의 area. 시군 4자리를 넣으면 해당 시군으로 좁혀진다.
+ * 천안시 = 0502 (검증 완료). 그 외는 시도 2자리.
+ */
+export function resolveOpinetArea(address?: string | null): string | undefined {
   if (!address) return undefined;
-  const sido = address.trim().split(/\s+/)[0];
+  const trimmed = address.trim();
+  // "충남 천안시 …" / "천안시 …" 모두 대응
+  if (/(?:^|\s)천안/.test(trimmed)) return "0502";
+  const sido = trimmed.split(/\s+/)[0];
   return OPINET_AREA_BY_SIDO[sido];
 }
 

@@ -8,10 +8,11 @@
 
 - **§3 오피넷 호출 절감**: `aroundAll`/`lowTop10` 좌표·주소 파싱 → 거리순/가격순·이득순에서 `detailById` 추가 호출 제거
 - **옵트인 기능**: `CHEONAN_CARD_ENABLED` + 오피넷 키. 기본 꺼짐(외부 호출 0). `/integrations` 토글
-- **온디맨드 동기화**: 가맹점(코나카드, TTL 7일) + 가격(오피넷 게시 경계, KST). stale-while-revalidate
+- **정적 seed**: 가맹점↔오피넷 매칭은 `scripts/build-cheonan-card-seed.mjs`로 오프라인 생성. 런타임 코나카드 호출 없음
+- **온디맨드 가격**: `ensureFreshPrices`만 (오피넷 게시 경계 KST). stale-while-revalidate
 - **화면**: `/vehicles/[id]/cheonan-card` — 가격순/거리순, 전 유종 가격, unmatched 섹션
-- **마이그레이션**: `20260806000000_add_cheonan_card_gas_stations`
-- **검증**: `cheonanCardPure` 단위 테스트 + `apps/api` `tsc` 통과. 실키로 켠 뒤 첫 동기화·거리순/가격순 확인 필요. `SIGUNCD`는 주소 `"천안"` 폴백으로 동작 중(areaCode.do로 확정 권장)
+- **마이그레이션**: `20260806000000`(가맹점 테이블 초안) → `20260806110000_cheonan_card_static_seed`(정적 seed 전환). 중간 수정본을 이미 적용한 DB는 `migrate reset` 필요할 수 있음
+- **검증**: 게이팅·동시 가드·성공 임계치·`buildStationsResponse` 단위 테스트 + `apps/api` 빌드(seed JSON `dist/data` 복사 포함)
 
 ## 0. v0.2.0-beta 릴리즈 준비 요약 (2026-07-09)
 

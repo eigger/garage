@@ -6,19 +6,17 @@ export const CHEONAN_CARD = {
   merchantType: "KB",
   bizType: "3301",
   affiliateName: "천안사랑카드",
-  opinetSidoArea: "05",
-  // areaCode.do로 확정 전 — 비어 있으면 주소에 "천안" 포함 여부로 대체 판정한다.
-  opinetSigunCds: [] as string[],
+  opinetSidoArea: "05", // 충청남도 — searchByName의 area
+  opinetSigunCd: "0502", // 천안시 — areaCode.do로 검증 완료
 } as const;
 
 export const CHEONAN_CARD_PRICE_BOUNDARIES = [1, 2, 9, 12, 16, 19] as const;
 
 export type KstBoundaryHour = (typeof CHEONAN_CARD_PRICE_BOUNDARIES)[number];
 
-const MERCHANT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 export const THROTTLE_MS = 200;
-export const NAME_MATCH_MAX_M = 500;
-export const COORD_MATCH_MAX_M = 150;
+/** seed 빌드 시 좌표 매칭 임계값(m). 런타임에는 쓰지 않는다. */
+export const COORD_MATCH_MAX_M = 50;
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -30,24 +28,22 @@ export function normalizeStationName(name: string): string {
   s = s.replace(/셀프|self/gi, "");
   s = s.replace(/\([^)]*\)/g, "");
   s = s.replace(/\s+/g, "");
-  s = s.toLowerCase();
+  // 오피넷 searchByName.do는 대소문자를 구분한다(GS≠gs, IC≠ic). 소문자화 금지.
   return s.trim();
 }
 
-/** seq 재발급 시에도 opinetId를 이어받기 위한 안정 키 (정규화 상호 + 주소). */
-export function merchantStableKey(name: string, address: string): string {
-  return `${normalizeStationName(name)}|${address.normalize("NFKC").trim().toLowerCase()}`;
+/** 가격 동기화 성공률이 이 비율 이상일 때만 pricesSyncedAt을 갱신한다. */
+export const PRICE_SYNC_SUCCESS_RATIO = 0.5;
+
+export function shouldMarkPricesSynced(successCount: number, total: number): boolean {
+  if (total <= 0 || successCount <= 0) return false;
+  return successCount >= Math.ceil(total * PRICE_SYNC_SUCCESS_RATIO);
 }
 
 export function fuelTypeToProdCd(fuelType: string): string {
   if (fuelType === "DIESEL") return "D047";
   if (fuelType === "LPG") return "K015";
   return "B027"; // GASOLINE / HYBRID / default
-}
-
-export function merchantTtlExpired(syncedAt: Date | null | undefined, now = new Date()): boolean {
-  if (!syncedAt) return true;
-  return now.getTime() - syncedAt.getTime() > MERCHANT_TTL_MS;
 }
 
 /** KST 벽시계 시각의 시(0–23)를 반환. TZ=UTC 환경에서도 안전. */
