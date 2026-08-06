@@ -363,11 +363,29 @@ export async function vehicleRoutes(app: FastifyInstance) {
         address: true,
         latitude: true,
         longitude: true,
+        opinetStationId: true,
+        cost: true,
+        liters: true,
       },
       take: 100,
     });
 
-    const stationMap = new Map<string, { location: string; address: string | null; latitude: number | null; longitude: number | null; count: number }>();
+    const stationMap = new Map<
+      string,
+      {
+        location: string;
+        address: string | null;
+        latitude: number | null;
+        longitude: number | null;
+        // 빠른 입력에서 이 버튼을 누르면 단가까지 채워야 해서 함께 내려준다. 레코드가
+        // date desc로 정렬돼 있어, 한 상호를 처음 만나는 시점이 곧 최근 기록이다 —
+        // opinetStationId는 그 최근 기록 값을 그대로 쓰고(연동 여부 판단용),
+        // lastUnitPrice는 그때의 원/리터를 보여주기용 폴백으로만 쓴다(과거 가격일 수 있음).
+        opinetStationId: string | null;
+        lastUnitPrice: number | null;
+        count: number;
+      }
+    >();
     for (const r of records) {
       if (!r.location) continue;
       const key = r.location.trim();
@@ -385,6 +403,8 @@ export async function vehicleRoutes(app: FastifyInstance) {
           address: r.address,
           latitude: r.latitude,
           longitude: r.longitude,
+          opinetStationId: r.opinetStationId,
+          lastUnitPrice: r.liters > 0 ? Math.round(r.cost / r.liters) : null,
           count: 1,
         });
       }
