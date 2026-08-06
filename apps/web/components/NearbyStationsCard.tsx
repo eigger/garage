@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { apiFetch } from "../lib/api";
 import { useSettings } from "../lib/i18n/settings-context";
@@ -13,13 +13,30 @@ import type { OpinetStationSummary, EvChargerSummary, ChargerStatus, OpinetValue
 import type { FuelType } from "../lib/types";
 import type { TranslationKey } from "../lib/i18n/translations";
 
+type LocationSource = "vehicle" | "browser";
+
 type NearbyStationsCardProps = {
   vehicleId: string;
   fuelType: FuelType | null;
   lat: number;
   lon: number;
   mapConfig: MapProvidersConfig;
+  locationSource: LocationSource;
+  locationUpdatedAt?: string | null;
+  refreshingLocation?: boolean;
+  onRefreshBrowserLocation?: () => void;
 };
+
+function formatLocationTime(iso: string | null | undefined, locale: string): string {
+  if (!iso) return "—";
+  return new Date(iso).toLocaleString(locale === "en" ? "en-US" : "ko-KR", {
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+}
 
 type SortMode = "distance" | "price" | "value";
 
@@ -85,8 +102,18 @@ function StationBadge({ number }: { number: number }) {
   );
 }
 
-export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig }: NearbyStationsCardProps) {
-  const { t, formatDistance, formatCurrency } = useSettings();
+export function NearbyStationsCard({
+  vehicleId,
+  fuelType,
+  lat,
+  lon,
+  mapConfig,
+  locationSource,
+  locationUpdatedAt,
+  refreshingLocation = false,
+  onRefreshBrowserLocation,
+}: NearbyStationsCardProps) {
+  const { t, locale, formatDistance, formatCurrency } = useSettings();
   const isElectric = fuelType === "ELECTRIC";
   const mapProvider = pickDefaultProvider(mapConfig);
   const [loading, setLoading] = useState(false);
@@ -96,48 +123,70 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig }:
   const [chargers, setChargers] = useState<EvChargerSummary[]>([]);
   const [valuePicks, setValuePicks] = useState<OpinetValuePicksResponse | null>(null);
   const [markers, setMarkers] = useState<StationMarker[]>([]);
+  const originKey = `${lat.toFixed(5)},${lon.toFixed(5)}`;
+  const prevOriginKeyRef = useRef(originKey);
+  const searchedRef = useRef(searched);
+  const sortModeRef = useRef(sortMode);
+  searchedRef.current = searched;
+  sortModeRef.current = sortMode;
 
   // 거리순/가격순은 각각 오피넷에 따로 조회한다 — aroundAll이 좌표를 포함하므로
   // 추가 detailById 없이 네비·지도에 바로 쓸 수 있다.
-  async function handleSearch(mode: SortMode) {
-    setLoading(true);
-    setSearched(true);
-    setSortMode(mode);
-    try {
-      if (isElectric) {
-        const address = await reverseGeocode(mapConfig, lat, lon);
-        const url = `/api/ev-charger/stations?lat=${lat}&lon=${lon}${address ? `&address=${encodeURIComponent(address)}` : ""}`;
-        const res = await apiFetch(url);
-        const all: EvChargerSummary[] = res.ok ? await res.json() : [];
-        const data = all.slice(0, RESULT_LIMIT);
-        setChargers(data);
-        setMarkers(data.map((s, i) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name, number: i + 1 })));
-      } else if (mode === "value") {
-        const address = await reverseGeocode(mapConfig, lat, lon);
-        const url = `/api/opinet/value-picks?vehicleId=${vehicleId}&lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}${address ? `&address=${encodeURIComponent(address)}` : ""}`;
-        const res = await apiFetch(url);
-        const data: OpinetValuePicksResponse | null = res.ok ? await res.json() : null;
-        setValuePicks(data);
-        setMarkers(
-          (data?.picks ?? []).map((p, i) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name, number: i + 1 })),
-        );
-      } else {
-        const res = await apiFetch(`/api/opinet/stations?lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}&sort=${mode}`);
-        const all: OpinetStationSummary[] = res.ok ? await res.json() : [];
-        const data = all.slice(0, RESULT_LIMIT);
-        setGasStations(data);
-        // 좌표가 없어 걸러지는 항목이 있어도 리스트 순번(number)은 원래 위치를 유지한다.
-        setMarkers(
-          data
-            .map((s, i) => ({ station: s, number: i + 1 }))
-            .filter(({ station: s }) => s.lat != null && s.lon != null)
-            .map(({ station: s, number }) => ({ id: s.id, lat: s.lat as number, lon: s.lon as number, name: s.name, number })),
-        );
+  const handleSearch = useCallback(
+    async (mode: SortMode) => {
+      setLoading(true);
+      setSearched(true);
+      setSortMode(mode);
+      try {
+        if (isElectric) {
+          const address = await reverseGeocode(mapConfig, lat, lon);
+          const url = `/api/ev-charger/stations?lat=${lat}&lon=${lon}${address ? `&address=${encodeURIComponent(address)}` : ""}`;
+          const res = await apiFetch(url);
+          const all: EvChargerSummary[] = res.ok ? await res.json() : [];
+          const data = all.slice(0, RESULT_LIMIT);
+          setChargers(data);
+          setMarkers(data.map((s, i) => ({ id: s.id, lat: s.lat, lon: s.lon, name: s.name, number: i + 1 })));
+        } else if (mode === "value") {
+          const address = await reverseGeocode(mapConfig, lat, lon);
+          const url = `/api/opinet/value-picks?vehicleId=${vehicleId}&lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}${address ? `&address=${encodeURIComponent(address)}` : ""}`;
+          const res = await apiFetch(url);
+          const data: OpinetValuePicksResponse | null = res.ok ? await res.json() : null;
+          setValuePicks(data);
+          setMarkers(
+            (data?.picks ?? []).map((p, i) => ({ id: p.id, lat: p.lat, lon: p.lon, name: p.name, number: i + 1 })),
+          );
+        } else {
+          const res = await apiFetch(`/api/opinet/stations?lat=${lat}&lon=${lon}&fuelType=${fuelType || "GASOLINE"}&sort=${mode}`);
+          const all: OpinetStationSummary[] = res.ok ? await res.json() : [];
+          const data = all.slice(0, RESULT_LIMIT);
+          setGasStations(data);
+          // 좌표가 없어 걸러지는 항목이 있어도 리스트 순번(number)은 원래 위치를 유지한다.
+          setMarkers(
+            data
+              .map((s, i) => ({ station: s, number: i + 1 }))
+              .filter(({ station: s }) => s.lat != null && s.lon != null)
+              .map(({ station: s, number }) => ({ id: s.id, lat: s.lat as number, lon: s.lon as number, name: s.name, number })),
+          );
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
+    },
+    [fuelType, isElectric, lat, lon, mapConfig, vehicleId],
+  );
+
+  // 검색 원점이 바뀌면(브라우저 갱신 등) 이미 검색한 경우 같은 정렬로 다시 찾는다.
+  useEffect(() => {
+    if (prevOriginKeyRef.current === originKey) return;
+    prevOriginKeyRef.current = originKey;
+    setMarkers([]);
+    setGasStations([]);
+    setChargers([]);
+    setValuePicks(null);
+    if (searchedRef.current) {
+      void handleSearch(sortModeRef.current);
     }
-  }
+  }, [originKey, handleSearch]);
 
   // 가격만 바뀌는 재검색에서도 좌표 키가 같으면 지도 remount를 피한다.
   const mapMarkerKey = useMemo(
@@ -145,6 +194,11 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig }:
     [markers],
   );
   const stableMarkers = useMemo(() => markers, [mapMarkerKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const originLabel =
+    locationSource === "vehicle"
+      ? t("stationsOriginVehicle", { time: formatLocationTime(locationUpdatedAt, locale) })
+      : t("stationsOriginBrowser");
 
   return (
     <section className="card" style={{ marginTop: 12 }}>
@@ -160,7 +214,7 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig }:
                   key={mode}
                   type="button"
                   onClick={() => handleSearch(mode)}
-                  disabled={loading}
+                  disabled={loading || refreshingLocation}
                   style={{
                     fontSize: 12,
                     padding: "4px 8px",
@@ -178,12 +232,44 @@ export function NearbyStationsCard({ vehicleId, fuelType, lat, lon, mapConfig }:
           <button
             type="button"
             onClick={() => handleSearch(sortMode)}
-            disabled={loading}
+            disabled={loading || refreshingLocation}
             style={{ fontSize: 12, padding: "4px 10px", minHeight: "auto", background: "var(--color-primary)", color: "var(--color-text-on-primary)" }}
           >
             {loading ? t("loading") : t("findNearbyButton")}
           </button>
         </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          marginBottom: searched ? 10 : 8,
+        }}
+      >
+        <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>{originLabel}</p>
+        {onRefreshBrowserLocation && (
+          <button
+            type="button"
+            onClick={onRefreshBrowserLocation}
+            disabled={refreshingLocation || loading}
+            style={{
+              fontSize: 12,
+              padding: "4px 8px",
+              minHeight: "auto",
+              borderRadius: 6,
+              background: "var(--color-surface)",
+              color: "var(--color-primary)",
+              border: "1px solid var(--color-border-light)",
+              flexShrink: 0,
+            }}
+          >
+            {refreshingLocation ? t("loading") : t("stationsUseBrowserLocation")}
+          </button>
+        )}
       </div>
 
       {!searched && (

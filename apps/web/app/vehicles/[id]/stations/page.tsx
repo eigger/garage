@@ -4,6 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import { useToast } from "../../../../lib/toast-context";
 import { PageLoader } from "../../../../components/PageLoader";
 import { NearbyStationsCard } from "../../../../components/NearbyStationsCard";
 import { CheonanCardPanel } from "../../../../components/CheonanCardPanel";
@@ -11,9 +12,12 @@ import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import type { Vehicle } from "../../../../lib/types";
 
 type MainTab = "nearby" | "cheonan";
+type LocationSource = "vehicle" | "browser";
+
 type GeoState =
-  | { status: "idle" | "loading" }
-  | { status: "ready"; lat: number; lon: number }
+  | { status: "idle" }
+  | { status: "loading"; keepReady?: { lat: number; lon: number; source: LocationSource } }
+  | { status: "ready"; lat: number; lon: number; source: LocationSource }
   | { status: "denied" | "unsupported" | "error" };
 
 function tabButtonStyle(active: boolean) {
@@ -24,6 +28,10 @@ function tabButtonStyle(active: boolean) {
     background: active ? "var(--color-primary)" : "var(--color-surface-secondary)",
     color: active ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
   } as const;
+}
+
+function vehicleHasLocation(vehicle: Vehicle): vehicle is Vehicle & { latitude: number; longitude: number } {
+  return vehicle.latitude != null && vehicle.longitude != null;
 }
 
 export default function StationsSearchPage() {
@@ -40,6 +48,7 @@ function StationsSearchPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useSettings();
+  const { showToast } = useToast();
   const mapConfig = useMapProviders();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
@@ -65,11 +74,15 @@ function StationsSearchPageInner() {
     };
   }, [vehicleId]);
 
+  // 차량이 바뀌면 위치 원점도 다시 잡는다.
+  useEffect(() => {
+    setGeo({ status: "idle" });
+  }, [vehicleId]);
+
   const isElectric = vehicle?.fuelType === "ELECTRIC";
   const showCheonanTab = !!cheonanEnabled && !isElectric;
   const requestedTab = searchParams.get("tab");
 
-  // 천안 탭이 없거나 꺼진 상태인데 ?tab=cheonan이면 URL만 nearby로 정리
   useEffect(() => {
     if (loading || cheonanEnabled === null) return;
     if (requestedTab === "cheonan" && !showCheonanTab) {
@@ -80,33 +93,73 @@ function StationsSearchPageInner() {
   const activeTab: MainTab =
     requestedTab === "cheonan" && showCheonanTab ? "cheonan" : "nearby";
 
-  const requestBrowserLocation = useCallback(() => {
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setGeo({ status: "unsupported" });
-      return;
-    }
-    setGeo({ status: "loading" });
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setGeo({
-          status: "ready",
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude,
-        });
-      },
-      (err) => {
-        // PERMISSION_DENIED = 1
-        setGeo({ status: err.code === 1 ? "denied" : "error" });
-      },
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 60_000 },
-    );
-  }, []);
+  const requestBrowserLocation = useCallback(
+    (opts?: { soft?: boolean }) => {
+      const soft = !!opts?.soft;
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        if (soft) {
+          showToast(t("stationsLocationUnsupported"), "error");
+          return;
+        }
+        setGeo({ status: "unsupported" });
+        return;
+      }
 
-  // 주변 탭 진입 시 한 번 브라우저 GPS 요청 (거절/오류는 재시도 버튼으로만)
+      setGeo((prev) => {
+        if (soft && prev.status === "ready") {
+          return { status: "loading", keepReady: { lat: prev.lat, lon: prev.lon, source: prev.source } };
+        }
+        // 갱신 중 재클릭 — 기존 원점을 유지한 채 로딩만 계속
+        if (soft && prev.status === "loading" && prev.keepReady) {
+          return prev;
+        }
+        return { status: "loading" };
+      });
+
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setGeo({
+            status: "ready",
+            lat: pos.coords.latitude,
+            lon: pos.coords.longitude,
+            source: "browser",
+          });
+        },
+        (err) => {
+          if (soft) {
+            // 이미 쓸 수 있는 원점이 있으면 화면을 유지하고 토스트만.
+            setGeo((prev) => {
+              if (prev.status === "loading" && prev.keepReady) {
+                return { status: "ready", ...prev.keepReady };
+              }
+              return prev.status === "ready" ? prev : { status: err.code === 1 ? "denied" : "error" };
+            });
+            showToast(t("stationsLocationRefreshFailed"), "error");
+            return;
+          }
+          setGeo({ status: err.code === 1 ? "denied" : "error" });
+        },
+        { enableHighAccuracy: true, timeout: 10_000, maximumAge: soft ? 0 : 60_000 },
+      );
+    },
+    [showToast, t],
+  );
+
+  // 주변 탭: 차량 GPS 우선, 없으면 브라우저 GPS 폴백
   useEffect(() => {
     if (loading || !vehicle) return;
     if (activeTab !== "nearby") return;
     if (geo.status !== "idle") return;
+
+    if (vehicleHasLocation(vehicle)) {
+      setGeo({
+        status: "ready",
+        lat: vehicle.latitude,
+        lon: vehicle.longitude,
+        source: "vehicle",
+      });
+      return;
+    }
     requestBrowserLocation();
   }, [loading, vehicle, activeTab, geo.status, requestBrowserLocation]);
 
@@ -116,6 +169,15 @@ function StationsSearchPageInner() {
   }
 
   if (loading || !vehicle) return <PageLoader />;
+
+  const displayOrigin =
+    geo.status === "ready"
+      ? geo
+      : geo.status === "loading" && geo.keepReady
+        ? { status: "ready" as const, ...geo.keepReady }
+        : null;
+  const refreshing = geo.status === "loading" && !!geo.keepReady;
+  const blockingLocate = geo.status === "idle" || (geo.status === "loading" && !geo.keepReady);
 
   return (
     <>
@@ -135,7 +197,7 @@ function StationsSearchPageInner() {
 
       {activeTab === "nearby" && (
         <>
-          {(geo.status === "idle" || geo.status === "loading") && (
+          {blockingLocate && (
             <section className="card" style={{ marginTop: 8 }}>
               <p style={{ margin: 0, color: "var(--color-text-muted)" }}>{t("stationsLocating")}</p>
             </section>
@@ -148,7 +210,7 @@ function StationsSearchPageInner() {
               {geo.status !== "unsupported" && (
                 <button
                   type="button"
-                  onClick={requestBrowserLocation}
+                  onClick={() => requestBrowserLocation()}
                   style={{
                     fontSize: 13,
                     padding: "6px 12px",
@@ -162,14 +224,18 @@ function StationsSearchPageInner() {
               )}
             </section>
           )}
-          {geo.status === "ready" && (
+          {displayOrigin && (
             <NearbyStationsCard
-              key={`${vehicleId}:${geo.lat.toFixed(5)}:${geo.lon.toFixed(5)}`}
+              key={vehicleId}
               vehicleId={vehicleId}
               fuelType={vehicle.fuelType}
-              lat={geo.lat}
-              lon={geo.lon}
+              lat={displayOrigin.lat}
+              lon={displayOrigin.lon}
+              locationSource={displayOrigin.source}
+              locationUpdatedAt={vehicle.locationUpdatedAt ?? null}
               mapConfig={mapConfig}
+              refreshingLocation={refreshing}
+              onRefreshBrowserLocation={() => requestBrowserLocation({ soft: true })}
             />
           )}
         </>
