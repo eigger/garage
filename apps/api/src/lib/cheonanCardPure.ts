@@ -34,6 +34,11 @@ export function normalizeStationName(name: string): string {
   return s.trim();
 }
 
+/** seq 재발급 시에도 opinetId를 이어받기 위한 안정 키 (정규화 상호 + 주소). */
+export function merchantStableKey(name: string, address: string): string {
+  return `${normalizeStationName(name)}|${address.normalize("NFKC").trim().toLowerCase()}`;
+}
+
 export function fuelTypeToProdCd(fuelType: string): string {
   if (fuelType === "DIESEL") return "D047";
   if (fuelType === "LPG") return "K015";

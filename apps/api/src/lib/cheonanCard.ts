@@ -19,6 +19,7 @@ export {
   getKstHour,
   isPriceCacheStale,
   lastPublishBoundary,
+  merchantStableKey,
   merchantTtlExpired,
   normalizeStationName,
   THROTTLE_MS,

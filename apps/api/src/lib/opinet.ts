@@ -1,4 +1,4 @@
-import { katecToWgs84, wgs84ToKatec } from "./geo.js";
+import { katecToWgs84, wgs84ToKatec, haversineKm } from "./geo.js";
 import { getSetting } from "./settings.js";
 
 // 오피넷 자체 시도 코드(EV충전소 zcode와는 체계가 다름) — lowTop10.do 등 지역별
@@ -115,12 +115,17 @@ export async function fetchNearbyStations(
     return data.RESULT.OIL.map((s) => {
       const brandCode = String(s.POLL_DIV_CO || s.POLL_DIV_CD || "ETC").trim().toUpperCase();
       const coords = coordsFromKatec(s);
+      // 천안사랑 화면과 거리를 맞추기 위해, 좌표가 있으면 서버 haversine으로 통일한다(D6).
+      const distance =
+        coords != null
+          ? Math.round(haversineKm(lat, lon, coords.lat, coords.lon) * 1000)
+          : Number(s.DISTANCE);
       return {
         id: String(s.UNI_ID),
         name: String(s.OS_NM),
         brand: brandCode,
         brandLabel: brandLabelOf(brandCode),
-        distance: Number(s.DISTANCE),
+        distance,
         price: Number(s.PRICE),
         lat: coords?.lat ?? null,
         lon: coords?.lon ?? null,

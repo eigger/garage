@@ -4,6 +4,7 @@ import {
   lastPublishBoundary,
   isPriceCacheStale,
   fuelTypeToProdCd,
+  merchantStableKey,
   CHEONAN_CARD_PRICE_BOUNDARIES,
 } from "./cheonanCardPure.js";
 
@@ -71,5 +72,13 @@ describe("lastPublishBoundary / isPriceCacheStale", () => {
 
   it("treats null syncedAt as stale", () => {
     expect(isPriceCacheStale(null, kst1030)).toBe(true);
+  });
+});
+
+describe("merchantStableKey", () => {
+  it("is stable across corporate prefix differences in name", () => {
+    expect(merchantStableKey("(주)광명주유소", "충남 천안시")).toBe(
+      merchantStableKey("광명주유소", "충남 천안시"),
+    );
   });
 });

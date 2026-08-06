@@ -7,6 +7,7 @@ import {
   fuelTypeToProdCd,
   isCheonanCardEnabled,
   isPriceCacheStale,
+  merchantStableKey,
   merchantTtlExpired,
   resolveOpinetId,
   sleep,
@@ -44,11 +45,19 @@ async function runMerchantSync(log?: FastifyBaseLogger): Promise<void> {
 
   try {
     const merchants = await fetchKonaMerchants();
+    const existingRows = await prisma.cheonanCardMerchant.findMany();
+    const bySeq = new Map(existingRows.map((r) => [r.konaSeq, r]));
+    // seq 재발급 시 opinetId를 이어받기 위한 안정 키 인덱스 (D2)
+    const byStableKey = new Map(
+      existingRows.map((r) => [merchantStableKey(r.name, r.address), r]),
+    );
+
     const seenSeqs = new Set<number>();
 
     for (const m of merchants) {
       seenSeqs.add(m.seq);
-      const existing = await prisma.cheonanCardMerchant.findUnique({ where: { konaSeq: m.seq } });
+      const existing = bySeq.get(m.seq);
+      const priorByKey = byStableKey.get(merchantStableKey(m.simpleNm, m.addr));
 
       let match = existing?.opinetId
         ? {
@@ -61,7 +70,19 @@ async function runMerchantSync(log?: FastifyBaseLogger): Promise<void> {
             opinetLon: existing.opinetLon,
             lpgYn: existing.lpgYn,
           }
-        : null;
+        : priorByKey?.opinetId && priorByKey.konaSeq !== m.seq
+          ? {
+              // seq가 바뀌었지만 상호+주소가 같으면 기존 매핑 재사용
+              opinetId: priorByKey.opinetId,
+              matchMethod: priorByKey.matchMethod ?? "name",
+              opinetName: priorByKey.opinetName,
+              brand: priorByKey.brand,
+              roadAddress: priorByKey.roadAddress,
+              opinetLat: priorByKey.opinetLat,
+              opinetLon: priorByKey.opinetLon,
+              lpgYn: priorByKey.lpgYn,
+            }
+          : null;
 
       if (!match?.opinetId) {
         const resolved = await resolveOpinetId({
@@ -127,29 +148,40 @@ async function runMerchantSync(log?: FastifyBaseLogger): Promise<void> {
       });
     }
 
-    // 가맹 해지 반영 + orphan 가격 행 정리 (C3: Prisma relation 없음)
-    const removed = await prisma.cheonanCardMerchant.findMany({
-      where: { konaSeq: { notIn: [...seenSeqs] } },
-      select: { opinetId: true },
-    });
-    const orphanOpinetIds = [
-      ...new Set(removed.map((r) => r.opinetId).filter((id): id is string => !!id)),
-    ];
-    await prisma.cheonanCardMerchant.deleteMany({
-      where: { konaSeq: { notIn: [...seenSeqs] } },
-    });
-    if (orphanOpinetIds.length > 0) {
-      // 다른 가맹점이 같은 opinetId를 쓰지 않을 때만 삭제
-      const stillUsed = await prisma.cheonanCardMerchant.findMany({
-        where: { opinetId: { in: orphanOpinetIds } },
+    // D2: 부분 응답·seq 재발급으로 오인 삭제되지 않게 sanity check
+    const cachedCount = existingRows.length;
+    const incomingCount = merchants.length;
+    const skipDeletes =
+      cachedCount > 0 && incomingCount < cachedCount * 0.5;
+
+    if (skipDeletes) {
+      log?.warn(
+        { cachedCount, incomingCount },
+        "cheonan card merchant sync: skip deletes (incoming < 50% of cache)",
+      );
+    } else {
+      const removed = await prisma.cheonanCardMerchant.findMany({
+        where: { konaSeq: { notIn: [...seenSeqs] } },
         select: { opinetId: true },
       });
-      const stillUsedSet = new Set(stillUsed.map((r) => r.opinetId));
-      const toDelete = orphanOpinetIds.filter((id) => !stillUsedSet.has(id));
-      if (toDelete.length > 0) {
-        await prisma.cheonanCardStationPrice.deleteMany({
-          where: { opinetId: { in: toDelete } },
+      const orphanOpinetIds = [
+        ...new Set(removed.map((r) => r.opinetId).filter((id): id is string => !!id)),
+      ];
+      await prisma.cheonanCardMerchant.deleteMany({
+        where: { konaSeq: { notIn: [...seenSeqs] } },
+      });
+      if (orphanOpinetIds.length > 0) {
+        const stillUsed = await prisma.cheonanCardMerchant.findMany({
+          where: { opinetId: { in: orphanOpinetIds } },
+          select: { opinetId: true },
         });
+        const stillUsedSet = new Set(stillUsed.map((r) => r.opinetId));
+        const toDelete = orphanOpinetIds.filter((id) => !stillUsedSet.has(id));
+        if (toDelete.length > 0) {
+          await prisma.cheonanCardStationPrice.deleteMany({
+            where: { opinetId: { in: toDelete } },
+          });
+        }
       }
     }
 
@@ -289,10 +321,11 @@ export async function buildStationsResponse(query: StationsQuery) {
   const primaryProdCd = fuelTypeToProdCd(query.fuelType);
   const state = await getOrCreateSyncState();
   const merchantCount = await prisma.cheonanCardMerchant.count();
-  const priceCount = await prisma.cheonanCardStationPrice.count();
 
+  // D5: pricesSyncedAt이 있어야(가격 동기화 성공 이력) fresh/refreshing.
+  // 가맹점만 있고 가격 sync가 전멸·미완이면 preparing — 빈 가격을 "최신"으로 보이게 하지 않는다.
   let status: "preparing" | "refreshing" | "fresh";
-  if (merchantCount === 0 || (priceCount === 0 && !state.pricesSyncedAt)) {
+  if (merchantCount === 0 || !state.pricesSyncedAt) {
     status = "preparing";
   } else if (isPriceCacheStale(state.pricesSyncedAt)) {
     status = "refreshing";

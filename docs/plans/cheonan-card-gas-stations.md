@@ -33,7 +33,7 @@
 | | 기존 "주변 주유소" (그대로 둠) | 신규 "천안사랑 주유소" |
 |---|---|---|
 | 데이터 | `aroundAll` 5km 반경 | 캐시된 가맹점 전체 |
-| 거리 | 오피넷 `DISTANCE` | 서버 haversine |
+| 거리 | 서버 haversine (§3-1 후 좌표 포함 시; 좌표 없으면 오피넷 `DISTANCE`) | 서버 haversine |
 | 정렬 | 거리순/가격순/이득순 | 가격순/거리순 (위치 무관) |
 | 요청 경로 오피넷 호출 (캐시 신선 시) | 1회 (§3 리팩터링 후) | **0회** |
 
@@ -85,6 +85,12 @@ Content-Type: application/json
 
 **리스크:** 비공식 API다. 계약이 없으므로 예고 없이 바뀔 수 있다. `robots.txt`는 404.
 가맹점 목록은 TTL 7일로 드물게만 호출한다(§6-1). **실패 시 기능을 조용히 비활성화하는 폴백이 필수.**
+
+> **정적 seed 대안 (명시적 기각).** 가맹 76건을 오프라인으로 `opinetId`까지 매핑해 JSON으로
+> 커밋하면 코나카드 런타임·`ensureFreshMerchants`·searchByName이 통째로 사라진다.
+> **채택하지 않는다** — 2025-12·2026-01 등록 건이 있어 목록이 실제로 늘고, 온디맨드 동기화가
+> 그 변화를 반영한다. 누락은 false negative라 안전하지만, 이번 설계는 코나카드를 authoritative
+> 소스로 두고 매칭 결함(A1·A2·A4·D2)을 방어 코드로 막는다. seed는 §8 override 후속으로만 둔다.
 
 ### 2-2. 오피넷 API (공식 문서 `Opinet_API_Free.pdf` 2026.04 기준)
 
@@ -140,11 +146,20 @@ Content-Type: application/json
 
 [apps/api/src/lib/opinet.ts:108](../../apps/api/src/lib/opinet.ts) 의 매핑에 `GIS_X_COOR`/`GIS_Y_COOR` 파싱을 추가하고
 `katecToWgs84`로 변환해 `lat`/`lon`을 `OpinetStationSummary`에 포함시킨다.
+좌표가 있으면 **거리도 서버 haversine으로 재계산**해 천안사랑 화면과 숫자를 맞춘다(D6).
 
 - `packages/shared/src/schemas/opinet.ts`의 `opinetStationSummarySchema`에 `lat`, `lon` (`.nullable()`) 추가
-- [apps/web/components/NearbyStationsCard.tsx:124-138](../../apps/web/components/NearbyStationsCard.tsx) 의
-  상위 5건 `detailById` 보강 로직(`gasCoords` state 포함)을 **통째로 제거**하고 요약 응답의 좌표를 그대로 쓴다
+- [apps/web/components/NearbyStationsCard.tsx](../../apps/web/components/NearbyStationsCard.tsx) 의
+  상위 5건 `detailById` 보강 로직(`gasCoords` state 포함)을 **이 카드에서만** 제거하고
+  요약 응답의 좌표를 그대로 쓴다
+- **범위 한정 (D3):** `quick-log/page.tsx`의 `GET /api/opinet/stations/:id` 호출은 **유지한다.**
+  요약 응답에는 `roadAddress`/`address`가 없어 주유 기록 저장용 주소 보강에 상세 API가 필요하다.
+  §3-1은 NearbyStationsCard(네비·지도 마커용 좌표)만 해당한다.
 - `mockStations()`에도 좌표를 넣어 목 데이터 경로가 깨지지 않게 한다
+
+> 이 PR은 `NearbyStationsCard`의 기존 동작(5개 표시, 번호↔지도 마커 대응)과
+> `quick-log`의 상세 조회를 바꾸지 않는다. 호출 수만 줄이는 변경이며,
+> 리팩터링 후 반드시 실제 키로 거리순/가격순/이득순 3개 모드와 빠른 입력 주유소 선택을 확인한다.
 
 ### 3-2. `fetchLowPriceCandidates`에 주소·좌표 추가
 
@@ -157,9 +172,6 @@ Content-Type: application/json
 `lowTop10.do`의 `area`는 시군코드 4자리를 받는다. 현재 [opinet.ts:7](../../apps/api/src/lib/opinet.ts) 의
 `OPINET_AREA_BY_SIDO`는 시도 2자리만 쓴다. 시군코드를 쓰면 이득순 후보가 해당 시군으로 좁혀져 정확도가 오른다.
 **코드값은 `areaCode.do?area=05`로 확인 필요** (§8 참조). 확인 전까지는 시도 2자리 동작을 유지한다.
-
-> 이 PR은 `NearbyStationsCard`의 기존 동작(5개 표시, 번호↔지도 마커 대응)을 바꾸지 않는다.
-> 호출 수만 줄이는 변경이며, 리팩터링 후 반드시 실제 키로 거리순/가격순/이득순 3개 모드를 눌러 확인한다.
 
 ---
 
@@ -330,9 +342,13 @@ stale = pricesSyncedAt < lastPublishBoundary(now)
 
 | 캐시 상태 | 응답 | 백그라운드 |
 |---|---|---|
-| 비어 있음 | `status: "preparing"`, `stations: []` | 가맹점 + 가격 동기화 시작 |
-| 신선 | `status: "fresh"` + 데이터 | 없음 |
-| 낡음 | **`status: "refreshing"` + 낡은 데이터 즉시 반환** | 가격 갱신 시작 |
+| 가맹점 0건 **또는** `pricesSyncedAt` 없음 | `status: "preparing"`, `stations: []`(또는 가격 없는 목록) | 가맹점 + 가격 동기화 시작 |
+| 신선 (`pricesSyncedAt` ≥ 최근 게시 경계) | `status: "fresh"` + 데이터 | 없음 |
+| 낡음 (`pricesSyncedAt` < 최근 게시 경계) | **`status: "refreshing"` + 낡은 데이터 즉시 반환** | 가격 갱신 시작 |
+
+**D5 — `preparing` 정의:** 가맹점만 채워지고 가격 sync가 전멸·미완(`pricesSyncedAt == null`)인 상태는
+`fresh`가 아니라 **`preparing`**이다. 빈 가격 목록을 "최신"으로 보이게 하지 않는다.
+성공한 가격 sync 이력이 있을 때만 `fresh`/`refreshing`으로 나뉜다.
 
 **낡아도 일단 보여준다.** 프론트는 `status`에 따라 안내를 띄우고 몇 초 뒤 재조회한다(§7-2).
 갱신 트리거는 `await`하지 않는다 — 라우트 응답을 절대 블로킹하지 말 것.
@@ -351,8 +367,11 @@ stale = pricesSyncedAt < lastPublishBoundary(now)
 **TTL 7일.** `CheonanCardSyncState.merchantSyncedAt`이 7일보다 오래됐거나 없으면 실행.
 
 1. 코나카드 API 1회 호출 → 76건
-2. `konaSeq`로 upsert. **응답에 없어진 행은 삭제**하고, 그 `opinetId`를 더 이상 쓰는 merchant가
-   없으면 **`CheonanCardStationPrice` orphan도 삭제**한다
+2. `konaSeq`로 upsert. **응답에 없어진 행은 삭제**하되 **삭제 sanity check (D2):**
+   반환 건수가 캐시의 **50% 미만**이면 부분 응답·seq 재발급으로 보고 삭제를 건너뛴다.
+   삭제 시 그 `opinetId`를 더 이상 쓰는 merchant가 없으면 **`CheonanCardStationPrice` orphan도 삭제**한다.
+   추가로 `merchantStableKey(정규화 상호|주소)`로 기존 행을 찾아, seq가 바뀌어도 **opinetId 매핑을 이어받는다**
+   (`konaSeq` 안정성은 미검증 — 단일 스냅샷만 확인함).
 3. `opinetId`가 아직 없는 행에 대해 매칭:
    - **1차 — `searchByName.do`**: `osnm`을 정규화한 상호로 조회(`area=05`).
      결과 중 `SIGUNCD`가 `opinetSigunCds`에 포함(또는 화이트리스트 비어 있으면 주소에 "천안")이고,
@@ -450,7 +469,7 @@ stale = pricesSyncedAt < lastPublishBoundary(now)
 
 | 파라미터 | 필수 | 설명 |
 |---|---|---|
-| `fuelType` | 필수 | `GASOLINE`/`DIESEL`/`LPG` — **정렬·강조 기준 유종**. `ELECTRIC`은 빈 배열 |
+| `fuelType` | 필수 | `GASOLINE`/`DIESEL`/`LPG`/`HYBRID` — **정렬·강조 기준 유종**. `HYBRID`→`B027`(기존 `FUEL_CODE_MAP`과 동일). `ELECTRIC`은 빈 배열 |
 | `lat`, `lon` | 선택 | 있으면 haversine으로 `distanceM` 계산 및 거리순 정렬 가능 |
 | `sort` | 선택 | `price`(기본) / `distance`. `distance`인데 좌표가 없으면 `price`로 폴백 |
 | `maxKm` | 선택 | 거리 필터. 미지정 = 전체 |
@@ -577,8 +596,8 @@ stale = pricesSyncedAt < lastPublishBoundary(now)
 |---|---|
 | **`CHEONAN_CARD_ENABLED`가 `"true"`가 아님 (기본값)** | `/config`가 `enabled: false`. 진입점 숨김. **`ensure*` no-op — 외부 호출 0건** |
 | `OPINET_API_KEY` 미설정 | 동일하게 비활성 — **목 가격을 저장하지 않는다** |
-| 켜져 있으나 캐시 비어 있음 | `status: "preparing"`. 첫 조회가 백그라운드 동기화를 트리거 |
-| 가격 캐시가 낡음 | `status: "refreshing"` + **낡은 값 즉시 반환**. 갱신은 백그라운드 |
+| 켜져 있으나 가맹점 없음 또는 `pricesSyncedAt` 없음 | `status: "preparing"`. 첫 조회가 백그라운드 동기화를 트리거 |
+| 가격 캐시가 낡음 (`pricesSyncedAt` 있음) | `status: "refreshing"` + **낡은 값 즉시 반환**. 갱신은 백그라운드 |
 | 갱신이 이미 진행 중 | 새로 시작하지 않고 in-flight Promise 재사용 (§6-0) |
 | 코나카드 API 실패 | 에러 로그 + `lastError` 기록, **기존 캐시 유지**. 화면은 정상 동작 |
 | 가격 갱신 전체 실패 | `pricesSyncedAt`을 갱신하지 않아 다음 조회에서 재시도. 낡은 값은 계속 표시 |

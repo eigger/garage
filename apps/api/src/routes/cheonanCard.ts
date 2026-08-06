@@ -29,6 +29,7 @@ export async function cheonanCardRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "fuelType is required" });
     }
 
+    // HYBRID는 휘발유(B027)와 동일. ELECTRIC만 빈 목록.
     if (fuelType === "ELECTRIC") {
       return {
         label: "천안사랑카드",
