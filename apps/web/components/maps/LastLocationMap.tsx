@@ -12,10 +12,16 @@ import { RecenterButton } from "./RecenterButton";
 
 const DEFAULT_ZOOM = 16;
 const STATION_MARKER_COLOR = "#f59e0b";
+/** Kakao Maps는 zoom이 아니라 level(작을수록 확대). DEFAULT_ZOOM≈16에 가까운 값. */
+const KAKAO_DEFAULT_LEVEL = 3;
 
 // number는 NearbyStationsCard의 리스트 순번(1부터)과 맞춰서, 지도 마커와 리스트 항목을
 // 클릭/호버 없이도 번호로 바로 매칭할 수 있게 한다.
 export type StationMarker = { id: string; lat: number; lon: number; name: string; number: number };
+
+function totalMapPoints(stations: StationMarker[], showOriginMarker: boolean): number {
+  return stations.length + (showOriginMarker ? 1 : 0);
+}
 
 function LeafletRecenterControl({ lat, lon }: { lat: number; lon: number }) {
   const map = useMap();
@@ -23,27 +29,65 @@ function LeafletRecenterControl({ lat, lon }: { lat: number; lon: number }) {
 }
 
 // 주유소/충전소 검색 결과가 생기면 차량 위치 + 결과 전체가 한 화면에 들어오도록 뷰를 맞춘다.
-function LeafletFitBounds({ lat, lon, stations }: { lat: number; lon: number; stations: StationMarker[] }) {
+function LeafletInvalidateOnShow({ active }: { active: boolean }) {
   const map = useMap();
   useEffect(() => {
-    if (stations.length === 0) return;
+    if (!active) return;
+    const id = window.setTimeout(() => map.invalidateSize(), 0);
+    return () => window.clearTimeout(id);
+  }, [active, map]);
+  return null;
+}
+
+function LeafletFitBounds({
+  lat,
+  lon,
+  stations,
+  includeOrigin,
+}: {
+  lat: number;
+  lon: number;
+  stations: StationMarker[];
+  includeOrigin: boolean;
+}) {
+  const map = useMap();
+  useEffect(() => {
+    const points: [number, number][] = stations.map((s) => [s.lat, s.lon]);
+    if (includeOrigin) points.unshift([lat, lon]);
+    if (points.length === 0) return;
+
     let cancelled = false;
     import("leaflet").then((L) => {
       if (cancelled) return;
-      const bounds = L.latLngBounds([
-        [lat, lon],
-        ...stations.map((s): [number, number] => [s.lat, s.lon]),
-      ]);
-      map.fitBounds(bounds, { padding: [30, 30] });
+      // 점 1개면 fitBounds가 최대 줌으로 붙는다 — setView로 DEFAULT_ZOOM 유지.
+      if (points.length === 1) {
+        map.setView(points[0], DEFAULT_ZOOM);
+        return;
+      }
+      map.fitBounds(L.latLngBounds(points), { padding: [30, 30] });
     });
     return () => {
       cancelled = true;
     };
-  }, [lat, lon, stations, map]);
+  }, [lat, lon, stations, map, includeOrigin]);
   return null;
 }
 
-function OsmLocationMap({ lat, lon, stations, isDark }: { lat: number; lon: number; stations: StationMarker[]; isDark: boolean }) {
+function OsmLocationMap({
+  lat,
+  lon,
+  stations,
+  isDark,
+  showOriginMarker,
+  active,
+}: {
+  lat: number;
+  lon: number;
+  stations: StationMarker[];
+  isDark: boolean;
+  showOriginMarker: boolean;
+  active: boolean;
+}) {
   const [markerIcon, setMarkerIcon] = useState<any>(null);
   const [leaflet, setLeaflet] = useState<any>(null);
   const pinColor = isDark ? "#34d399" : "#18523f";
@@ -82,9 +126,7 @@ function OsmLocationMap({ lat, lon, stations, isDark }: { lat: number; lon: numb
       scrollWheelZoom={true}
     >
       <TileLayer attribution={tile.attribution} url={tile.url} />
-      {markerIcon && (
-        <Marker position={[lat, lon]} icon={markerIcon} />
-      )}
+      {showOriginMarker && markerIcon && <Marker position={[lat, lon]} icon={markerIcon} />}
       {leaflet &&
         stations.map((s) => (
           <Marker
@@ -99,13 +141,30 @@ function OsmLocationMap({ lat, lon, stations, isDark }: { lat: number; lon: numb
             <Popup>{s.name}</Popup>
           </Marker>
         ))}
-      <LeafletRecenterControl lat={lat} lon={lon} />
-      <LeafletFitBounds lat={lat} lon={lon} stations={stations} />
+      {showOriginMarker && <LeafletRecenterControl lat={lat} lon={lon} />}
+      <LeafletFitBounds lat={lat} lon={lon} stations={stations} includeOrigin={showOriginMarker} />
+      <LeafletInvalidateOnShow active={active} />
     </MapContainer>
   );
 }
 
-function KakaoLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; lon: number; appKey: string; stations: StationMarker[]; isDark: boolean }) {
+function KakaoLocationMap({
+  lat,
+  lon,
+  appKey,
+  stations,
+  isDark,
+  showOriginMarker,
+  active,
+}: {
+  lat: number;
+  lon: number;
+  appKey: string;
+  stations: StationMarker[];
+  isDark: boolean;
+  showOriginMarker: boolean;
+  active: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +175,9 @@ function KakaoLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number;
     if (!el) return;
 
     let cancelled = false;
+    // stations 변경으로 지도를 다시 만드는 경로 — 재생성이 끝날 때까지 ready를 내려
+    // 실패 시 이전 지도의 컨트롤이 남지 않게 하고, 표시 직후 relayout이 다시 돌게 한다.
+    setReady(false);
 
     loadKakaoMaps(appKey)
       .then(() => {
@@ -126,14 +188,13 @@ function KakaoLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number;
         const position = new kakao.LatLng(lat, lon);
         const map = new kakao.Map(el, {
           center: position,
-          level: 3,
+          level: KAKAO_DEFAULT_LEVEL,
         });
         mapRef.current = map;
 
-        const marker = new kakao.Marker({
-          position,
-        });
-        marker.setMap(map);
+        if (showOriginMarker) {
+          new kakao.Marker({ position }).setMap(map);
+        }
 
         for (const s of stations) {
           new kakao.Marker({
@@ -142,11 +203,15 @@ function KakaoLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number;
           }).setMap(map);
         }
 
-        if (stations.length > 0) {
+        // 점 1개짜리 bounds는 최대 줌으로 붙는다 — 2개 이상일 때만 fitBounds.
+        if (totalMapPoints(stations, showOriginMarker) >= 2) {
           const bounds = new kakao.LatLngBounds();
-          bounds.extend(position);
+          if (showOriginMarker) bounds.extend(position);
           for (const s of stations) bounds.extend(new kakao.LatLng(s.lat, s.lon));
           map.setBounds(bounds);
+        } else if (stations.length === 1) {
+          map.setCenter(new kakao.LatLng(stations[0].lat, stations[0].lon));
+          map.setLevel(KAKAO_DEFAULT_LEVEL);
         }
 
         setReady(true);
@@ -158,13 +223,21 @@ function KakaoLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number;
     return () => {
       cancelled = true;
     };
-  }, [appKey, lat, lon, stations]);
+  }, [appKey, lat, lon, stations, showOriginMarker]);
+
+  useEffect(() => {
+    if (!active || !ready || !mapRef.current) return;
+    const id = window.setTimeout(() => {
+      mapRef.current?.relayout?.();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [active, ready]);
 
   function handleRecenter() {
     const kakao = (window as any).kakao?.maps;
     if (!kakao || !mapRef.current) return;
     mapRef.current.setCenter(new kakao.LatLng(lat, lon));
-    mapRef.current.setLevel(3);
+    mapRef.current.setLevel(KAKAO_DEFAULT_LEVEL);
   }
 
   if (error) return <p style={{ fontSize: 13, color: "var(--color-danger)", margin: 8 }}>{error}</p>;
@@ -180,12 +253,28 @@ function KakaoLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number;
           filter: isDark ? DARK_MAP_FILTER : undefined,
         }}
       />
-      {ready && <RecenterButton onClick={handleRecenter} />}
+      {ready && showOriginMarker && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
 }
 
-function NaverLocationMap({ lat, lon, clientId, stations, isDark }: { lat: number; lon: number; clientId: string; stations: StationMarker[]; isDark: boolean }) {
+function NaverLocationMap({
+  lat,
+  lon,
+  clientId,
+  stations,
+  isDark,
+  showOriginMarker,
+  active,
+}: {
+  lat: number;
+  lon: number;
+  clientId: string;
+  stations: StationMarker[];
+  isDark: boolean;
+  showOriginMarker: boolean;
+  active: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -196,6 +285,7 @@ function NaverLocationMap({ lat, lon, clientId, stations, isDark }: { lat: numbe
     if (!el) return;
 
     let cancelled = false;
+    setReady(false);
 
     loadNaverMaps(clientId)
       .then(() => {
@@ -210,10 +300,9 @@ function NaverLocationMap({ lat, lon, clientId, stations, isDark }: { lat: numbe
         });
         mapRef.current = map;
 
-        new naver.Marker({
-          position,
-          map,
-        });
+        if (showOriginMarker) {
+          new naver.Marker({ position, map });
+        }
 
         for (const s of stations) {
           new naver.Marker({
@@ -223,11 +312,17 @@ function NaverLocationMap({ lat, lon, clientId, stations, isDark }: { lat: numbe
           });
         }
 
-        if (stations.length > 0) {
-          const bounds = new naver.LatLngBounds(position, position);
-          bounds.extend(position);
+        if (totalMapPoints(stations, showOriginMarker) >= 2) {
+          const seed = stations[0]
+            ? new naver.LatLng(stations[0].lat, stations[0].lon)
+            : position;
+          const bounds = new naver.LatLngBounds(seed, seed);
+          if (showOriginMarker) bounds.extend(position);
           for (const s of stations) bounds.extend(new naver.LatLng(s.lat, s.lon));
           map.fitBounds(bounds);
+        } else if (stations.length === 1) {
+          map.setCenter(new naver.LatLng(stations[0].lat, stations[0].lon));
+          map.setZoom(DEFAULT_ZOOM);
         }
 
         setReady(true);
@@ -239,7 +334,15 @@ function NaverLocationMap({ lat, lon, clientId, stations, isDark }: { lat: numbe
     return () => {
       cancelled = true;
     };
-  }, [clientId, lat, lon, stations]);
+  }, [clientId, lat, lon, stations, showOriginMarker]);
+
+  useEffect(() => {
+    if (!active || !ready || !mapRef.current) return;
+    const id = window.setTimeout(() => {
+      mapRef.current?.autoResize?.();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [active, ready]);
 
   function handleRecenter() {
     const naver = (window as any).naver?.maps;
@@ -261,12 +364,28 @@ function NaverLocationMap({ lat, lon, clientId, stations, isDark }: { lat: numbe
           filter: isDark ? DARK_MAP_FILTER : undefined,
         }}
       />
-      {ready && <RecenterButton onClick={handleRecenter} />}
+      {ready && showOriginMarker && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
 }
 
-function TmapLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; lon: number; appKey: string; stations: StationMarker[]; isDark: boolean }) {
+function TmapLocationMap({
+  lat,
+  lon,
+  appKey,
+  stations,
+  isDark,
+  showOriginMarker,
+  active,
+}: {
+  lat: number;
+  lon: number;
+  appKey: string;
+  stations: StationMarker[];
+  isDark: boolean;
+  showOriginMarker: boolean;
+  active: boolean;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [error, setError] = useState<string | null>(null);
@@ -277,6 +396,7 @@ function TmapLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; 
     if (!el) return;
 
     let cancelled = false;
+    setReady(false);
 
     loadTmapSdk(appKey)
       .then(() => {
@@ -293,10 +413,9 @@ function TmapLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; 
         });
         mapRef.current = map;
 
-        new Tmapv2.Marker({
-          position,
-          map,
-        });
+        if (showOriginMarker) {
+          new Tmapv2.Marker({ position, map });
+        }
 
         for (const s of stations) {
           new Tmapv2.Marker({
@@ -306,11 +425,14 @@ function TmapLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; 
           });
         }
 
-        if (stations.length > 0) {
+        if (totalMapPoints(stations, showOriginMarker) >= 2) {
           const bounds = new Tmapv2.LatLngBounds();
-          bounds.extend(position);
+          if (showOriginMarker) bounds.extend(position);
           for (const s of stations) bounds.extend(new Tmapv2.LatLng(s.lat, s.lon));
           map.fitBounds(bounds);
+        } else if (stations.length === 1) {
+          map.setCenter(new Tmapv2.LatLng(stations[0].lat, stations[0].lon));
+          map.setZoom(DEFAULT_ZOOM);
         }
 
         setReady(true);
@@ -322,7 +444,28 @@ function TmapLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; 
     return () => {
       cancelled = true;
     };
-  }, [appKey, lat, lon, stations]);
+  }, [appKey, lat, lon, stations, showOriginMarker]);
+
+  useEffect(() => {
+    if (!active || !ready || !mapRef.current) return;
+    const el = containerRef.current;
+    const id = window.setTimeout(() => {
+      const map = mapRef.current;
+      if (!map) return;
+      try {
+        // Tmapv2.Map.resize는 (width, height)를 받는 시그니처로 알려져 있다.
+        // 인자 없이 부르면 setTimeout 안에서 예외가 삼켜지지 않을 수 있어 크기를 명시한다.
+        const w = el?.clientWidth ?? 0;
+        const h = el?.clientHeight ?? 0;
+        if (w > 0 && h > 0 && typeof map.resize === "function") {
+          map.resize(w, h);
+        }
+      } catch {
+        // Tmap 버전·환경에 따라 resize 시그니처가 다를 수 있다 — 실패해도 지도 자체는 유지.
+      }
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [active, ready]);
 
   function handleRecenter() {
     const Tmapv2 = (window as any).Tmapv2;
@@ -344,7 +487,7 @@ function TmapLocationMap({ lat, lon, appKey, stations, isDark }: { lat: number; 
           filter: isDark ? DARK_MAP_FILTER : undefined,
         }}
       />
-      {ready && <RecenterButton onClick={handleRecenter} />}
+      {ready && showOriginMarker && <RecenterButton onClick={handleRecenter} />}
     </div>
   );
 }
@@ -357,6 +500,10 @@ type LastLocationMapProps = {
   naverClientId: string | null;
   tmapAppKey: string | null;
   stations?: StationMarker[];
+  /** false면 차량/원점 핀을 그리지 않는다(가맹 주유소만 표시할 때). 기본 true. */
+  showOriginMarker?: boolean;
+  /** display:none으로 숨겼다가 다시 보일 때 리사이즈. 기본 true. */
+  active?: boolean;
 };
 
 export function LastLocationMap({
@@ -367,20 +514,61 @@ export function LastLocationMap({
   naverClientId,
   tmapAppKey,
   stations = [],
+  showOriginMarker = true,
+  active = true,
 }: LastLocationMapProps) {
   const isDark = useIsDarkMode();
 
   if (provider === "kakao" && kakaoAppKey) {
-    return <KakaoLocationMap lat={lat} lon={lon} appKey={kakaoAppKey} stations={stations} isDark={isDark} />;
+    return (
+      <KakaoLocationMap
+        lat={lat}
+        lon={lon}
+        appKey={kakaoAppKey}
+        stations={stations}
+        isDark={isDark}
+        showOriginMarker={showOriginMarker}
+        active={active}
+      />
+    );
   }
 
   if (provider === "naver" && naverClientId) {
-    return <NaverLocationMap lat={lat} lon={lon} clientId={naverClientId} stations={stations} isDark={isDark} />;
+    return (
+      <NaverLocationMap
+        lat={lat}
+        lon={lon}
+        clientId={naverClientId}
+        stations={stations}
+        isDark={isDark}
+        showOriginMarker={showOriginMarker}
+        active={active}
+      />
+    );
   }
 
   if (provider === "tmap" && tmapAppKey) {
-    return <TmapLocationMap lat={lat} lon={lon} appKey={tmapAppKey} stations={stations} isDark={isDark} />;
+    return (
+      <TmapLocationMap
+        lat={lat}
+        lon={lon}
+        appKey={tmapAppKey}
+        stations={stations}
+        isDark={isDark}
+        showOriginMarker={showOriginMarker}
+        active={active}
+      />
+    );
   }
 
-  return <OsmLocationMap lat={lat} lon={lon} stations={stations} isDark={isDark} />;
+  return (
+    <OsmLocationMap
+      lat={lat}
+      lon={lon}
+      stations={stations}
+      isDark={isDark}
+      showOriginMarker={showOriginMarker}
+      active={active}
+    />
+  );
 }

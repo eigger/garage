@@ -1,20 +1,34 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { OPINET_PROD_LABELS, type CheonanCardStationsResponse, type OpinetProdCd } from "@garage/shared";
 import { apiFetch } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../../components/PageLoader";
 import { NavLaunchButtons } from "../../../../components/NavLaunchButtons";
+import { useMapProviders } from "../../../../lib/maps/useMapProviders";
+import { pickDefaultProvider } from "../../../../lib/maps/types";
+import type { StationMarker } from "../../../../components/maps/LastLocationMap";
 import type { Vehicle } from "../../../../lib/types";
 
 type SortMode = "price" | "distance";
 type DistanceFilter = 5 | 10 | 20 | "all";
+type ViewTab = "list" | "map";
 
-// 가격 갱신 ≈14초. preparing/refreshing 모두 동일 예산으로 충분하다.
-const MAX_RETRIES = 6; // ~30s
+// 계획서: 지도 마커는 화면에 보이는 상위 N개. 번호는 목록과 1:1.
+const MAP_MARKER_LIMIT = 40;
+// 차량 좌표가 없을 때 천안시청 근처로 맞춤
+const CHEONAN_FALLBACK = { lat: 36.8151, lon: 127.1139 };
+
+const MAX_RETRIES = 6;
 const RETRY_INTERVAL_MS = 5000;
+
+const LastLocationMap = dynamic(
+  () => import("../../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
+  { ssr: false },
+);
 
 function StationBadge({ number }: { number: number }) {
   return (
@@ -50,10 +64,22 @@ function formatAsOfTime(iso: string | null, locale: string): string {
   });
 }
 
+function tabButtonStyle(active: boolean) {
+  return {
+    flex: 1,
+    minHeight: 38,
+    fontSize: 14,
+    background: active ? "var(--color-primary)" : "var(--color-surface-secondary)",
+    color: active ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
+  } as const;
+}
+
 export default function CheonanCardPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
   const { t, locale, formatDistance } = useSettings();
+  const mapConfig = useMapProviders();
+  const mapProvider = pickDefaultProvider(mapConfig);
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [data, setData] = useState<CheonanCardStationsResponse | null>(null);
@@ -61,6 +87,8 @@ export default function CheonanCardPage() {
   const [enabled, setEnabled] = useState<boolean | null>(null);
   const [sort, setSort] = useState<SortMode>("price");
   const [maxKm, setMaxKm] = useState<DistanceFilter>("all");
+  const [viewTab, setViewTab] = useState<ViewTab>("list");
+  const [mapMounted, setMapMounted] = useState(false);
   const [retryExhausted, setRetryExhausted] = useState(false);
   const retriesRef = useRef(0);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -71,8 +99,6 @@ export default function CheonanCardPage() {
       .then(setVehicle);
   }, [vehicleId]);
 
-  // config는 마운트 시 1회만 — 정렬/거리 필터를 바꿀 때마다 다시 부를 이유가 없고,
-  // 서버에서 seed 파일 읽기까지 딸려온다.
   useEffect(() => {
     apiFetch("/api/cheonan-card/config")
       .then((res) => (res.ok ? res.json() : null))
@@ -109,7 +135,6 @@ export default function CheonanCardPage() {
     load();
   }, [enabled, vehicle, load]);
 
-  // 정렬·거리 필터를 바꾸는 건 사용자의 명시적 재시도다 — 소진 상태를 풀어준다.
   useEffect(() => {
     retriesRef.current = 0;
     setRetryExhausted(false);
@@ -137,6 +162,61 @@ export default function CheonanCardPage() {
     };
   }, [data, load]);
 
+  useEffect(() => {
+    if (viewTab === "map") setMapMounted(true);
+  }, [viewTab]);
+
+  const hasVehicleLocation = vehicle?.latitude != null && vehicle?.longitude != null;
+
+  // 가격 폴링은 data 참조만 바꾸고 id/좌표/이름은 그대로다.
+  // 문자열 키로 memo해야 지도 effect가 5초마다 재생성되지 않는다.
+  const mapMarkerKey =
+    data?.stations
+      .slice(0, MAP_MARKER_LIMIT)
+      .map((s) => `${s.id}:${s.lat}:${s.lon}:${s.brandLabel ?? ""}:${s.name}`)
+      .join("|") ?? "";
+
+  const mapMarkers: StationMarker[] = useMemo(() => {
+    if (!data) return [];
+    return data.stations.slice(0, MAP_MARKER_LIMIT).map((s, i) => ({
+      id: s.id,
+      lat: s.lat,
+      lon: s.lon,
+      name: s.brandLabel ? `[${s.brandLabel}] ${s.name}` : s.name,
+      number: i + 1,
+    }));
+    // data는 mapMarkerKey가 바뀔 때만 함께 바뀐다 — 의도적으로 data를 deps에서 제외.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapMarkerKey]);
+
+  const nearestDistanceKey =
+    data?.stations.map((s) => `${s.id}:${s.distanceM ?? ""}`).join("|") ?? "";
+
+  const nearestM = useMemo(() => {
+    if (!data?.stations.length) return null;
+    let min: number | null = null;
+    for (const s of data.stations) {
+      if (s.distanceM == null) continue;
+      if (min == null || s.distanceM < min) min = s.distanceM;
+    }
+    return min;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearestDistanceKey]);
+
+  const tooFar = nearestM != null && nearestM > 30_000;
+
+  const mapCenter = useMemo(() => {
+    if (hasVehicleLocation && !tooFar) {
+      return { lat: vehicle!.latitude!, lon: vehicle!.longitude! };
+    }
+    if (mapMarkers.length > 0) {
+      const lat = mapMarkers.reduce((sum, s) => sum + s.lat, 0) / mapMarkers.length;
+      const lon = mapMarkers.reduce((sum, s) => sum + s.lon, 0) / mapMarkers.length;
+      return { lat, lon };
+    }
+    return CHEONAN_FALLBACK;
+  }, [hasVehicleLocation, vehicle, mapMarkers, tooFar]);
+
   if (loading && !data) return <PageLoader />;
 
   if (enabled === false) {
@@ -159,13 +239,20 @@ export default function CheonanCardPage() {
       .map((p) => p.tradeAt)
       .sort()[0] ?? data?.pricesSyncedAt ?? null;
 
-  const nearestM = data?.stations.reduce<number | null>((min, s) => {
-    if (s.distanceM == null) return min;
-    if (min == null || s.distanceM < min) return s.distanceM;
-    return min;
-  }, null);
+  const mapTruncated = (data?.stations.length ?? 0) > MAP_MARKER_LIMIT;
+  const showVehicleOnMap = hasVehicleLocation && !tooFar;
+  const mapVisible = viewTab === "map";
 
-  const tooFar = nearestM != null && nearestM > 30_000;
+  // 지도 탭 헤더용 — 목록 전체 수와 마커 수를 구분
+  const mapHeaderCountLabel =
+    data && mapVisible
+      ? mapTruncated
+        ? t("cheonanCardMapShownOfTotal", {
+            shown: Math.min(MAP_MARKER_LIMIT, data.stations.length),
+            total: data.stations.length,
+          })
+        : null
+      : null;
 
   return (
     <section className="card" style={{ marginTop: 8 }}>
@@ -178,6 +265,9 @@ export default function CheonanCardPage() {
                 count: data.stations.length,
                 time: formatAsOfTime(headerTimeIso, locale),
               })}
+              {mapHeaderCountLabel && (
+                <span style={{ marginLeft: 8 }}>· {mapHeaderCountLabel}</span>
+              )}
               {data.status === "refreshing" && (
                 <span style={{ marginLeft: 8, color: "var(--color-primary)" }}>· {t("cheonanCardRefreshing")}</span>
               )}
@@ -228,6 +318,19 @@ export default function CheonanCardPage() {
         ))}
       </div>
 
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        {(
+          [
+            { key: "list" as const, label: t("cheonanCardTabList") },
+            { key: "map" as const, label: t("cheonanCardTabMap") },
+          ] as const
+        ).map((tb) => (
+          <button key={tb.key} type="button" onClick={() => setViewTab(tb.key)} style={tabButtonStyle(viewTab === tb.key)}>
+            {tb.label}
+          </button>
+        ))}
+      </div>
+
       {tooFar && nearestM != null && (
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: "0 0 12px" }}>
           {t("cheonanCardTooFarNotice", { km: formatDistance(nearestM / 1000) })}
@@ -240,11 +343,100 @@ export default function CheonanCardPage() {
         </p>
       )}
 
-      {data && data.stations.length === 0 && data.unmatched.length === 0 && (
+      {/* 지도 탭은 unmatched를 그리지 않으므로, 표시할 주유소가 없으면 화면이 완전히 비어버린다.
+          목록 탭은 unmatched 섹션이 대신 채워주니 그때만 안내를 생략한다. */}
+      {data && data.stations.length === 0 && (viewTab === "map" || data.unmatched.length === 0) && (
         <p style={{ fontSize: 13, color: "var(--color-text-muted)", margin: 0 }}>{t("cheonanCardEmpty")}</p>
       )}
 
-      {data && data.stations.length > 0 && (
+      {mapMounted && data && data.stations.length > 0 && (
+        <div style={{ display: mapVisible ? "block" : "none" }}>
+          {mapTruncated && (
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "0 0 8px" }}>
+              {t("cheonanCardMapTopN", { count: MAP_MARKER_LIMIT })}
+            </p>
+          )}
+          {!showVehicleOnMap && hasVehicleLocation && tooFar && (
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "0 0 8px" }}>
+              {t("cheonanCardMapOmitFarVehicle")}
+            </p>
+          )}
+          {!hasVehicleLocation && (
+            <p style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "0 0 8px" }}>
+              {t("cheonanCardMapNoVehicleLocation")}
+            </p>
+          )}
+          <div
+            style={{
+              height: 360,
+              borderRadius: 8,
+              overflow: "hidden",
+              border: "1px solid var(--color-border)",
+              marginBottom: 12,
+            }}
+          >
+            <LastLocationMap
+              lat={mapCenter.lat}
+              lon={mapCenter.lon}
+              provider={mapProvider}
+              kakaoAppKey={mapConfig.kakaoAppKey}
+              naverClientId={mapConfig.naverClientId}
+              tmapAppKey={mapConfig.tmapAppKey}
+              stations={mapMarkers}
+              showOriginMarker={showVehicleOnMap}
+              active={mapVisible}
+            />
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {data.stations.slice(0, MAP_MARKER_LIMIT).map((station, i) => (
+              <div
+                key={station.id}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  gap: 8,
+                  borderTop: i === 0 ? undefined : "1px solid var(--color-border)",
+                  paddingTop: i === 0 ? 0 : 8,
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0 }}>
+                  <StationBadge number={i + 1} />
+                  <span style={{ fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {station.brandLabel ? `[${station.brandLabel}] ` : ""}
+                    {station.name}
+                  </span>
+                </span>
+                <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>
+                  {station.primaryPrice != null
+                    ? `${station.primaryPrice.toLocaleString()}원`
+                    : t("cheonanCardFuelNotSold")}
+                  {station.distanceM != null ? ` · ${formatDistance(station.distanceM / 1000)}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          {data.unmatched.length > 0 && (
+            <div style={{ marginTop: 20 }}>
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)", margin: "0 0 8px" }}>
+                {t("cheonanCardNoPriceSection")}
+              </h3>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {data.unmatched.map((m) => (
+                  <div key={m.seq} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
+                    <strong style={{ fontSize: 13 }}>{m.name}</strong>
+                    <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{m.address}</div>
+                    {m.tel && <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{m.tel}</div>}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewTab === "list" && data && data.stations.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {data.stations.map((station, i) => {
             const primary = station.prices.find((p) => p.prodCd === data.primaryProdCd);
@@ -321,7 +513,7 @@ export default function CheonanCardPage() {
         </div>
       )}
 
-      {data && data.unmatched.length > 0 && (
+      {viewTab === "list" && data && data.unmatched.length > 0 && (
         <div style={{ marginTop: 20 }}>
           <h3 style={{ fontSize: 13, fontWeight: 700, color: "var(--color-text-muted)", margin: "0 0 8px" }}>
             {t("cheonanCardNoPriceSection")}
