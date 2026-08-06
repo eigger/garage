@@ -163,6 +163,16 @@ function StationsSearchPageInner() {
     requestBrowserLocation();
   }, [loading, vehicle, activeTab, geo.status, requestBrowserLocation]);
 
+  const restoreVehicleLocation = useCallback(() => {
+    if (!vehicle || !vehicleHasLocation(vehicle)) return;
+    setGeo({
+      status: "ready",
+      lat: vehicle.latitude,
+      lon: vehicle.longitude,
+      source: "vehicle",
+    });
+  }, [vehicle]);
+
   function setTab(tab: MainTab) {
     const qs = tab === "cheonan" ? "?tab=cheonan" : "";
     router.replace(`/vehicles/${vehicleId}/stations${qs}`, { scroll: false });
@@ -178,6 +188,7 @@ function StationsSearchPageInner() {
         : null;
   const refreshing = geo.status === "loading" && !!geo.keepReady;
   const blockingLocate = geo.status === "idle" || (geo.status === "loading" && !geo.keepReady);
+  const canUseVehicleLocation = vehicleHasLocation(vehicle);
 
   return (
     <>
@@ -234,8 +245,10 @@ function StationsSearchPageInner() {
               locationSource={displayOrigin.source}
               locationUpdatedAt={vehicle.locationUpdatedAt ?? null}
               mapConfig={mapConfig}
+              canUseVehicleLocation={canUseVehicleLocation}
               refreshingLocation={refreshing}
-              onRefreshBrowserLocation={() => requestBrowserLocation({ soft: true })}
+              onUseBrowserLocation={() => requestBrowserLocation({ soft: true })}
+              onUseVehicleLocation={canUseVehicleLocation ? restoreVehicleLocation : undefined}
             />
           )}
         </>

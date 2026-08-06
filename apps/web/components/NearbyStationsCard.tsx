@@ -23,9 +23,23 @@ type NearbyStationsCardProps = {
   mapConfig: MapProvidersConfig;
   locationSource: LocationSource;
   locationUpdatedAt?: string | null;
+  /** 차량 GPS가 있어 '차량 위치로' 복귀가 가능할 때 */
+  canUseVehicleLocation?: boolean;
   refreshingLocation?: boolean;
-  onRefreshBrowserLocation?: () => void;
+  onUseBrowserLocation?: () => void;
+  onUseVehicleLocation?: () => void;
 };
+
+const originActionButtonStyle = {
+  fontSize: 12,
+  padding: "4px 8px",
+  minHeight: "auto",
+  borderRadius: 6,
+  background: "var(--color-surface)",
+  color: "var(--color-primary)",
+  border: "1px solid var(--color-border-light)",
+  flexShrink: 0,
+} as const;
 
 function formatLocationTime(iso: string | null | undefined, locale: string): string {
   if (!iso) return "—";
@@ -110,8 +124,10 @@ export function NearbyStationsCard({
   mapConfig,
   locationSource,
   locationUpdatedAt,
+  canUseVehicleLocation = false,
   refreshingLocation = false,
-  onRefreshBrowserLocation,
+  onUseBrowserLocation,
+  onUseVehicleLocation,
 }: NearbyStationsCardProps) {
   const { t, locale, formatDistance, formatCurrency } = useSettings();
   const isElectric = fuelType === "ELECTRIC";
@@ -251,25 +267,38 @@ export function NearbyStationsCard({
         }}
       >
         <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>{originLabel}</p>
-        {onRefreshBrowserLocation && (
-          <button
-            type="button"
-            onClick={onRefreshBrowserLocation}
-            disabled={refreshingLocation || loading}
-            style={{
-              fontSize: 12,
-              padding: "4px 8px",
-              minHeight: "auto",
-              borderRadius: 6,
-              background: "var(--color-surface)",
-              color: "var(--color-primary)",
-              border: "1px solid var(--color-border-light)",
-              flexShrink: 0,
-            }}
-          >
-            {refreshingLocation ? t("loading") : t("stationsUseBrowserLocation")}
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {locationSource === "vehicle" && onUseBrowserLocation && (
+            <button
+              type="button"
+              onClick={onUseBrowserLocation}
+              disabled={refreshingLocation || loading}
+              style={originActionButtonStyle}
+            >
+              {refreshingLocation ? t("loading") : t("stationsUseBrowserLocation")}
+            </button>
+          )}
+          {locationSource === "browser" && canUseVehicleLocation && onUseVehicleLocation && (
+            <button
+              type="button"
+              onClick={onUseVehicleLocation}
+              disabled={refreshingLocation || loading}
+              style={originActionButtonStyle}
+            >
+              {t("stationsUseVehicleLocation")}
+            </button>
+          )}
+          {locationSource === "browser" && onUseBrowserLocation && (
+            <button
+              type="button"
+              onClick={onUseBrowserLocation}
+              disabled={refreshingLocation || loading}
+              style={originActionButtonStyle}
+            >
+              {refreshingLocation ? t("loading") : t("stationsRefreshBrowserLocation")}
+            </button>
+          )}
+        </div>
       </div>
 
       {!searched && (
