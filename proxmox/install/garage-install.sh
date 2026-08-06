@@ -31,83 +31,14 @@ echo "[garage-install] Preparing /opt/garage"
 mkdir -p /opt/garage
 cd /opt/garage
 
-echo "[garage-install] Writing deployment files"
-cat <<'EOF' > /opt/garage/Caddyfile
-:80 {
-	handle /api/* {
-		reverse_proxy api:8080
-	}
+# 배포 파일은 저장소 원본을 그대로 내려받는다 — 예전에는 이 스크립트가 compose 내용을
+# 복제해 두는 바람에 저장소 쪽 수정(예: prisma migrate의 --config 플래그)이 LXC 설치에
+# 반영되지 않아, 신규 설치가 API 재시작 루프에 빠지는 문제가 있었다.
+GARAGE_RAW_BASE="${GARAGE_RAW_BASE:-https://raw.githubusercontent.com/eigger/garage/master}"
 
-	# api의 헬스체크 라우트는 /api 프리픽스가 없어서 별도로 연결해준다.
-	handle /health {
-		reverse_proxy api:8080
-	}
-
-	handle {
-		reverse_proxy web:3000
-	}
-}
-EOF
-
-cat <<'EOF' > /opt/garage/docker-compose.prod.yml
-services:
-  postgres:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-garage}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB:-garage}
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-garage}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  api:
-    image: ghcr.io/${GH_REPOSITORY_OWNER:-eigger}/garage-api:latest
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    command: sh -lc "npx prisma migrate deploy --schema apps/api/prisma/schema.prisma && node apps/api/dist/index.js"
-    volumes:
-      - uploads:/app/uploads
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-garage}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-garage}
-      JWT_SECRET: ${JWT_SECRET}
-      NODE_ENV: production
-      PORT: "8080"
-      OPINET_API_KEY: ${OPINET_API_KEY:-}
-      EV_CHARGER_API_KEY: ${EV_CHARGER_API_KEY:-}
-
-  web:
-    image: ghcr.io/${GH_REPOSITORY_OWNER:-eigger}/garage-web:latest
-    restart: unless-stopped
-    depends_on:
-      - api
-    environment:
-      NODE_ENV: production
-
-  caddy:
-    image: caddy:2
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-    depends_on:
-      - api
-      - web
-
-volumes:
-  pgdata:
-  uploads:
-EOF
+echo "[garage-install] Fetching deployment files"
+curl -fsSL "${GARAGE_RAW_BASE}/Caddyfile" -o /opt/garage/Caddyfile
+curl -fsSL "${GARAGE_RAW_BASE}/docker-compose.prod.yml" -o /opt/garage/docker-compose.prod.yml
 
 echo "[garage-install] Generating .env secrets"
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
@@ -120,6 +51,10 @@ POSTGRES_DB=garage
 JWT_SECRET=${JWT_SECRET}
 OPINET_API_KEY=
 EV_CHARGER_API_KEY=
+CHEONAN_CARD_ENABLED=
+VAPID_PUBLIC_KEY=
+VAPID_PRIVATE_KEY=
+VAPID_SUBJECT=
 EOF
 
 echo "[garage-install] Creating systemd service"

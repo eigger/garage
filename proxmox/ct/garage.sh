@@ -41,6 +41,11 @@ function update_script() {
   
   msg_info "Updating ${APP} Container Images"
   cd /opt/garage
+  # 배포 파일을 저장소 최신본으로 되돌린 뒤 이미지를 갱신한다 — 설치 시점 compose에
+  # 결함이 있으면 이미지만 올려서는 복구되지 않는다.
+  GARAGE_RAW_BASE="${GARAGE_RAW_BASE:-https://raw.githubusercontent.com/eigger/garage/master}"
+  curl -fsSL "${GARAGE_RAW_BASE}/Caddyfile" -o /opt/garage/Caddyfile
+  curl -fsSL "${GARAGE_RAW_BASE}/docker-compose.prod.yml" -o /opt/garage/docker-compose.prod.yml
   docker compose -f docker-compose.prod.yml pull
   docker compose -f docker-compose.prod.yml up -d --remove-orphans
   # 업데이트 성공 시 새 이미지로 태그가 넘어가면서 예전 이미지가 <none>(dangling)으로 남는데,
