@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import { apiFetch } from "../lib/api";
 import { useSettings } from "../lib/i18n/settings-context";
@@ -158,7 +158,7 @@ const LastLocationMap = dynamic(
 
 // 지도 마커와 같은 색·숫자를 써서, provider별 클릭 이벤트 구현 없이도 리스트 항목과
 // 지도 마커를 번호로 서로 대응시킬 수 있게 한다.
-function StationBadge({ number }: { number: number }) {
+function StationBadge({ number, selected }: { number: number; selected?: boolean }) {
   return (
     <span
       style={{
@@ -168,7 +168,7 @@ function StationBadge({ number }: { number: number }) {
         width: 18,
         height: 18,
         borderRadius: "50%",
-        background: "#f59e0b",
+        background: selected ? "#18523f" : "#f59e0b",
         color: "#fff",
         fontSize: 11,
         fontWeight: 700,
@@ -203,6 +203,8 @@ export function NearbyStationsCard({
   const [chargers, setChargers] = useState<EvChargerSummary[]>([]);
   const [valuePicks, setValuePicks] = useState<OpinetValuePicksResponse | null>(null);
   const [markers, setMarkers] = useState<StationMarker[]>([]);
+  const [selectedStationId, setSelectedStationId] = useState<string | null>(null);
+  const listItemRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const originKey = `${lat.toFixed(5)},${lon.toFixed(5)}`;
   const prevOriginKeyRef = useRef(originKey);
   const searchedRef = useRef(searched);
@@ -263,6 +265,7 @@ export function NearbyStationsCard({
     setGasStations([]);
     setChargers([]);
     setValuePicks(null);
+    setSelectedStationId(null);
     if (searchedRef.current) {
       void handleSearch(sortModeRef.current);
     }
@@ -274,6 +277,38 @@ export function NearbyStationsCard({
     [markers],
   );
   const stableMarkers = useMemo(() => markers, [mapMarkerKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 마커 집합이 바뀌면(정렬·재검색) 선택을 비운다.
+  useEffect(() => {
+    setSelectedStationId(null);
+  }, [mapMarkerKey]);
+
+  useEffect(() => {
+    if (!selectedStationId) return;
+    const el = listItemRefs.current.get(selectedStationId);
+    el?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, [selectedStationId]);
+
+  function bindListItemRef(id: string) {
+    return (el: HTMLDivElement | null) => {
+      if (el) listItemRefs.current.set(id, el);
+      else listItemRefs.current.delete(id);
+    };
+  }
+
+  function listItemStyle(selected: boolean): CSSProperties {
+    return {
+      borderTop: "1px solid var(--color-border)",
+      paddingTop: 10,
+      margin: "0 -8px",
+      paddingLeft: 8,
+      paddingRight: 8,
+      paddingBottom: 6,
+      borderRadius: 6,
+      background: selected ? "var(--color-surface-secondary)" : undefined,
+      cursor: "pointer",
+    };
+  }
 
   const originLabel =
     locationSource === "vehicle"
@@ -392,6 +427,8 @@ export function NearbyStationsCard({
             tmapAppKey={mapConfig.tmapAppKey}
             stations={stableMarkers}
             showOriginMarker
+            selectedStationId={selectedStationId}
+            onStationClick={setSelectedStationId}
           />
         </div>
       )}
@@ -411,37 +448,53 @@ export function NearbyStationsCard({
 
       {isElectric && chargers.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {chargers.map((station, i) => (
-            <div key={station.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-                  <StationBadge number={i + 1} />
-                  <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{station.name}</strong>
-                </span>
-                <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{station.distance}m</span>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "2px 0 6px" }}>{station.operator}</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
-                {station.connectors.map((c, i) => (
-                  <span
-                    key={`${c.chgerId}-${i}`}
-                    style={{
-                      fontSize: 11,
-                      padding: "2px 6px",
-                      borderRadius: 4,
-                      border: `1px solid ${STATUS_COLOR[c.status]}`,
-                      color: STATUS_COLOR[c.status],
-                    }}
-                  >
-                    {t(CHGER_TYPE_LABEL_KEY[c.type] ?? "chgerTypeUnknown")} · {t(STATUS_LABEL_KEY[c.status])}
+          {chargers.map((station, i) => {
+            const selected = selectedStationId === station.id;
+            return (
+              <div
+                key={station.id}
+                ref={bindListItemRef(station.id)}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedStationId(station.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedStationId(station.id);
+                  }
+                }}
+                style={listItemStyle(selected)}
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+                    <StationBadge number={i + 1} selected={selected} />
+                    <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{station.name}</strong>
                   </span>
-                ))}
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{station.distance}m</span>
+                </div>
+                <div style={{ fontSize: 12, color: "var(--color-text-muted)", margin: "2px 0 6px" }}>{station.operator}</div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+                  {station.connectors.map((c, ci) => (
+                    <span
+                      key={`${c.chgerId}-${ci}`}
+                      style={{
+                        fontSize: 11,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        border: `1px solid ${STATUS_COLOR[c.status]}`,
+                        color: STATUS_COLOR[c.status],
+                      }}
+                    >
+                      {t(CHGER_TYPE_LABEL_KEY[c.type] ?? "chgerTypeUnknown")} · {t(STATUS_LABEL_KEY[c.status])}
+                    </span>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
+                  <NavLaunchButtons compact destination={{ lat: station.lat, lon: station.lon, name: station.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <NavLaunchButtons compact destination={{ lat: station.lat, lon: station.lon, name: station.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -456,38 +509,54 @@ export function NearbyStationsCard({
               })}
             </p>
           )}
-          {valuePicks.picks.map((pick, i) => (
-            <div key={pick.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-                  <StationBadge number={i + 1} />
-                  <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    [{pick.brandLabel}] {pick.name}
-                  </strong>
-                </span>
-                <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{formatDistance(pick.distanceM / 1000)}</span>
-              </div>
-              <FuelPriceBlock primaryProdCd={pick.primaryProdCd} prices={pick.prices} locale={locale} />
+          {valuePicks.picks.map((pick, i) => {
+            const selected = selectedStationId === pick.id;
+            return (
               <div
-                style={{
-                  display: "inline-block",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  padding: "2px 8px",
-                  borderRadius: 6,
-                  background: "var(--chip-green-bg)",
-                  border: "1px solid var(--chip-green-border)",
-                  color: "var(--color-success)",
-                  margin: "2px 0 8px",
+                key={pick.id}
+                ref={bindListItemRef(pick.id)}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedStationId(pick.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedStationId(pick.id);
+                  }
                 }}
+                style={listItemStyle(selected)}
               >
-                {t("valuePickNetGain", { amount: formatCurrency(pick.netGain) })}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                  <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
+                    <StationBadge number={i + 1} selected={selected} />
+                    <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      [{pick.brandLabel}] {pick.name}
+                    </strong>
+                  </span>
+                  <span style={{ fontSize: 12, color: "var(--color-text-muted)", flexShrink: 0 }}>{formatDistance(pick.distanceM / 1000)}</span>
+                </div>
+                <FuelPriceBlock primaryProdCd={pick.primaryProdCd} prices={pick.prices} locale={locale} />
+                <div
+                  style={{
+                    display: "inline-block",
+                    fontSize: 12,
+                    fontWeight: 600,
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    background: "var(--chip-green-bg)",
+                    border: "1px solid var(--chip-green-border)",
+                    color: "var(--color-success)",
+                    margin: "2px 0 8px",
+                  }}
+                >
+                  {t("valuePickNetGain", { amount: formatCurrency(pick.netGain) })}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
+                  <NavLaunchButtons compact destination={{ lat: pick.lat, lon: pick.lon, name: pick.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
+                </div>
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                <NavLaunchButtons compact destination={{ lat: pick.lat, lon: pick.lon, name: pick.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -495,11 +564,25 @@ export function NearbyStationsCard({
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {gasStations.map((station, i) => {
             const hasCoords = station.lat != null && station.lon != null;
+            const selected = selectedStationId === station.id;
             return (
-              <div key={station.id} style={{ borderTop: "1px solid var(--color-border)", paddingTop: 10 }}>
+              <div
+                key={station.id}
+                ref={bindListItemRef(station.id)}
+                role="button"
+                tabIndex={0}
+                onClick={() => setSelectedStationId(station.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedStationId(station.id);
+                  }
+                }}
+                style={listItemStyle(selected)}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                   <span style={{ display: "flex", alignItems: "baseline", gap: 6, minWidth: 0 }}>
-                    <StationBadge number={i + 1} />
+                    <StationBadge number={i + 1} selected={selected} />
                     <strong style={{ fontSize: 14, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                       [{station.brandLabel}] {station.name}
                     </strong>
@@ -508,7 +591,7 @@ export function NearbyStationsCard({
                 </div>
                 <FuelPriceBlock primaryProdCd={station.primaryProdCd} prices={station.prices} locale={locale} />
                 {hasCoords && (
-                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
                     <NavLaunchButtons compact destination={{ lat: station.lat as number, lon: station.lon as number, name: station.name }} labels={{ tmap: t("navLaunchTmap"), kakao: t("navLaunchKakao"), naver: t("navLaunchNaver") }} />
                   </div>
                 )}
