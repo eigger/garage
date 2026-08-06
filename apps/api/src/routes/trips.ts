@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import polyline from "@mapbox/polyline";
 import { z } from "zod";
 import { prisma } from "../lib/prisma.js";
-import { canAccessVehicle } from "../lib/access.js";
+import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
 import { haversineKm, simplifyRouteForDisplay } from "../lib/geo.js";
 import { ROUTE_START_MAX_GAP_KM } from "../jobs/trips.js";
 
@@ -26,7 +26,8 @@ export async function tripRoutes(app: FastifyInstance) {
     if (!vehicleId) return reply.code(400).send({ error: "vehicleId is required" });
 
     const { sub, role } = request.user;
-    if (!(await canAccessVehicle(sub, role, vehicleId))) {
+    const access = await getVehicleAccess(sub, role, vehicleId);
+    if (!access.canAccess) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
@@ -98,6 +99,18 @@ export async function tripRoutes(app: FastifyInstance) {
       })
     );
 
+    // 위치 열람이 허용되지 않은 사용자에게는 거리·시간 같은 주행 요약은 그대로 두되
+    // 좌표와 경로는 지운다 — 트립 목록의 도착지 좌표와 폴리라인만으로도 어디를 다녔는지가
+    // 그대로 드러나기 때문에, 차량 상세의 좌표만 가려서는 의미가 없다.
+    if (!access.canViewLocation) {
+      return tripsWithFuel.map((trip) => ({
+        ...trip,
+        routePolyline: null,
+        endLatitude: null,
+        endLongitude: null,
+      }));
+    }
+
     return tripsWithFuel;
   });
 
@@ -147,9 +160,14 @@ export async function tripRoutes(app: FastifyInstance) {
     if (!trip) return reply.code(404).send({ error: "trip not found" });
 
     const { sub, role } = request.user;
-    if (!(await canAccessVehicle(sub, role, trip.vehicleId))) {
+    const access = await getVehicleAccess(sub, role, trip.vehicleId);
+    if (!access.canAccess) {
       return reply.code(403).send({ error: "forbidden" });
     }
+    // 경로 좌표는 위치 정보 그 자체다 — 열람이 허용되지 않았으면 빈 경로로 응답한다
+    // (403으로 막으면 지도 컴포넌트가 에러를 내므로, 프론트가 이미 처리하고 있는
+    // "포인트 없음" 경로로 흘려보낸다).
+    if (!access.canViewLocation) return [];
 
     const points = await prisma.telemetryRaw.findMany({
       where: { tripId: id, lat: { not: null }, lon: { not: null } },

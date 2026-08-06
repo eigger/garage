@@ -143,7 +143,12 @@ On a fresh install, `/login` shows **Create first admin** when no users exist.
 2. Enter name, email, password
 3. Submit — you are signed in as `ADMIN`
 
-Public sign-up is disabled. Later accounts are created only by an admin under **Manage users**.
+There are two ways to add family members afterwards.
+
+- **They sign up themselves**: **Sign up** on `/login`, then an admin approves them from the *Pending approval* list under **Manage users**. Until approved they can sign in but only see a waiting notice — no data is reachable.
+- **An admin creates the account**: **Manage users** → *Add family member*. Usable immediately, and the role can be set up front.
+
+From Manage users an admin can change roles (admin/general), assign vehicles, reset passwords, and delete accounts. Demoting or deleting the last admin is blocked so the app can never lock itself out.
 
 ### 3. Register a vehicle
 
@@ -152,6 +157,8 @@ Public sign-up is disabled. Later accounts are created only by an admin under **
 3. Save
 
 Garage copies maintenance presets for that fuel type and administrative/legal schedule items (inspection, insurance, tax, …). Manage defaults under **Manage maintenance presets** (also under More sheet).
+
+General users can register their own vehicles too, not just admins. Whoever registers a vehicle owns it and can edit, delete, and share it. When several people share one car, **don't each register it separately** (that splits the records) — one person registers it, then adds the others under vehicle → More sheet → **Share this vehicle**. Location visibility (coordinates and trip routes) is a separate per-person toggle.
 
 ### 4. Day-to-day
 
@@ -230,6 +237,22 @@ Useful scripts: `npm run build`, `npm run test`, `npm run prisma:generate`.
 - API runs `prisma migrate deploy` on startup (prod compose)
 - Images: `ghcr.io/<owner>/garage-api` / `garage-web` (`latest` + semver tags)
 - Update LXC: `update` in the container (pulls compose images)
+
+### Upgrade note (user management rework)
+
+Emails are normalized to lowercase. **If two or more accounts differ only by case**, the migration aborts with the message below and the API container will not start (nothing is changed — the migration rolls back).
+
+```
+Cannot normalize emails to lowercase: these addresses exist more than once ignoring case (...)
+```
+
+Delete or rename one of those accounts, mark the failed migration as rolled back, and bring the stack up again.
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm api npx prisma migrate resolve --rolled-back 20260806230000_user_management_lifecycle --schema apps/api/prisma/schema.prisma --config apps/api/prisma.config.ts
+```
+
+Otherwise nothing is required — existing accounts stay **ACTIVE**, existing sessions keep working, and existing vehicles have no registrant recorded so they remain admin-only to edit or delete, exactly as before.
 
 ---
 

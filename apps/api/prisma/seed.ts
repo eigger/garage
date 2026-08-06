@@ -4,7 +4,9 @@ import { prisma } from "../src/lib/prisma.js";
 import { ensureMaintenancePresets } from "../src/lib/seedPresets.js";
 
 async function seedAdmin() {
-  const email = process.env.ADMIN_EMAIL ?? "admin@example.com";
+  // 로그인은 입력 이메일을 소문자로 맞춰 조회하므로, 시드도 같은 규칙으로 저장해야 한다
+  // (ADMIN_EMAIL에 대문자가 섞이면 만들어진 계정으로 로그인이 안 된다).
+  const email = (process.env.ADMIN_EMAIL ?? "admin@example.com").trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD ?? "changeme123";
   const name = process.env.ADMIN_NAME ?? "관리자";
 

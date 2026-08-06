@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch, uploadFileWithProgress, API_URL, getToken } from "../../../lib/api";
-import { useAuth } from "../../../lib/auth-context";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../components/PageLoader";
 import { useToast } from "../../../lib/toast-context";
@@ -40,7 +39,6 @@ export default function VehicleOverviewPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const vehicleId = params.id;
-  const { isAdmin } = useAuth();
   const { t, formatDistance, formatCurrency, locale } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
@@ -185,7 +183,7 @@ export default function VehicleOverviewPage() {
 
   return (
     <>
-      {isAdmin && vehicle && !vehicle.fuelType && (
+      {vehicle?.canManage && !vehicle.fuelType && (
         <section className="reminder-banner">
           <strong>{t("fuelTypeMissingTitle")}</strong>
           <p style={{ margin: "4px 0 8px" }}>{t("fuelTypeMissingBody")}</p>
@@ -254,7 +252,7 @@ export default function VehicleOverviewPage() {
         <section className="card" style={{ marginTop: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
             <h2 style={{ margin: 0, fontSize: 16 }}>{t("vehiclesHeading")}</h2>
-            {isAdmin && (
+            {vehicle.canManage && (
               <div style={{ display: "flex", gap: 8 }}>
                 <button
                   type="button"

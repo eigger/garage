@@ -12,6 +12,15 @@ enum UserRole {
   GENERAL
 }
 
+// 공개 회원가입으로 만들어진 계정은 PENDING으로 시작하고, 관리자가 승인해야 ACTIVE가 된다.
+// PENDING 상태에서는 로그인 자체는 되지만(승인 대기 화면을 보여줘야 하므로) /api/auth/me를
+// 제외한 모든 API가 403이다 — 지도 API 키처럼 로그인만 하면 받아갈 수 있는 값이 있어서,
+// 승인 전 계정에 인증된 사용자 권한을 그대로 주면 안 된다.
+enum UserStatus {
+  PENDING
+  ACTIVE
+}
+
 enum ReminderStatus {
   PENDING
   DONE
@@ -32,17 +41,25 @@ enum RecordCategory {
 }
 
 model User {
-  id           String   @id @default(cuid())
+  id           String     @id @default(cuid())
   name         String
-  email        String   @unique
+  // 항상 소문자로 정규화해서 저장한다 — Postgres의 unique/조회는 대소문자를 구분하므로
+  // 정규화하지 않으면 "Kim@x.com"으로 가입한 계정이 "kim@x.com"으로는 로그인되지 않는다.
+  email        String     @unique
   passwordHash String
-  role         UserRole @default(GENERAL)
-  createdAt    DateTime @default(now())
+  role         UserRole   @default(GENERAL)
+  status       UserStatus @default(ACTIVE)
+  // 역할 변경·비밀번호 초기화·강제 로그아웃 시 1 증가시킨다. 발급된 JWT에 같은 값을 심어두고
+  // 매 요청마다 대조해서, 90일짜리 토큰이 옛 권한으로 계속 동작하는 것을 막는다.
+  tokenVersion Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt @default(now())
 
   vehicleAccess      UserVehicleAccess[]
   fuelLogs           FuelLog[]
   pushSubscriptions  PushSubscription[]
   hyundaiAccountLink HyundaiAccountLink?
+  createdVehicles    Vehicle[]           @relation("VehicleCreator")
 }
 
 model Vehicle {
@@ -59,8 +76,13 @@ model Vehicle {
   apiToken        String?   @unique
   odometer        Int       @default(0)
   xp              Int       @default(0)
+  // 이 차량을 등록한 사람. 일반 사용자도 자기 차량을 등록할 수 있고, 자기가 등록한 차량은
+  // 관리자가 아니어도 수정·삭제할 수 있다. 등록자가 탈퇴하면 null이 되고(차량은 남는다)
+  // 그때부터는 관리자만 수정·삭제할 수 있다.
+  createdByUserId String?
   createdAt       DateTime  @default(now())
 
+  createdBy          User?               @relation("VehicleCreator", fields: [createdByUserId], references: [id], onDelete: SetNull)
   access             UserVehicleAccess[]
   trips              Trip[]
   fuelLogs           FuelLog[]
@@ -72,6 +94,8 @@ model Vehicle {
   xpEvents           XpEvent[]
   badges             VehicleBadge[]
   hyundaiLink        HyundaiVehicleLink?
+
+  @@index([createdByUserId])
 }
 
 // 관리를 잘 할수록(정시 정비, 꼼꼼한 기록, 좋은 연비) 쌓이는 경험치 내역.
