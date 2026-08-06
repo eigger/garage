@@ -5,7 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
-import type { ConsumablePart, Vehicle } from "../../../../lib/types";
+import type { ConsumablePart, FuelLog, Vehicle } from "../../../../lib/types";
 import type { RecordCategory } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
@@ -163,6 +163,16 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
     apiFetch(`/api/vehicles/${vehicleId}/fuel-logs/frequent-stations`)
       .then((res) => (res.ok ? res.json() : []))
       .then((data) => setFrequentStations(data));
+
+    // "가득" 체크는 사람마다 습관이 갈리는데(항상 만땅 vs. 정액 주유) 매번 켜진 채로
+    // 시작하면 한쪽은 매번 꺼야 한다. 내가 이 차에 마지막으로 넣었을 때의 선택을 그대로
+    // 이어받는다 — 기록이 없으면(첫 주유) 기존처럼 켜진 상태로 둔다.
+    apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=1&mine=true`)
+      .then((res) => (res.ok ? res.json() : []))
+      .then((logs: FuelLog[]) => {
+        if (logs.length > 0) setFullTank(logs[0].fullTank);
+      })
+      .catch(() => {});
   }, [vehicleId]);
 
   // 오피넷은 sort=2(거리순)로 조회하므로 목록의 첫 항목이 가장 가까운 주유소다.
@@ -320,7 +330,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         setSelectedStationId("");
         setStations([]);
         setDate(today());
-        setFullTank(true);
+        // fullTank는 일부러 초기화하지 않는다 — 방금 저장한 선택이 다음 입력의 기본값이 된다.
         setFile(null);
         setFileKey(Date.now());
         showToast(t("toastSaved"), "success");

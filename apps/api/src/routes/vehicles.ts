@@ -305,18 +305,26 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!(await canAccessVehicle(sub, role, id))) {
       return reply.code(403).send({ error: "forbidden" });
     }
-    const { limit, offset, search } = request.query as {
+    const { limit, offset, search, mine } = request.query as {
       limit?: string;
       offset?: string;
       search?: string;
+      mine?: string;
     };
     const parsedLimit = Math.min(limit ? parseInt(limit, 10) : MAX_LIMIT, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
 
     const whereClause: {
       vehicleId: string;
+      userId?: string;
       OR?: Array<Record<string, unknown>>;
     } = { vehicleId: id };
+
+    // 빠른 입력 폼이 "내가 지난번에 어떻게 넣었는지"를 기본값으로 되살릴 때 쓴다 —
+    // 같은 차를 여러 명이 쓰면 가족의 마지막 기록이 아니라 본인 기록이어야 의미가 있다.
+    if (mine === "true") {
+      whereClause.userId = sub;
+    }
 
     if (search) {
       whereClause.OR = [

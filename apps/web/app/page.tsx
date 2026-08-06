@@ -43,6 +43,10 @@ function HomeInner() {
     requireAuth();
   }, [authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 차량 전환 드롭다운의 "전체 차량 보기"로 들어온 경우 — 마지막 차량으로 되돌리지 않고
+  // 통합 대시보드를 그대로 보여준다.
+  const showAllVehicles = searchParams.get("all") === "1";
+
   useEffect(() => {
     if (!user) return;
 
@@ -63,11 +67,21 @@ function HomeInner() {
         return;
       }
 
-      // 차량이 1대뿐이면 목록을 거칠 필요가 없다 — 곧장 그 차량의 개요로 보낸다.
-      // (알림 배너/이번달 비용 등은 개요 화면에도 동일하게 표시된다.)
-      if (loadedVehicles.length === 1) {
-        router.replace(`/vehicles/${loadedVehicles[0].id}`);
-        return;
+      // 차량이 1대뿐이면 목록을 거칠 필요가 없고, 여러 대여도 매번 고르게 하는 대신
+      // 마지막으로 보던 차량으로 바로 들어간다 — 실제로는 늘 같은 차를 열게 되는데
+      // 그때마다 대시보드를 한 번 거치는 건 불필요한 관문이다. 통합 대시보드는
+      // 차량 전환 드롭다운의 "전체 차량 보기"(= /?all=1)로 언제든 볼 수 있다.
+      // 저장된 id가 접근 권한이 없거나 삭제된 차량을 가리킬 수 있으므로, 반드시
+      // 지금 조회된 목록 안에서 찾은 경우에만 이동한다.
+      if (!showAllVehicles) {
+        const lastId = getLastVehicleId();
+        const target =
+          loadedVehicles.find((v) => v.id === lastId) ??
+          (loadedVehicles.length === 1 ? loadedVehicles[0] : null);
+        if (target) {
+          router.replace(`/vehicles/${target.id}`);
+          return;
+        }
       }
 
       setVehicles(loadedVehicles);
@@ -105,7 +119,7 @@ function HomeInner() {
     }
 
     load();
-  }, [user]);
+  }, [user, showAllVehicles]);
 
   const dueReminders = reminders.filter((r) => r.isDue);
 

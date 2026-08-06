@@ -136,6 +136,56 @@ describe("vehicle access permission boundaries", () => {
     await prisma.fuelLog.delete({ where: { id: res.json().id } });
   });
 
+  // 빠른 입력 폼이 "가득" 기본값을 되살릴 때 쓰는 필터. 같은 차를 여러 명이 쓰면
+  // 가족의 마지막 기록이 아니라 본인 기록이어야 하고, 남의 기록이 섞여 나와서도 안 된다.
+  it("scopes fuel logs to the caller when mine=true", async () => {
+    const [mine, theirs] = await Promise.all([
+      prisma.fuelLog.create({
+        data: {
+          vehicleId,
+          userId: ownerId,
+          date: new Date("2026-03-01"),
+          odometer: 2000,
+          liters: 30,
+          cost: 50000,
+          fullTank: false,
+        },
+      }),
+      prisma.fuelLog.create({
+        data: {
+          vehicleId,
+          userId: adminId,
+          date: new Date("2026-03-02"),
+          odometer: 2100,
+          liters: 40,
+          cost: 60000,
+          fullTank: true,
+        },
+      }),
+    ]);
+
+    try {
+      const all = await app.inject({
+        method: "GET",
+        url: `/api/vehicles/${vehicleId}/fuel-logs?limit=1`,
+        headers: { authorization: `Bearer ${ownerToken}` },
+      });
+      // 필터가 없으면 가장 최근 기록(관리자가 넣은 것)이 나온다.
+      expect(all.json()[0].id).toBe(theirs.id);
+
+      const onlyMine = await app.inject({
+        method: "GET",
+        url: `/api/vehicles/${vehicleId}/fuel-logs?limit=1&mine=true`,
+        headers: { authorization: `Bearer ${ownerToken}` },
+      });
+      expect(onlyMine.json()).toHaveLength(1);
+      expect(onlyMine.json()[0].id).toBe(mine.id);
+      expect(onlyMine.json()[0].fullTank).toBe(false);
+    } finally {
+      await prisma.fuelLog.deleteMany({ where: { id: { in: [mine.id, theirs.id] } } });
+    }
+  });
+
   it("blocks dismissing a reminder for a vehicle the user cannot access (regression: dismiss previously had no access check)", async () => {
     const res = await app.inject({
       method: "POST",
