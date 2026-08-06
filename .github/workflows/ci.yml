@@ -71,6 +71,49 @@ jobs:
       - name: Run Tests
         run: npm run test
 
+  # 백업 복원(POST /api/backup/restore)은 성공하면 DB의 모든 테이블을 지우고 백업
+  # 내용으로 되채운다 — `test` 잡의 공유 DB에서 다른 테스트 파일과 나란히 돌리면
+  # 서로의 데이터를 지워버리므로, 이 잡만의 전용 Postgres 컨테이너에서 따로 실행한다.
+  backup-restore:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: garage
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: garage_backup_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://garage:test@localhost:5432/garage_backup_test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Prisma Generate
+        run: npm run prisma:generate -w apps/api
+
+      - name: Run Prisma Migrate
+        run: npx prisma migrate deploy --schema apps/api/prisma/schema.prisma --config apps/api/prisma.config.ts
+
+      - name: Run backup/restore integration tests
+        run: npm run test:integration -w apps/api
+
   # 설치와 업데이트가 깨지지 않는지 자동으로 검증한다. 프로덕션 compose가
   # `prisma migrate deploy && node ...`로 기동하는 구조라, 마이그레이션이 실패하면
   # API 컨테이너가 아예 뜨지 않는다 — 릴리스 전에 반드시 걸러야 하는 실패다.
