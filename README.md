@@ -258,8 +258,23 @@ docker compose -f docker-compose.prod.yml run --rm api npx prisma migrate resolv
 
 | 워크플로 | 트리거 | 목적 |
 |---|---|---|
-| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | `master` Push / PR | 설치·빌드·테스트 |
+| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | `master` Push / PR | 설치·빌드·테스트, 마이그레이션 검증 |
 | [`.github/workflows/docker-release.yml`](./.github/workflows/docker-release.yml) | GitHub Release | GHCR 이미지 푸시 |
+
+### 마이그레이션 검증 (`migrations` 잡)
+
+프로덕션 compose가 `prisma migrate deploy && node ...`로 기동하는 구조라, 마이그레이션이 실패하면 API 컨테이너가 아예 뜨지 않습니다. 그래서 매 PR마다 [`scripts/ci/check-migrations.sh`](./scripts/ci/check-migrations.sh)가 두 가지를 자동 확인합니다.
+
+1. **신규 설치** — 빈 DB에 전체 마이그레이션을 적용하고, 그 결과가 `schema.prisma`와 일치하는지 확인합니다(드리프트 검출). `schema.prisma`만 고치고 마이그레이션을 만들지 않은 경우를 잡습니다.
+2. **업그레이드** — 직전 릴리스 태그의 마이그레이션만 적용한 DB에 [기존 운영 데이터를 흉내낸 행](./scripts/ci/legacy-fixture.sql)을 넣고, 이번 변경의 마이그레이션을 그 위에 적용합니다. 빈 DB에서는 통과하지만 기존 데이터가 있으면 제약 위반으로 실패하는 마이그레이션을 잡습니다.
+
+로컬에서도 같은 검사를 돌릴 수 있습니다.
+
+```bash
+DATABASE_URL_BASE=postgresql://garage:<password>@localhost:5432 PG_CONTAINER=garage-postgres-1 scripts/ci/check-migrations.sh
+```
+
+`User`/`Vehicle`의 필수 컬럼이 바뀌면 `scripts/ci/legacy-fixture.sql`도 함께 갱신해야 합니다(픽스처 삽입이 실패하면 그 사실을 알려줍니다).
 
 ---
 

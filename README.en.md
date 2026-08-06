@@ -260,8 +260,23 @@ Otherwise nothing is required — existing accounts stay **ACTIVE**, existing se
 
 | Workflow | Trigger | Purpose |
 |---|---|---|
-| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | Push / PR to `master` | Install, build, test |
+| [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) | Push / PR to `master` | Install, build, test, migration checks |
 | [`.github/workflows/docker-release.yml`](./.github/workflows/docker-release.yml) | GitHub Release | Push images to GHCR |
+
+### Migration checks (`migrations` job)
+
+The production compose starts the API with `prisma migrate deploy && node ...`, so a failing migration means the API container never comes up at all. [`scripts/ci/check-migrations.sh`](./scripts/ci/check-migrations.sh) verifies two things on every PR.
+
+1. **Fresh install** — applies every migration to an empty database and asserts the result matches `schema.prisma` (drift detection). This catches editing `schema.prisma` without generating a migration.
+2. **Upgrade** — reproduces the previous release tag's schema, inserts [rows standing in for an existing deployment](./scripts/ci/legacy-fixture.sql), then applies this change's migrations on top. This catches migrations that pass on an empty database but violate a constraint against real data.
+
+You can run the same checks locally:
+
+```bash
+DATABASE_URL_BASE=postgresql://garage:<password>@localhost:5432 PG_CONTAINER=garage-postgres-1 scripts/ci/check-migrations.sh
+```
+
+If the required columns on `User`/`Vehicle` change, update `scripts/ci/legacy-fixture.sql` too (the script tells you when the fixture no longer inserts).
 
 ---
 
