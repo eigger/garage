@@ -1,6 +1,7 @@
 import type { Locale } from "../i18n/locale.js";
 
 export type CatalogEntry = {
+  /** 과거/커스텀 한글 라벨 별칭. 신규 row는 key를 저장하고, 조회·동기화 시 variant로 함께 인식한다. */
   readonly legacyKo: string;
   readonly labels: Record<Locale, string>;
 };
@@ -23,7 +24,11 @@ export function legacyKoLookup<T extends Record<string, CatalogEntry>>(
   return null;
 }
 
-/** @deprecated 마이그레이션 전 legacy 한글. 신규 저장은 catalog key 문자열을 사용 */
+/**
+ * catalog entry의 legacyKo 문자열.
+ * 신규 저장은 catalog key를 쓰되, legacyKo는 (1) 마이그레이션 전 한글 데이터와
+ * (2) 커스텀으로 쌓인 한글 라벨을 카탈로그로 승격할 때 별칭으로도 쓴다.
+ */
 export function storedLabel<T extends Record<string, CatalogEntry>>(
   catalog: T,
   key: keyof T,
