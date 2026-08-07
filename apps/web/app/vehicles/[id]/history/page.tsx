@@ -234,21 +234,21 @@ export default function HistoryPage() {
       {subTab === "fuel" && (
         <section>
           <h2>{t("fuelLogsHeading")}</h2>
-          <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <input
               type="text"
               placeholder={t("searchFuelPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                flex: 1,
-                minWidth: 160,
+                width: "100%",
                 minHeight: 38,
                 fontSize: 13,
                 borderRadius: 8,
                 border: "1px solid var(--color-border-light)",
                 padding: "0 12px",
                 outline: "none",
+                boxSizing: "border-box",
               }}
             />
             <HistoryPeriodFilter value={fuelPeriodFilter} onChange={setFuelPeriodFilter} t={t} />
@@ -332,21 +332,21 @@ export default function HistoryPage() {
               </button>
             ))}
           </div>
-          <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <input
               type="text"
               placeholder={t("searchMaintenancePlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
-                flex: 1,
-                minWidth: 160,
+                width: "100%",
                 minHeight: 38,
                 fontSize: 13,
                 borderRadius: 8,
                 border: "1px solid var(--color-border-light)",
                 padding: "0 12px",
                 outline: "none",
+                boxSizing: "border-box",
               }}
             />
             <HistoryPeriodFilter
@@ -1609,21 +1609,21 @@ function TripSection({
         </select>
       </div>
 
-      <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+      <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
         <input
           type="text"
           placeholder={t("searchTripPlaceholder")}
           value={tripSearch}
           onChange={(e) => setTripSearch(e.target.value)}
           style={{
-            flex: 1,
-            minWidth: 160,
+            width: "100%",
             minHeight: 38,
             fontSize: 13,
             borderRadius: 8,
             border: "1px solid var(--color-border-light)",
             padding: "0 12px",
             outline: "none",
+            boxSizing: "border-box",
           }}
         />
         <HistoryPeriodFilter value={tripPeriodFilter} onChange={setTripPeriodFilter} t={t} />
