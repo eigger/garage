@@ -289,7 +289,13 @@ export default function HistoryPage() {
                 boxSizing: "border-box",
               }}
             />
-            <HistoryPeriodFilter value={fuelPeriodFilter} onChange={setFuelPeriodFilter} t={t} />
+            <HistoryPeriodFilter
+              value={fuelPeriodFilter}
+              onChange={setFuelPeriodFilter}
+              t={t}
+              vehicleId={vehicleId}
+              scope="fuel"
+            />
           </div>
           {fuelLoading ? (
             <p>{t("loading")}</p>
@@ -394,6 +400,8 @@ export default function HistoryPage() {
               value={maintenancePeriodFilter}
               onChange={setMaintenancePeriodFilter}
               t={t}
+              vehicleId={vehicleId}
+              scope="maintenance"
             />
           </div>
           {maintenanceLoading ? (
@@ -1673,7 +1681,13 @@ function TripSection({
             boxSizing: "border-box",
           }}
         />
-        <HistoryPeriodFilter value={tripPeriodFilter} onChange={setTripPeriodFilter} t={t} />
+        <HistoryPeriodFilter
+          value={tripPeriodFilter}
+          onChange={setTripPeriodFilter}
+          t={t}
+          vehicleId={vehicleId}
+          scope="trips"
+        />
       </div>
 
       {summary && (
