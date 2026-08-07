@@ -144,7 +144,7 @@ export default function MaintenancePresetsPage() {
             const confirmKey = isAdministrative
               ? "presetsApplyExistingAdministrativeConfirm"
               : "presetsApplyExistingConfirm";
-            if (!(await confirm(t(confirmKey)))) return;
+            if (!(await confirm(t(confirmKey), { confirmLabel: t("presetsApplyConfirm") }))) return;
             const res = await apiFetch("/api/maintenance-presets/apply-existing", {
               method: "POST",
               body: JSON.stringify(
