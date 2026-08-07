@@ -92,6 +92,53 @@ describe("maintenance record schedule baseline", () => {
     }
   });
 
+  it("keeps the newest baseline when older/newer records use mixed catalog key and legacy labels", async () => {
+    // 실제 DB에는 partType=autoInsuranceRenewal 인데 최신 기록만 legacy 한글
+    // ("자동차보험 갱신")로 남아 있는 경우가 있다. exact type 매칭만 하면
+    // 과거 키 기록이 "최신"으로 잘못 잡혀 스케줄이 한 단계 뒤로 밀린다.
+    const vehicle = await seedVehicleWithPart("autoInsuranceRenewal");
+    try {
+      const olderKey = await prisma.maintenanceRecord.create({
+        data: {
+          vehicleId: vehicle.id,
+          type: "autoInsuranceRenewal",
+          category: "ADMINISTRATIVE",
+          date: new Date("2024-06-01T00:00:00.000Z"),
+          odometer: 12_000,
+        },
+      });
+      const newerLegacy = await prisma.maintenanceRecord.create({
+        data: {
+          vehicleId: vehicle.id,
+          type: "자동차보험 갱신",
+          category: "ADMINISTRATIVE",
+          date: new Date("2025-06-01T00:00:00.000Z"),
+          odometer: 18_000,
+        },
+      });
+      await prisma.consumablePart.updateMany({
+        where: { vehicleId: vehicle.id, partType: "autoInsuranceRenewal" },
+        data: { installedDate: newerLegacy.date, installedOdometer: newerLegacy.odometer },
+      });
+
+      const res = await app.inject({
+        method: "PATCH",
+        url: `/api/vehicles/${vehicle.id}/maintenance-records/${olderKey.id}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+        payload: { date: "2024-07-15T00:00:00.000Z", notes: "메모만 수정" },
+      });
+      expect(res.statusCode).toBe(200);
+
+      const part = await prisma.consumablePart.findFirstOrThrow({
+        where: { vehicleId: vehicle.id, partType: "autoInsuranceRenewal" },
+      });
+      expect(part.installedDate.toISOString()).toBe(newerLegacy.date.toISOString());
+      expect(part.installedOdometer).toBe(newerLegacy.odometer);
+    } finally {
+      await prisma.vehicle.delete({ where: { id: vehicle.id } }).catch(() => {});
+    }
+  });
+
   it("updates the schedule baseline when the newest record is edited", async () => {
     const vehicle = await seedVehicleWithPart("autoInsuranceRenewal");
     try {
