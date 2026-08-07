@@ -15,11 +15,11 @@ import type { FuelType, MaintenancePresetTemplate, RecordCategory } from "../../
 import {
   FUEL_TYPES,
   adminPresetCatalogDefs,
-  maintenancePresetDefsForFuelType,
+  maintenancePresetCatalogDefs,
   resolveCatalogKey,
   type AdminItemKey,
   type MaintenanceItemKey,
-  type MaintenancePresetDef,
+  type MaintenancePresetCatalogDef,
 } from "@garage/shared";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
@@ -313,7 +313,7 @@ function AddPresetForm({
     if (isAdministrative) {
       return adminPresetCatalogDefs().filter((def) => !existingKeys.has(def.itemKey));
     }
-    return maintenancePresetDefsForFuelType(fuelType).filter((def) => !existingKeys.has(def.itemKey));
+    return maintenancePresetCatalogDefs(fuelType).filter((def) => !existingKeys.has(def.itemKey));
   }, [fuelType, existingKeys, isAdministrative]);
 
   useEffect(() => {
@@ -324,7 +324,7 @@ function AddPresetForm({
     setError("");
   }, [fuelType, category, mode]);
 
-  function applyDefIntervals(def: MaintenancePresetDef | { intervalMonths?: number; intervalKm?: number }) {
+  function applyDefIntervals(def: { intervalMonths?: number; intervalKm?: number }) {
     setIntervalKm(def.intervalKm ? String(def.intervalKm) : "");
     setIntervalMonths(def.intervalMonths ? String(def.intervalMonths) : "");
   }
@@ -403,7 +403,7 @@ function AddPresetForm({
             const def = catalogOptions.find((d) =>
               isAdministrative
                 ? (d as { itemKey: AdminItemKey }).itemKey === next
-                : (d as MaintenancePresetDef).itemKey === next,
+                : (d as MaintenancePresetCatalogDef).itemKey === next,
             );
             if (def) applyDefIntervals(def);
           }}
@@ -415,7 +415,7 @@ function AddPresetForm({
           {catalogOptions.map((def) => {
             const key = isAdministrative
               ? (def as { itemKey: AdminItemKey }).itemKey
-              : (def as MaintenancePresetDef).itemKey;
+              : (def as MaintenancePresetCatalogDef).itemKey;
             return (
               <option key={key} value={key}>
                 {formatItemLabel(t, key)}
