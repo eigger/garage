@@ -18,6 +18,7 @@ import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
+import { syncConsumablePartFromLatestRecord } from "../lib/consumablePartBaseline.js";
 import { syncReminders } from "../jobs/reminders.js";
 import {
   awardFuelLogXp,
@@ -478,16 +479,8 @@ export async function vehicleRoutes(app: FastifyInstance) {
     const record = await prisma.$transaction(async (tx) => {
       const rec = await tx.maintenanceRecord.create({ data: parsed.data });
 
-      await tx.consumablePart.updateMany({
-        where: {
-          vehicleId: id,
-          partType: parsed.data.type,
-        },
-        data: {
-          installedDate: new Date(parsed.data.date),
-          installedOdometer: parsed.data.odometer,
-        },
-      });
+      // 과거 날짜로 소급 입력해도 더 최신 기록이 있으면 스케줄 기준을 덮어쓰지 않는다.
+      await syncConsumablePartFromLatestRecord(tx, id, parsed.data.type);
 
       const vehicle = await tx.vehicle.findUnique({
         where: { id },
@@ -619,16 +612,12 @@ export async function vehicleRoutes(app: FastifyInstance) {
     const record = await prisma.$transaction(async (tx) => {
       const rec = await tx.maintenanceRecord.update({ where: { id: recordId }, data: parsed.data });
       if (parsed.data.date !== undefined || parsed.data.odometer !== undefined || parsed.data.type !== undefined) {
-        await tx.consumablePart.updateMany({
-          where: {
-            vehicleId: id,
-            partType: rec.type,
-          },
-          data: {
-            installedDate: new Date(rec.date),
-            installedOdometer: rec.odometer,
-          },
-        });
+        // 수정한 기록이 아니라, 해당 항목의 최신 기록으로 스케줄 기준을 맞춘다.
+        // (과거 내역만 고쳤을 때 스케줄이 역행하던 버그 방지)
+        await syncConsumablePartFromLatestRecord(tx, id, rec.type);
+        if (existing.type !== rec.type) {
+          await syncConsumablePartFromLatestRecord(tx, id, existing.type);
+        }
       }
       if (parsed.data.odometer !== undefined) {
         const vehicle = await tx.vehicle.findUnique({
@@ -658,7 +647,10 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!existing || existing.vehicleId !== id) {
       return reply.code(404).send({ error: "maintenance record not found" });
     }
-    await prisma.maintenanceRecord.delete({ where: { id: recordId } });
+    await prisma.$transaction(async (tx) => {
+      await tx.maintenanceRecord.delete({ where: { id: recordId } });
+      await syncConsumablePartFromLatestRecord(tx, id, existing.type);
+    });
     await syncReminders(id);
     return reply.code(204).send();
   });
