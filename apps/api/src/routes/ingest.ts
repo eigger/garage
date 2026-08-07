@@ -11,6 +11,7 @@ import { prisma } from "../lib/prisma.js";
 import { publish } from "../lib/mqtt.js";
 import { telemetryEmitter } from "../lib/telemetryEmitter.js";
 import { syncReminders } from "../jobs/reminders.js";
+import { syncConsumablePartFromLatestRecord } from "../lib/consumablePartBaseline.js";
 import { awardFuelLogXp, awardMaintenanceLogXp, awardEfficiencyXpIfGood } from "../lib/gamification.js";
 
 // apiToken은 차량마다 유일(@unique)하므로 토큰 하나만으로 차량을 특정할 수 있다.
@@ -188,16 +189,7 @@ export async function ingestRoutes(app: FastifyInstance) {
         data: parsed.data,
       });
 
-      await tx.consumablePart.updateMany({
-        where: {
-          vehicleId: vehicle.id,
-          partType: parsed.data.type,
-        },
-        data: {
-          installedDate: new Date(parsed.data.date),
-          installedOdometer: parsed.data.odometer,
-        },
-      });
+      await syncConsumablePartFromLatestRecord(tx, vehicle.id, parsed.data.type);
 
       if (parsed.data.odometer > vehicle.odometer) {
         await tx.vehicle.update({
