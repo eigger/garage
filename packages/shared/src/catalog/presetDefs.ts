@@ -38,7 +38,6 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "GASOLINE", itemKey: "driveBelt", intervalKm: 90000, intervalMonths: 72 },
   { fuelType: "GASOLINE", itemKey: "acRefrigerant", intervalMonths: 12 },
   { fuelType: "GASOLINE", itemKey: "brakeDisc", intervalKm: 20000, intervalMonths: 12 },
-  { fuelType: "GASOLINE", itemKey: "suspensionInspection", intervalKm: 10000, intervalMonths: 12 },
   { fuelType: "GASOLINE", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "GASOLINE", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -59,7 +58,6 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "DIESEL", itemKey: "driveBelt", intervalKm: 90000, intervalMonths: 72 },
   { fuelType: "DIESEL", itemKey: "acRefrigerant", intervalMonths: 12 },
   { fuelType: "DIESEL", itemKey: "brakeDisc", intervalKm: 20000, intervalMonths: 12 },
-  { fuelType: "DIESEL", itemKey: "suspensionInspection", intervalKm: 10000, intervalMonths: 12 },
   { fuelType: "DIESEL", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "DIESEL", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -79,7 +77,6 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "LPG", itemKey: "driveBelt", intervalKm: 90000, intervalMonths: 72 },
   { fuelType: "LPG", itemKey: "acRefrigerant", intervalMonths: 12 },
   { fuelType: "LPG", itemKey: "brakeDisc", intervalKm: 20000, intervalMonths: 12 },
-  { fuelType: "LPG", itemKey: "suspensionInspection", intervalKm: 10000, intervalMonths: 12 },
   { fuelType: "LPG", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "LPG", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -98,7 +95,6 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "HYBRID", itemKey: "driveBelt", intervalKm: 90000, intervalMonths: 72 },
   { fuelType: "HYBRID", itemKey: "acRefrigerant", intervalMonths: 12 },
   { fuelType: "HYBRID", itemKey: "brakeDisc", intervalKm: 30000, intervalMonths: 24 },
-  { fuelType: "HYBRID", itemKey: "suspensionInspection", intervalKm: 10000, intervalMonths: 12 },
   { fuelType: "HYBRID", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "HYBRID", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -112,7 +108,6 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "ELECTRIC", itemKey: "wheelAlignment", intervalKm: 20000 },
   { fuelType: "ELECTRIC", itemKey: "acRefrigerant", intervalMonths: 12 },
   { fuelType: "ELECTRIC", itemKey: "brakeDisc", intervalKm: 20000, intervalMonths: 12 },
-  { fuelType: "ELECTRIC", itemKey: "suspensionInspection", intervalKm: 10000, intervalMonths: 12 },
   { fuelType: "ELECTRIC", itemKey: "auxBatteryReplacement", intervalMonths: 48 },
   { fuelType: "ELECTRIC", itemKey: "driveMotorBatteryCheck", intervalMonths: 12 },
   { fuelType: "ELECTRIC", itemKey: "wiperBlade", intervalMonths: 12 },
@@ -130,7 +125,7 @@ export type MaintenancePresetCatalogDef = {
 
 /**
  * 프리셋 화면에서 고를 수 있는 정비 항목 — 기본 프리셋을 먼저 두고, 주기가 차종마다 달라
- * 기본값에 넣지 않은 카탈로그 항목(타이밍벨트, 디퍼렌셜 오일 등)도 직접 추가할 수 있게 이어붙인다.
+ * 기본값에 넣지 않은 카탈로그 항목(타이밍벨트, 디퍼렌셜 오일, 하체·서스펜션 등)도 직접 추가할 수 있게 이어붙인다.
  * 해당 연료타입에서 폐기된 항목은 seed가 다시 지우므로 제외한다.
  */
 export function maintenancePresetCatalogDefs(fuelType: FuelType): MaintenancePresetCatalogDef[] {
