@@ -14,6 +14,7 @@ import type { MapProvider } from "@garage/shared";
 import { TripRouteMap } from "../../../../components/maps/TripRouteMap";
 import { CategoryBadge } from "../../../../components/CategoryBadge";
 import { CustomItemBadge } from "../../../../components/CustomItemBadge";
+import { HistoryPeriodFilter } from "../../../../components/HistoryPeriodFilter";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/maps/types";
@@ -63,8 +64,8 @@ export default function HistoryPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | RecordCategory>("all");
-  const [fuelDateFilter, setFuelDateFilter] = useState("");
-  const [maintenanceDateFilter, setMaintenanceDateFilter] = useState("");
+  const [fuelPeriodFilter, setFuelPeriodFilter] = useState("");
+  const [maintenancePeriodFilter, setMaintenancePeriodFilter] = useState("");
 
   const [fuelLoading, setFuelLoading] = useState(false);
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
@@ -74,16 +75,16 @@ export default function HistoryPage() {
   const fuelRequestSeq = useRef(0);
   const maintenanceRequestSeq = useRef(0);
 
-  async function loadFuelLogs(reset = false, searchOverride?: string, dateOverride?: string) {
+  async function loadFuelLogs(reset = false, searchOverride?: string, periodOverride?: string) {
     const currentOffset = reset ? 0 : fuelOffset;
     const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
-    const effectiveDate = dateOverride !== undefined ? dateOverride : fuelDateFilter;
+    const effectivePeriod = periodOverride !== undefined ? periodOverride : fuelPeriodFilter;
     const params = new URLSearchParams({
       limit: String(CHUNK_SIZE),
       offset: String(currentOffset),
       search: effectiveSearch,
     });
-    if (effectiveDate) params.set("date", effectiveDate);
+    if (effectivePeriod) params.set("period", effectivePeriod);
     const requestId = ++fuelRequestSeq.current;
     const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?${params.toString()}`);
     if (res.ok) {
@@ -105,19 +106,19 @@ export default function HistoryPage() {
     reset = false,
     searchOverride?: string,
     categoryOverride?: "all" | RecordCategory,
-    dateOverride?: string,
+    periodOverride?: string,
   ) {
     const currentOffset = reset ? 0 : maintenanceOffset;
     const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
     const effectiveCategory = categoryOverride !== undefined ? categoryOverride : categoryFilter;
-    const effectiveDate = dateOverride !== undefined ? dateOverride : maintenanceDateFilter;
+    const effectivePeriod = periodOverride !== undefined ? periodOverride : maintenancePeriodFilter;
     const params = new URLSearchParams({
       limit: String(CHUNK_SIZE),
       offset: String(currentOffset),
       search: effectiveSearch,
     });
     if (effectiveCategory !== "all") params.set("category", effectiveCategory);
-    if (effectiveDate) params.set("date", effectiveDate);
+    if (effectivePeriod) params.set("period", effectivePeriod);
     const requestId = ++maintenanceRequestSeq.current;
     const res = await apiFetch(
       `/api/vehicles/${vehicleId}/maintenance-records?${params.toString()}`,
@@ -156,8 +157,8 @@ export default function HistoryPage() {
     setSearch("");
     setDebouncedSearch("");
     setCategoryFilter("all");
-    setFuelDateFilter("");
-    setMaintenanceDateFilter("");
+    setFuelPeriodFilter("");
+    setMaintenancePeriodFilter("");
   }, [vehicleId]);
 
   useEffect(() => {
@@ -170,19 +171,19 @@ export default function HistoryPage() {
   useEffect(() => {
     if (subTab === "fuel") {
       setFuelLoading(true);
-      loadFuelLogs(true, debouncedSearch, fuelDateFilter).then(() => setFuelLoading(false));
+      loadFuelLogs(true, debouncedSearch, fuelPeriodFilter).then(() => setFuelLoading(false));
     }
-  }, [vehicleId, subTab, debouncedSearch, fuelDateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vehicleId, subTab, debouncedSearch, fuelPeriodFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load maintenance records when active tab is maintenance
   useEffect(() => {
     if (subTab === "maintenance") {
       setMaintenanceLoading(true);
-      loadMaintenanceRecords(true, debouncedSearch, categoryFilter, maintenanceDateFilter).then(() =>
+      loadMaintenanceRecords(true, debouncedSearch, categoryFilter, maintenancePeriodFilter).then(() =>
         setMaintenanceLoading(false),
       );
     }
-  }, [vehicleId, subTab, debouncedSearch, categoryFilter, maintenanceDateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vehicleId, subTab, debouncedSearch, categoryFilter, maintenancePeriodFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fuelEfficiencyById: Record<string, FuelEfficiency> = {};
   for (const point of computeFuelEfficiencyPoints(fuelLogs)) {
@@ -250,29 +251,7 @@ export default function HistoryPage() {
                 outline: "none",
               }}
             />
-            <input
-              type="date"
-              value={fuelDateFilter}
-              onChange={(e) => setFuelDateFilter(e.target.value)}
-              style={{
-                minHeight: 38,
-                fontSize: 13,
-                borderRadius: 8,
-                border: "1px solid var(--color-border-light)",
-                padding: "0 12px",
-                outline: "none",
-              }}
-            />
-            {fuelDateFilter && (
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setFuelDateFilter("")}
-                style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
-              >
-                {t("dateFilterClear")}
-              </button>
-            )}
+            <HistoryPeriodFilter value={fuelPeriodFilter} onChange={setFuelPeriodFilter} t={t} />
           </div>
           {fuelLoading ? (
             <p>{t("loading")}</p>
@@ -370,29 +349,11 @@ export default function HistoryPage() {
                 outline: "none",
               }}
             />
-            <input
-              type="date"
-              value={maintenanceDateFilter}
-              onChange={(e) => setMaintenanceDateFilter(e.target.value)}
-              style={{
-                minHeight: 38,
-                fontSize: 13,
-                borderRadius: 8,
-                border: "1px solid var(--color-border-light)",
-                padding: "0 12px",
-                outline: "none",
-              }}
+            <HistoryPeriodFilter
+              value={maintenancePeriodFilter}
+              onChange={setMaintenancePeriodFilter}
+              t={t}
             />
-            {maintenanceDateFilter && (
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setMaintenanceDateFilter("")}
-                style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
-              >
-                {t("dateFilterClear")}
-              </button>
-            )}
           </div>
           {maintenanceLoading ? (
             <p>{t("loading")}</p>
@@ -1513,7 +1474,7 @@ function TripSection({
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [tripSearch, setTripSearch] = useState("");
   const [debouncedTripSearch, setDebouncedTripSearch] = useState("");
-  const [tripDateFilter, setTripDateFilter] = useState("");
+  const [tripPeriodFilter, setTripPeriodFilter] = useState("");
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedTripSearch(tripSearch), 300);
@@ -1576,17 +1537,17 @@ function TripSection({
     setTripPointsCache((prev) => ({ ...prev, [trip.id]: points }));
   }
 
-  async function loadTrips(reset = false, searchOverride?: string, dateOverride?: string) {
+  async function loadTrips(reset = false, searchOverride?: string, periodOverride?: string) {
     const currentOffset = reset ? 0 : tripOffset;
     const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedTripSearch;
-    const effectiveDate = dateOverride !== undefined ? dateOverride : tripDateFilter;
+    const effectivePeriod = periodOverride !== undefined ? periodOverride : tripPeriodFilter;
     const params = new URLSearchParams({
       vehicleId,
       limit: String(CHUNK_SIZE),
       offset: String(currentOffset),
     });
     if (effectiveSearch) params.set("search", effectiveSearch);
-    if (effectiveDate) params.set("date", effectiveDate);
+    if (effectivePeriod) params.set("period", effectivePeriod);
     const res = await apiFetch(`/api/trips?${params.toString()}`);
     if (res.ok) {
       const data: Trip[] = await res.json();
@@ -1603,8 +1564,8 @@ function TripSection({
   }
 
   useEffect(() => {
-    loadTrips(true, debouncedTripSearch, tripDateFilter);
-  }, [vehicleId, debouncedTripSearch, tripDateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+    loadTrips(true, debouncedTripSearch, tripPeriodFilter);
+  }, [vehicleId, debouncedTripSearch, tripPeriodFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadSummary() {
     apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=${period}`)
@@ -1665,29 +1626,7 @@ function TripSection({
             outline: "none",
           }}
         />
-        <input
-          type="date"
-          value={tripDateFilter}
-          onChange={(e) => setTripDateFilter(e.target.value)}
-          style={{
-            minHeight: 38,
-            fontSize: 13,
-            borderRadius: 8,
-            border: "1px solid var(--color-border-light)",
-            padding: "0 12px",
-            outline: "none",
-          }}
-        />
-        {tripDateFilter && (
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setTripDateFilter("")}
-            style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
-          >
-            {t("dateFilterClear")}
-          </button>
-        )}
+        <HistoryPeriodFilter value={tripPeriodFilter} onChange={setTripPeriodFilter} t={t} />
       </div>
 
       {summary && (

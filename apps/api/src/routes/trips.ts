@@ -5,7 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
 import { haversineKm, simplifyRouteForDisplay } from "../lib/geo.js";
 import { ROUTE_START_MAX_GAP_KM } from "../jobs/trips.js";
-import { parseDayRange } from "../lib/dateRange.js";
+import { periodRangeFromQuery } from "../lib/dateRange.js";
 
 const MAX_LIMIT = 1000;
 
@@ -17,12 +17,13 @@ export async function tripRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
   app.get("/", async (request, reply) => {
-    const { vehicleId, limit, offset, search, date } = request.query as {
+    const { vehicleId, limit, offset, search, date, period } = request.query as {
       vehicleId?: string;
       limit?: string;
       offset?: string;
       search?: string;
       date?: string;
+      period?: string;
     };
     if (!vehicleId) return reply.code(400).send({ error: "vehicleId is required" });
 
@@ -45,10 +46,8 @@ export async function tripRoutes(app: FastifyInstance) {
       whereClause.notes = { contains: search, mode: "insensitive" };
     }
 
-    if (date) {
-      const range = parseDayRange(date);
-      if (range) whereClause.startTime = range;
-    }
+    const range = periodRangeFromQuery({ period, date });
+    if (range) whereClause.startTime = range;
 
     const trips = await prisma.trip.findMany({
       where: whereClause,
