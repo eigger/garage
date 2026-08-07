@@ -11,10 +11,6 @@ import { fuelTypeLabelKey } from "../../../lib/fuelType";
 import { setLastVehicleId } from "../../../lib/lastVehicle";
 import type { Vehicle } from "../../../lib/types";
 
-// 차량 id가 될 수 없는 값이면 무엇이든 되지만, 실수로 차량 경로에 끼어들지 않도록
-// 눈에 띄는 이름을 쓴다.
-const ALL_VEHICLES_OPTION = "__all__";
-
 export default function VehicleLayout({ children }: { children: ReactNode }) {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
@@ -53,12 +49,6 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
 
   function handleSwitchVehicle(nextId: string) {
     if (!nextId || nextId === vehicleId) return;
-    // 홈은 마지막으로 보던 차량으로 바로 들어가므로, 통합 대시보드로 가는 길은 여기뿐이다.
-    // ?all=1이 있어야 홈이 다시 차량으로 되돌리지 않는다.
-    if (nextId === ALL_VEHICLES_OPTION) {
-      router.push("/?all=1");
-      return;
-    }
     const suffix = pathname?.startsWith(basePath) ? pathname.slice(basePath.length) : "";
     router.push(`/vehicles/${nextId}${suffix}`);
   }
@@ -94,7 +84,6 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
                   {v.name} {v.plate ? `(${v.plate})` : ""}
                 </option>
               ))}
-              <option value={ALL_VEHICLES_OPTION}>{t("viewAllVehicles")}</option>
             </select>
           )}
         </div>
