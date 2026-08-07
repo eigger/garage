@@ -71,6 +71,7 @@ export default function HistoryPage() {
   // 더보기 요청과 검색/필터 변경 요청이 겹치면, 먼저 보낸 요청이 나중에 응답이 와서 최신
   // 상태를 덮어쓸 수 있다 (예: 더보기 응답이 검색 결과보다 늦게 도착해 필터 안 걸린 데이터가
   // 뒤에 붙어버림). 요청마다 순번을 매겨서 이후에 더 최신 요청이 있었으면 그 응답은 버린다.
+  const fuelRequestSeq = useRef(0);
   const maintenanceRequestSeq = useRef(0);
 
   async function loadFuelLogs(reset = false, searchOverride?: string, dateOverride?: string) {
@@ -83,9 +84,11 @@ export default function HistoryPage() {
       search: effectiveSearch,
     });
     if (effectiveDate) params.set("date", effectiveDate);
+    const requestId = ++fuelRequestSeq.current;
     const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?${params.toString()}`);
     if (res.ok) {
       const data: FuelLog[] = await res.json();
+      if (requestId !== fuelRequestSeq.current) return;
       if (reset) {
         setFuelLogs(data);
         setFuelOffset(data.length);
