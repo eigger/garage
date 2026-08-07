@@ -22,7 +22,7 @@ import {
   storedTypeVariants,
   syncConsumablePartFromLatestRecord,
 } from "../lib/consumablePartBaseline.js";
-import { parseDayRange } from "../lib/dateRange.js";
+import { periodRangeFromQuery } from "../lib/dateRange.js";
 import { syncReminders } from "../jobs/reminders.js";
 import {
   awardFuelLogXp,
@@ -348,12 +348,13 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!(await canAccessVehicle(sub, role, id))) {
       return reply.code(403).send({ error: "forbidden" });
     }
-    const { limit, offset, search, mine, date } = request.query as {
+    const { limit, offset, search, mine, date, period } = request.query as {
       limit?: string;
       offset?: string;
       search?: string;
       mine?: string;
       date?: string;
+      period?: string;
     };
     const parsedLimit = Math.min(limit ? parseInt(limit, 10) : MAX_LIMIT, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
@@ -378,10 +379,8 @@ export async function vehicleRoutes(app: FastifyInstance) {
       ];
     }
 
-    if (date) {
-      const range = parseDayRange(date);
-      if (range) whereClause.date = range;
-    }
+    const fuelRange = periodRangeFromQuery({ period, date });
+    if (fuelRange) whereClause.date = fuelRange;
 
     return prisma.fuelLog.findMany({
       where: whereClause,
@@ -609,12 +608,13 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!(await canAccessVehicle(sub, role, id))) {
       return reply.code(403).send({ error: "forbidden" });
     }
-    const { limit, offset, search, category, date } = request.query as {
+    const { limit, offset, search, category, date, period } = request.query as {
       limit?: string;
       offset?: string;
       search?: string;
       category?: string;
       date?: string;
+      period?: string;
     };
     const parsedLimit = Math.min(limit ? parseInt(limit, 10) : MAX_LIMIT, MAX_LIMIT);
     const parsedOffset = offset ? parseInt(offset, 10) : undefined;
@@ -636,10 +636,8 @@ export async function vehicleRoutes(app: FastifyInstance) {
         ...(matchingKeys.length > 0 ? [{ type: { in: matchingKeys } }] : []),
       ];
     }
-    if (date) {
-      const range = parseDayRange(date);
-      if (range) whereClause.date = range;
-    }
+    const maintenanceRange = periodRangeFromQuery({ period, date });
+    if (maintenanceRange) whereClause.date = maintenanceRange;
     return prisma.maintenanceRecord.findMany({
       where: whereClause,
       orderBy: [
