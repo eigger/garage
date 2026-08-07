@@ -29,6 +29,8 @@ function convertPeriod(period: string, to: PeriodGranularity): string {
 }
 
 const inputStyle: CSSProperties = {
+  flex: 1,
+  minWidth: 0,
   minHeight: 38,
   fontSize: 13,
   borderRadius: 8,
@@ -79,7 +81,7 @@ export function HistoryPeriodFilter({
   ];
 
   return (
-    <>
+    <div style={{ display: "flex", gap: 8, alignItems: "center", width: "100%" }}>
       <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
         {options.map(({ value: g, labelKey }) => (
           <button
@@ -134,7 +136,7 @@ export function HistoryPeriodFilter({
             // 4자리가 아니면 필터를 비워 표시값과 API period가 어긋나지 않게 한다.
             onChange(next.length === 4 ? next : "");
           }}
-          style={{ ...inputStyle, width: 96 }}
+          style={{ ...inputStyle, maxWidth: 120 }}
         />
       )}
       {(value || yearDraft) && (
@@ -142,11 +144,11 @@ export function HistoryPeriodFilter({
           type="button"
           className="btn-secondary"
           onClick={clearPeriod}
-          style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
+          style={{ minHeight: 38, fontSize: 13, flexShrink: 0, width: "auto" }}
         >
           {t("periodFilterClear")}
         </button>
       )}
-    </>
+    </div>
   );
 }
