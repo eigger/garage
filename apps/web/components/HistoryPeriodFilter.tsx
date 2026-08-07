@@ -56,12 +56,20 @@ export function HistoryPeriodFilter({
   }, [value]);
 
   useEffect(() => {
-    if (granularity === "year") setYearDraft(value);
+    // 입력 중인 불완전 연도(예: "202")는 value가 ""로 비워지므로 덮어쓰지 않는다.
+    if (granularity === "year" && /^\d{4}$/.test(value)) setYearDraft(value);
   }, [value, granularity]);
 
   function handleGranularity(next: PeriodGranularity) {
     setGranularity(next);
-    onChange(convertPeriod(value, next));
+    const converted = convertPeriod(value, next);
+    if (next === "year") setYearDraft(converted);
+    onChange(converted);
+  }
+
+  function clearPeriod() {
+    setYearDraft("");
+    onChange("");
   }
 
   const options: { value: PeriodGranularity; labelKey: TranslationKey }[] = [
@@ -123,16 +131,17 @@ export function HistoryPeriodFilter({
           onChange={(e) => {
             const next = e.target.value.replace(/\D/g, "").slice(0, 4);
             setYearDraft(next);
-            if (next.length === 0 || next.length === 4) onChange(next);
+            // 4자리가 아니면 필터를 비워 표시값과 API period가 어긋나지 않게 한다.
+            onChange(next.length === 4 ? next : "");
           }}
           style={{ ...inputStyle, width: 96 }}
         />
       )}
-      {value && (
+      {(value || yearDraft) && (
         <button
           type="button"
           className="btn-secondary"
-          onClick={() => onChange("")}
+          onClick={clearPeriod}
           style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
         >
           {t("periodFilterClear")}
