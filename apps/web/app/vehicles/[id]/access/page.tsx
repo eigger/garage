@@ -153,13 +153,13 @@ export default function VehicleAccessPage() {
             {t("noMembersToAdd")}
           </p>
         ) : (
-          <div style={{ display: "flex", gap: 8 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <select
               className="form-select"
               value={selectedUserId}
               disabled={busy}
               onChange={(e) => setSelectedUserId(e.target.value)}
-              style={{ flex: 1 }}
+              style={{ flex: 1, minWidth: 0 }}
             >
               <option value="">{t("selectMember")}</option>
               {addable.map((d) => (
@@ -170,10 +170,9 @@ export default function VehicleAccessPage() {
             </select>
             <button
               type="button"
-              className="btn-action"
               disabled={busy || !selectedUserId}
               onClick={() => addMember(selectedUserId)}
-              style={{ flexShrink: 0 }}
+              style={{ flexShrink: 0, width: "auto", minWidth: 72 }}
             >
               {t("save")}
             </button>
