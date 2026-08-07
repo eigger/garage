@@ -48,44 +48,49 @@ export default function VehiclesPage() {
   }, [authLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function loadHub() {
-    const [vehiclesRes, remindersRes] = await Promise.all([
-      apiFetch("/api/vehicles"),
-      apiFetch("/api/reminders"),
-    ]);
-    const loadedVehicles = (await vehiclesRes.json()) as Vehicle[];
-    const loadedReminders = (await remindersRes.json()) as Reminder[];
-    setVehicles(loadedVehicles);
-    setReminders(loadedReminders);
+    try {
+      const [vehiclesRes, remindersRes] = await Promise.all([
+        apiFetch("/api/vehicles"),
+        apiFetch("/api/reminders"),
+      ]);
+      const vehiclesPayload = vehiclesRes.ok ? await vehiclesRes.json() : [];
+      const remindersPayload = remindersRes.ok ? await remindersRes.json() : [];
+      const loadedVehicles = Array.isArray(vehiclesPayload) ? (vehiclesPayload as Vehicle[]) : [];
+      const loadedReminders = Array.isArray(remindersPayload) ? (remindersPayload as Reminder[]) : [];
+      setVehicles(loadedVehicles);
+      setReminders(loadedReminders);
 
-    const summaries = await Promise.all(
-      loadedVehicles.map(async (vehicle) => {
-        const [odometerRes, tripSummaryRes, fuelRes, partsRes] = await Promise.all([
-          apiFetch(`/api/vehicles/${vehicle.id}/odometer`),
-          apiFetch(`/api/trips/summary?vehicleId=${vehicle.id}&period=week`),
-          apiFetch(`/api/vehicles/${vehicle.id}/fuel-logs?limit=1`),
-          apiFetch(`/api/consumable-parts?vehicleId=${vehicle.id}`),
-        ]);
+      const summaries = await Promise.all(
+        loadedVehicles.map(async (vehicle) => {
+          const [odometerRes, tripSummaryRes, fuelRes, partsRes] = await Promise.all([
+            apiFetch(`/api/vehicles/${vehicle.id}/odometer`),
+            apiFetch(`/api/trips/summary?vehicleId=${vehicle.id}&period=week`),
+            apiFetch(`/api/vehicles/${vehicle.id}/fuel-logs?limit=1`),
+            apiFetch(`/api/consumable-parts?vehicleId=${vehicle.id}`),
+          ]);
 
-        const odometer = odometerRes.ok ? ((await odometerRes.json()) as { odometer: number }).odometer : null;
-        const tripSummary = tripSummaryRes.ok ? ((await tripSummaryRes.json()) as TripSummary) : null;
-        const fuelLogs = fuelRes.ok ? ((await fuelRes.json()) as FuelLog[]) : [];
-        const parts = partsRes.ok ? ((await partsRes.json()) as ConsumablePart[]) : [];
-        const { due, upcoming } = countScheduleStatuses(parts, odometer ?? 0);
+          const odometer = odometerRes.ok ? ((await odometerRes.json()) as { odometer: number }).odometer : null;
+          const tripSummary = tripSummaryRes.ok ? ((await tripSummaryRes.json()) as TripSummary) : null;
+          const fuelLogs = fuelRes.ok ? ((await fuelRes.json()) as FuelLog[]) : [];
+          const parts = partsRes.ok ? ((await partsRes.json()) as ConsumablePart[]) : [];
+          const { due, upcoming } = countScheduleStatuses(parts, odometer ?? 0);
 
-        return [
-          vehicle.id,
-          {
-            odometer,
-            weeklyDistanceKm: tripSummary?.totalDistanceKm ?? null,
-            lastFuelCost: fuelLogs[0]?.cost ?? null,
-            dueCount: due,
-            upcomingCount: upcoming,
-          },
-        ] as const;
-      }),
-    );
-    setVehicleSummary(Object.fromEntries(summaries));
-    setLoading(false);
+          return [
+            vehicle.id,
+            {
+              odometer,
+              weeklyDistanceKm: tripSummary?.totalDistanceKm ?? null,
+              lastFuelCost: fuelLogs[0]?.cost ?? null,
+              dueCount: due,
+              upcomingCount: upcoming,
+            },
+          ] as const;
+        }),
+      );
+      setVehicleSummary(Object.fromEntries(summaries));
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -104,7 +109,7 @@ export default function VehiclesPage() {
       const res = await apiFetch(`/api/vehicles/${id}`, { method: "DELETE" });
       if (res.ok) {
         showToast(t("toastDeleted"), "success");
-        setLoading(true);
+        // 목록만 갱신 — 전체 페이지 로더로 폼까지 날리지 않는다.
         await loadHub();
       } else {
         showToast(t("toastError"), "error");
@@ -148,7 +153,6 @@ export default function VehiclesPage() {
       setYear("");
       setFuelType("");
       showToast(t("toastCreated"), "success");
-      setLoading(true);
       await loadHub();
     } finally {
       setSubmitting(false);

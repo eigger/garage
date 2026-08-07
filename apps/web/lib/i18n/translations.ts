@@ -9,7 +9,6 @@ const catalogEn = buildCatalogTranslationMap("en");
 export const translations = {
   ko: {
     appTitle: "Garage",
-    appTagline: "차량관리 통합 대시보드",
     loginIntro: "차량관리 통합 대시보드에 로그인하세요.",
     emailPlaceholder: "이메일",
     passwordPlaceholder: "비밀번호",
@@ -92,6 +91,7 @@ export const translations = {
     periodFilterDay: "일",
     periodFilterMonth: "월",
     periodFilterYear: "년",
+    periodFilterYearPlaceholder: "연도 선택",
     periodFilterClear: "기간 필터 해제",
     hoursShort: "시간",
     minutesShort: "분",
@@ -573,7 +573,6 @@ export const translations = {
   },
   en: {
     appTitle: "Garage",
-    appTagline: "Integrated vehicle management dashboard",
     loginIntro: "Sign in to your vehicle management dashboard.",
     emailPlaceholder: "Email",
     passwordPlaceholder: "Password",
@@ -656,6 +655,7 @@ export const translations = {
     periodFilterDay: "Day",
     periodFilterMonth: "Month",
     periodFilterYear: "Year",
+    periodFilterYearPlaceholder: "Select year",
     periodFilterClear: "Clear period filter",
     hoursShort: "h",
     minutesShort: "min",
