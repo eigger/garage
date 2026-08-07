@@ -5,6 +5,8 @@ import {
 } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { getLatestOdometer } from "../lib/odometer.js";
+import { storedTypeVariants } from "../lib/consumablePartBaseline.js";
+import { syncReminders } from "../jobs/reminders.js";
 
 // 연료타입별 정비·전역 행정 마스터 템플릿. 조회는 인증된 누구나,
 // 생성/수정/삭제는 관리자만.
@@ -103,26 +105,42 @@ export async function maintenancePresetRoutes(app: FastifyInstance) {
         },
         select: { id: true, partType: true },
       });
-      const existingByType = new Map(existing.map((item) => [item.partType, item]));
 
       let changed = false;
       for (const preset of applicablePresets) {
-        const matched = existingByType.get(preset.name);
-        if (matched) {
+        const variants = new Set(storedTypeVariants(preset.name));
+        const matches = existing.filter((item) => variants.has(item.partType));
+        const preferred =
+          matches.find((item) => item.partType === preset.name) ?? matches[0] ?? null;
+
+        if (preferred) {
           await prisma.consumablePart.update({
-            where: { id: matched.id },
+            where: { id: preferred.id },
             data: {
+              // legacy 한글 등으로 저장된 동일 항목을 카탈로그 키로 정규화한다.
+              partType: preset.name,
               expectedLifeKm: preset.intervalKm,
               expectedLifeMonths: preset.intervalMonths,
               presetTemplateId: preset.id,
             },
           });
+          preferred.partType = preset.name;
+          const extras = matches.filter((item) => item.id !== preferred.id);
+          if (extras.length > 0) {
+            await prisma.consumablePart.deleteMany({
+              where: { id: { in: extras.map((item) => item.id) } },
+            });
+            const extraIds = new Set(extras.map((item) => item.id));
+            for (let i = existing.length - 1; i >= 0; i--) {
+              if (extraIds.has(existing[i].id)) existing.splice(i, 1);
+            }
+          }
           updatedItems += 1;
           changed = true;
           continue;
         }
 
-        await prisma.consumablePart.create({
+        const created = await prisma.consumablePart.create({
           data: {
             vehicleId: vehicle.id,
             partType: preset.name,
@@ -133,12 +151,17 @@ export async function maintenancePresetRoutes(app: FastifyInstance) {
             expectedLifeMonths: preset.intervalMonths,
             presetTemplateId: preset.id,
           },
+          select: { id: true, partType: true },
         });
+        existing.push(created);
         createdItems += 1;
         changed = true;
       }
 
-      if (changed) updatedVehicles += 1;
+      if (changed) {
+        updatedVehicles += 1;
+        await syncReminders(vehicle.id);
+      }
     }
 
     return { updatedVehicles, updatedItems, createdItems };

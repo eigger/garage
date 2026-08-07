@@ -13,6 +13,7 @@ import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
 import { TripRouteMap } from "../../../../components/maps/TripRouteMap";
 import { CategoryBadge } from "../../../../components/CategoryBadge";
+import { CustomItemBadge } from "../../../../components/CustomItemBadge";
 import type { RecordCategory } from "../../../../lib/types";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/maps/types";
@@ -1336,9 +1337,12 @@ function MaintenanceRow({
           </button>
         </span>
       </div>
-      <div>
-        {formatDistance(record.odometer)} · {formatItemLabel(t, record.type)}
-        {record.cost !== null ? ` · ${formatCurrency(record.cost)}` : ""}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+        <span>
+          {formatDistance(record.odometer)} · {formatItemLabel(t, record.type)}
+          {record.cost !== null ? ` · ${formatCurrency(record.cost)}` : ""}
+        </span>
+        <CustomItemBadge stored={record.type} t={t} />
       </div>
       {(record.shop || record.notes) && (
         <div style={{ fontSize: 13, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>

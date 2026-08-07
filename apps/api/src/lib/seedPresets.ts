@@ -2,6 +2,7 @@ import {
   ADMIN_SCHEDULE_DEFS,
   DEPRECATED_MAINTENANCE_PRESETS,
   MAINTENANCE_PRESET_DEFS,
+  adminStoredVariants,
   maintenanceStoredVariants,
 } from "@garage/shared";
 import { prisma } from "./prisma.js";
@@ -16,43 +17,76 @@ export async function ensureMaintenancePresets(): Promise<number> {
 
   for (let i = 0; i < MAINTENANCE_PRESET_DEFS.length; i++) {
     const preset = MAINTENANCE_PRESET_DEFS[i];
-    await prisma.maintenancePresetTemplate.upsert({
+    const variants = maintenanceStoredVariants(preset.itemKey);
+    const existingRows = await prisma.maintenancePresetTemplate.findMany({
       where: {
-        category_fuelType_name: {
+        category: "MAINTENANCE",
+        fuelType: preset.fuelType,
+        name: { in: variants },
+      },
+      select: { id: true, name: true },
+    });
+    const preferred =
+      existingRows.find((row) => row.name === preset.itemKey) ?? existingRows[0] ?? null;
+
+    if (preferred) {
+      await prisma.maintenancePresetTemplate.update({
+        where: { id: preferred.id },
+        data: {
+          name: preset.itemKey,
+          intervalKm: preset.intervalKm ?? null,
+          intervalMonths: preset.intervalMonths ?? null,
+          sortOrder: i,
+        },
+      });
+      const extras = existingRows.filter((row) => row.id !== preferred.id);
+      if (extras.length > 0) {
+        await prisma.maintenancePresetTemplate.deleteMany({
+          where: { id: { in: extras.map((row) => row.id) } },
+        });
+      }
+    } else {
+      await prisma.maintenancePresetTemplate.create({
+        data: {
           category: "MAINTENANCE",
           fuelType: preset.fuelType,
           name: preset.itemKey,
+          intervalKm: preset.intervalKm ?? null,
+          intervalMonths: preset.intervalMonths ?? null,
+          sortOrder: i,
         },
-      },
-      update: {
-        intervalKm: preset.intervalKm ?? null,
-        intervalMonths: preset.intervalMonths ?? null,
-      },
-      create: {
-        category: "MAINTENANCE",
-        fuelType: preset.fuelType,
-        name: preset.itemKey,
-        intervalKm: preset.intervalKm ?? null,
-        intervalMonths: preset.intervalMonths ?? null,
-        sortOrder: i,
-      },
-    });
+      });
+    }
   }
 
   for (let i = 0; i < ADMIN_SCHEDULE_DEFS.length; i++) {
     const preset = ADMIN_SCHEDULE_DEFS[i];
-    const existing = await prisma.maintenancePresetTemplate.findFirst({
+    const variants = adminStoredVariants(preset.itemKey);
+    const existingRows = await prisma.maintenancePresetTemplate.findMany({
       where: {
         category: "ADMINISTRATIVE",
-        name: preset.itemKey,
+        name: { in: variants },
       },
-      select: { id: true },
+      select: { id: true, name: true },
     });
-    if (existing) {
+    const preferred =
+      existingRows.find((row) => row.name === preset.itemKey) ?? existingRows[0] ?? null;
+
+    if (preferred) {
       await prisma.maintenancePresetTemplate.update({
-        where: { id: existing.id },
-        data: { intervalMonths: preset.expectedLifeMonths },
+        where: { id: preferred.id },
+        data: {
+          name: preset.itemKey,
+          intervalMonths: preset.expectedLifeMonths,
+          sortOrder: i,
+        },
       });
+      const extras = existingRows.filter((row) => row.id !== preferred.id);
+      if (extras.length > 0) {
+        await prisma.maintenancePresetTemplate.deleteMany({
+          where: { id: { in: extras.map((row) => row.id) } },
+        });
+      }
     } else {
       await prisma.maintenancePresetTemplate.create({
         data: {

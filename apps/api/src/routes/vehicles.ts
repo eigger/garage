@@ -18,7 +18,10 @@ import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { ensureAdminSchedule } from "../lib/adminSchedule.js";
-import { syncConsumablePartFromLatestRecord } from "../lib/consumablePartBaseline.js";
+import {
+  storedTypeVariants,
+  syncConsumablePartFromLatestRecord,
+} from "../lib/consumablePartBaseline.js";
 import { syncReminders } from "../jobs/reminders.js";
 import {
   awardFuelLogXp,
@@ -68,18 +71,56 @@ async function applyPresetsToVehicle(vehicleId: string, fuelType: string): Promi
   if (presets.length === 0) return;
 
   const currentOdometer = await getLatestOdometer(vehicleId);
-
-  await prisma.consumablePart.createMany({
-    data: presets.map((preset) => ({
-      vehicleId,
-      partType: preset.name,
-      installedDate: new Date(),
-      installedOdometer: currentOdometer,
-      expectedLifeKm: preset.intervalKm,
-      expectedLifeMonths: preset.intervalMonths,
-      presetTemplateId: preset.id,
-    })),
+  const existing = await prisma.consumablePart.findMany({
+    where: { vehicleId, category: "MAINTENANCE" },
+    select: { id: true, partType: true },
   });
+
+  for (const preset of presets) {
+    const variants = new Set(storedTypeVariants(preset.name));
+    const matches = existing.filter((item) => variants.has(item.partType));
+    const preferred =
+      matches.find((item) => item.partType === preset.name) ?? matches[0] ?? null;
+
+    if (preferred) {
+      await prisma.consumablePart.update({
+        where: { id: preferred.id },
+        data: {
+          partType: preset.name,
+          expectedLifeKm: preset.intervalKm,
+          expectedLifeMonths: preset.intervalMonths,
+          presetTemplateId: preset.id,
+        },
+      });
+      preferred.partType = preset.name;
+      const extras = matches.filter((item) => item.id !== preferred.id);
+      if (extras.length > 0) {
+        await prisma.consumablePart.deleteMany({
+          where: { id: { in: extras.map((item) => item.id) } },
+        });
+        const extraIds = new Set(extras.map((item) => item.id));
+        for (let i = existing.length - 1; i >= 0; i--) {
+          if (extraIds.has(existing[i].id)) existing.splice(i, 1);
+        }
+      }
+      continue;
+    }
+
+    const created = await prisma.consumablePart.create({
+      data: {
+        vehicleId,
+        partType: preset.name,
+        category: "MAINTENANCE",
+        installedDate: new Date(),
+        installedOdometer: currentOdometer,
+        expectedLifeKm: preset.intervalKm,
+        expectedLifeMonths: preset.intervalMonths,
+        presetTemplateId: preset.id,
+      },
+      select: { id: true, partType: true },
+    });
+    existing.push(created);
+  }
 }
 
 // apiToken은 인증 없이 텔레메트리를 주입할 수 있는 자격 증명이라, 그 차량을 관리할 수

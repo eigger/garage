@@ -33,6 +33,7 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "GASOLINE", itemKey: "coolant", intervalKm: 40000, intervalMonths: 24 },
   { fuelType: "GASOLINE", itemKey: "transmissionFluid", intervalKm: 70000 },
   { fuelType: "GASOLINE", itemKey: "tireRotation", intervalKm: 10000 },
+  { fuelType: "GASOLINE", itemKey: "tireReplacement", intervalKm: 40000, intervalMonths: 36 },
   { fuelType: "GASOLINE", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "GASOLINE", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -48,6 +49,7 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "DIESEL", itemKey: "coolant", intervalKm: 40000, intervalMonths: 24 },
   { fuelType: "DIESEL", itemKey: "transmissionFluid", intervalKm: 70000 },
   { fuelType: "DIESEL", itemKey: "tireRotation", intervalKm: 10000 },
+  { fuelType: "DIESEL", itemKey: "tireReplacement", intervalKm: 40000, intervalMonths: 36 },
   { fuelType: "DIESEL", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "DIESEL", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -62,6 +64,7 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "LPG", itemKey: "brakePadInspection", intervalKm: 20000, intervalMonths: 12 },
   { fuelType: "LPG", itemKey: "brakeFluid", intervalKm: 40000, intervalMonths: 24 },
   { fuelType: "LPG", itemKey: "tireRotation", intervalKm: 10000 },
+  { fuelType: "LPG", itemKey: "tireReplacement", intervalKm: 40000, intervalMonths: 36 },
   { fuelType: "LPG", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "LPG", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -75,6 +78,7 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "HYBRID", itemKey: "brakePadInspection", intervalKm: 30000, intervalMonths: 24 },
   { fuelType: "HYBRID", itemKey: "brakeFluid", intervalKm: 40000, intervalMonths: 24 },
   { fuelType: "HYBRID", itemKey: "tireRotation", intervalKm: 10000 },
+  { fuelType: "HYBRID", itemKey: "tireReplacement", intervalKm: 40000, intervalMonths: 36 },
   { fuelType: "HYBRID", itemKey: "batteryReplacement", intervalMonths: 48 },
   { fuelType: "HYBRID", itemKey: "wiperBlade", intervalMonths: 12 },
 
@@ -84,6 +88,7 @@ export const MAINTENANCE_PRESET_DEFS: MaintenancePresetDef[] = [
   { fuelType: "ELECTRIC", itemKey: "brakeFluid", intervalKm: 40000, intervalMonths: 24 },
   { fuelType: "ELECTRIC", itemKey: "evCoolant", intervalKm: 40000, intervalMonths: 24 },
   { fuelType: "ELECTRIC", itemKey: "tireRotation", intervalKm: 10000 },
+  { fuelType: "ELECTRIC", itemKey: "tireReplacement", intervalKm: 40000, intervalMonths: 36 },
   { fuelType: "ELECTRIC", itemKey: "auxBatteryReplacement", intervalMonths: 48 },
   { fuelType: "ELECTRIC", itemKey: "driveMotorBatteryCheck", intervalMonths: 12 },
   { fuelType: "ELECTRIC", itemKey: "wiperBlade", intervalMonths: 12 },
