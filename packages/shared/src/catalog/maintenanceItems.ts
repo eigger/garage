@@ -85,6 +85,23 @@ export const MAINTENANCE_ITEMS = {
     legacyKo: "하체·서스펜션 점검",
     labels: { ko: "하체·서스펜션 점검", en: "Suspension inspection" },
   },
+  waterRepellentCoating: {
+    legacyKo: "발수코팅",
+    labels: { ko: "발수코팅", en: "Water-repellent coating" },
+  },
+  underbodyRustproofing: {
+    legacyKo: "하부방청",
+    labels: { ko: "하부방청", en: "Underbody rustproofing" },
+  },
+  glassOilFilmRemoval: {
+    legacyKo: "유막제거",
+    labels: { ko: "유막제거", en: "Glass oil-film removal" },
+  },
+  // 손세차·기계세차·내부/외부는 메모로 구분. 주기 추적에는 단일 항목이 더 낫다.
+  carWash: {
+    legacyKo: "세차",
+    labels: { ko: "세차", en: "Car wash" },
+  },
   batteryReplacement: {
     legacyKo: "배터리 교체",
     labels: { ko: "배터리 교체", en: "Battery replacement" },
