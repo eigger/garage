@@ -101,31 +101,6 @@ export default function MaintenancePresetsPage() {
         ))}
       </div>
 
-      <button
-        type="button"
-        onClick={async () => {
-          const confirmKey = isAdministrative
-            ? "presetsApplyExistingAdministrativeConfirm"
-            : "presetsApplyExistingConfirm";
-          if (!(await confirm(t(confirmKey)))) return;
-          const res = await apiFetch("/api/maintenance-presets/apply-existing", {
-            method: "POST",
-            body: JSON.stringify(
-              isAdministrative ? { category: "ADMINISTRATIVE" } : { category: "MAINTENANCE", fuelType },
-            ),
-          });
-          if (!res.ok) {
-            showToast(t("toastError"), "error");
-            return;
-          }
-          const data = (await res.json()) as { updatedVehicles: number };
-          showToast(t("presetsApplyExistingDone", { count: data.updatedVehicles }), "success");
-        }}
-        style={{ marginBottom: 16 }}
-      >
-        {isAdministrative ? t("presetsApplyExistingAdministrative") : t("presetsApplyExisting")}
-      </button>
-
       {!isAdministrative && (
         <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
           {FUEL_TYPES_LIST.map((ft) => (
@@ -160,6 +135,35 @@ export default function MaintenancePresetsPage() {
         t={t}
         showToast={showToast}
       />
+
+      <div style={{ marginTop: 24 }}>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={async () => {
+            const confirmKey = isAdministrative
+              ? "presetsApplyExistingAdministrativeConfirm"
+              : "presetsApplyExistingConfirm";
+            if (!(await confirm(t(confirmKey)))) return;
+            const res = await apiFetch("/api/maintenance-presets/apply-existing", {
+              method: "POST",
+              body: JSON.stringify(
+                isAdministrative
+                  ? { category: "ADMINISTRATIVE" }
+                  : { category: "MAINTENANCE", fuelType },
+              ),
+            });
+            if (!res.ok) {
+              showToast(t("toastError"), "error");
+              return;
+            }
+            const data = (await res.json()) as { updatedVehicles: number };
+            showToast(t("presetsApplyExistingDone", { count: data.updatedVehicles }), "success");
+          }}
+        >
+          {isAdministrative ? t("presetsApplyExistingAdministrative") : t("presetsApplyExisting")}
+        </button>
+      </div>
     </main>
   );
 }
