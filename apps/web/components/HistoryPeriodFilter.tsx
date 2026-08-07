@@ -102,10 +102,12 @@ export function HistoryPeriodFilter({
     };
   }, [vehicleId, scope]);
 
+  // 적용된 값이 있을 때만 연도 칸을 맞춘다. 월을 고르기 전 단계에서는 value가 비어 있는데,
+  // 여기서 draft까지 지우면 방금 고른 연도가 사라진다.
   useEffect(() => {
     if (granularity !== "month") return;
     const display = displayValueFor(value, "month");
-    setMonthYearDraft(display ? display.slice(0, 4) : "");
+    if (display) setMonthYearDraft(display.slice(0, 4));
   }, [value, granularity]);
 
   const displayValue = displayValueFor(value, granularity);
@@ -123,7 +125,9 @@ export function HistoryPeriodFilter({
     setGranularity(next);
     const converted = convertPeriod(value, next);
     if (next === "month") {
-      setMonthYearDraft(converted ? converted.slice(0, 4) : "");
+      // 년 → 월로 바꿔도 고르던 연도는 살려둔다 (월만 다시 고르면 된다).
+      const carriedYear = /^\d{4}/.exec(value)?.[0] ?? "";
+      setMonthYearDraft(converted ? converted.slice(0, 4) : carriedYear);
     }
     onChange(converted);
   }

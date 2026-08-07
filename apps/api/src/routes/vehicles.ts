@@ -23,7 +23,7 @@ import {
   syncConsumablePartFromLatestRecord,
 } from "../lib/consumablePartBaseline.js";
 import { periodRangeFromQuery } from "../lib/dateRange.js";
-import { listHistoryPeriods, type HistoryPeriodScope } from "../lib/historyPeriods.js";
+import { listHistoryPeriods } from "../lib/historyPeriods.js";
 import { syncReminders } from "../jobs/reminders.js";
 import {
   awardFuelLogXp,
@@ -720,7 +720,7 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (scope !== "trips" && scope !== "fuel" && scope !== "maintenance") {
       return reply.code(400).send({ error: "scope must be trips, fuel, or maintenance" });
     }
-    return listHistoryPeriods(id, scope as HistoryPeriodScope);
+    return listHistoryPeriods(id, scope);
   });
 
   // 정비 스케줄 화면에서 기한 임박 여부를 계산하는 데 쓰는 현재 주행거리.
