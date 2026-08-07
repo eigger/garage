@@ -154,7 +154,7 @@ export function HistoryPeriodFilter({
           }}
           aria-label={t("periodFilterYear")}
         >
-          <option value="">{YYYY}</option>
+          <option value="">{t("periodFilterYearPlaceholder")}</option>
           {yearOptions.map((y) => (
             <option key={y} value={String(y)}>
               {y}
