@@ -53,6 +53,38 @@ export const MAINTENANCE_ITEMS = {
     legacyKo: "타이어 위치 교환",
     labels: { ko: "타이어 위치 교환", en: "Tyre rotation" },
   },
+  tireReplacement: {
+    legacyKo: "타이어 교체",
+    labels: { ko: "타이어 교체", en: "Tyre replacement" },
+  },
+  wheelAlignment: {
+    legacyKo: "휠 얼라인먼트",
+    labels: { ko: "휠 얼라인먼트", en: "Wheel alignment" },
+  },
+  driveBelt: {
+    legacyKo: "구동벨트(팬벨트) 교체",
+    labels: { ko: "구동벨트(팬벨트) 교체", en: "Drive belt replacement" },
+  },
+  timingBelt: {
+    legacyKo: "타이밍벨트 교체",
+    labels: { ko: "타이밍벨트 교체", en: "Timing belt replacement" },
+  },
+  differentialOil: {
+    legacyKo: "디퍼렌셜 오일 교체",
+    labels: { ko: "디퍼렌셜 오일 교체", en: "Differential oil replacement" },
+  },
+  acRefrigerant: {
+    legacyKo: "에어컨 냉매 점검·충전",
+    labels: { ko: "에어컨 냉매 점검·충전", en: "A/C refrigerant check & recharge" },
+  },
+  brakeDisc: {
+    legacyKo: "브레이크 디스크 점검·교체",
+    labels: { ko: "브레이크 디스크 점검·교체", en: "Brake disc inspection/replacement" },
+  },
+  suspensionInspection: {
+    legacyKo: "하체·서스펜션 점검",
+    labels: { ko: "하체·서스펜션 점검", en: "Suspension inspection" },
+  },
   batteryReplacement: {
     legacyKo: "배터리 교체",
     labels: { ko: "배터리 교체", en: "Battery replacement" },

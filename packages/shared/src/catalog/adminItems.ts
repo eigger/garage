@@ -30,6 +30,10 @@ export const ADMIN_ITEMS = {
     legacyKo: "자동차세(하반기)",
     labels: { ko: "자동차세(하반기)", en: "Vehicle tax (H2)" },
   },
+  acquisitionTax: {
+    legacyKo: "취득세",
+    labels: { ko: "취득세", en: "Acquisition tax" },
+  },
 } as const satisfies Record<string, CatalogEntry>;
 
 export type AdminItemKey = keyof typeof ADMIN_ITEMS;

@@ -9,6 +9,7 @@ import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
 import type { ConsumablePart, RecordCategory } from "../../../../lib/types";
 import { CategoryBadge } from "../../../../components/CategoryBadge";
+import { CustomItemBadge } from "../../../../components/CustomItemBadge";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { resolveCatalogKey } from "@garage/shared";
@@ -393,6 +394,7 @@ function ScheduleRow({
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <CategoryBadge category={part.category} t={t} />
           <strong>{formatItemLabel(t, part.partType)}</strong>
+          <CustomItemBadge stored={part.partType} t={t} />
         </div>
         <StatusBadge status={status} t={t} />
       </div>
