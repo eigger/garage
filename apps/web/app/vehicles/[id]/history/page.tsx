@@ -63,20 +63,32 @@ export default function HistoryPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"all" | RecordCategory>("all");
+  const [fuelDateFilter, setFuelDateFilter] = useState("");
+  const [maintenanceDateFilter, setMaintenanceDateFilter] = useState("");
 
   const [fuelLoading, setFuelLoading] = useState(false);
   const [maintenanceLoading, setMaintenanceLoading] = useState(false);
   // 더보기 요청과 검색/필터 변경 요청이 겹치면, 먼저 보낸 요청이 나중에 응답이 와서 최신
   // 상태를 덮어쓸 수 있다 (예: 더보기 응답이 검색 결과보다 늦게 도착해 필터 안 걸린 데이터가
   // 뒤에 붙어버림). 요청마다 순번을 매겨서 이후에 더 최신 요청이 있었으면 그 응답은 버린다.
+  const fuelRequestSeq = useRef(0);
   const maintenanceRequestSeq = useRef(0);
 
-  async function loadFuelLogs(reset = false, searchOverride?: string) {
+  async function loadFuelLogs(reset = false, searchOverride?: string, dateOverride?: string) {
     const currentOffset = reset ? 0 : fuelOffset;
     const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
-    const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(effectiveSearch)}`);
+    const effectiveDate = dateOverride !== undefined ? dateOverride : fuelDateFilter;
+    const params = new URLSearchParams({
+      limit: String(CHUNK_SIZE),
+      offset: String(currentOffset),
+      search: effectiveSearch,
+    });
+    if (effectiveDate) params.set("date", effectiveDate);
+    const requestId = ++fuelRequestSeq.current;
+    const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?${params.toString()}`);
     if (res.ok) {
       const data: FuelLog[] = await res.json();
+      if (requestId !== fuelRequestSeq.current) return;
       if (reset) {
         setFuelLogs(data);
         setFuelOffset(data.length);
@@ -89,16 +101,26 @@ export default function HistoryPage() {
     }
   }
 
-  async function loadMaintenanceRecords(reset = false, searchOverride?: string, categoryOverride?: "all" | RecordCategory) {
+  async function loadMaintenanceRecords(
+    reset = false,
+    searchOverride?: string,
+    categoryOverride?: "all" | RecordCategory,
+    dateOverride?: string,
+  ) {
     const currentOffset = reset ? 0 : maintenanceOffset;
     const effectiveSearch = searchOverride !== undefined ? searchOverride : debouncedSearch;
     const effectiveCategory = categoryOverride !== undefined ? categoryOverride : categoryFilter;
-    const categoryParam = effectiveCategory === "all" ? "" : `&category=${effectiveCategory}`;
+    const effectiveDate = dateOverride !== undefined ? dateOverride : maintenanceDateFilter;
+    const params = new URLSearchParams({
+      limit: String(CHUNK_SIZE),
+      offset: String(currentOffset),
+      search: effectiveSearch,
+    });
+    if (effectiveCategory !== "all") params.set("category", effectiveCategory);
+    if (effectiveDate) params.set("date", effectiveDate);
     const requestId = ++maintenanceRequestSeq.current;
     const res = await apiFetch(
-      `/api/vehicles/${vehicleId}/maintenance-records?limit=${CHUNK_SIZE}&offset=${currentOffset}&search=${encodeURIComponent(
-        effectiveSearch,
-      )}${categoryParam}`,
+      `/api/vehicles/${vehicleId}/maintenance-records?${params.toString()}`,
     );
     if (res.ok) {
       const data: MaintenanceRecord[] = await res.json();
@@ -134,6 +156,8 @@ export default function HistoryPage() {
     setSearch("");
     setDebouncedSearch("");
     setCategoryFilter("all");
+    setFuelDateFilter("");
+    setMaintenanceDateFilter("");
   }, [vehicleId]);
 
   useEffect(() => {
@@ -146,17 +170,19 @@ export default function HistoryPage() {
   useEffect(() => {
     if (subTab === "fuel") {
       setFuelLoading(true);
-      loadFuelLogs(true, debouncedSearch).then(() => setFuelLoading(false));
+      loadFuelLogs(true, debouncedSearch, fuelDateFilter).then(() => setFuelLoading(false));
     }
-  }, [vehicleId, subTab, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vehicleId, subTab, debouncedSearch, fuelDateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load maintenance records when active tab is maintenance
   useEffect(() => {
     if (subTab === "maintenance") {
       setMaintenanceLoading(true);
-      loadMaintenanceRecords(true, debouncedSearch, categoryFilter).then(() => setMaintenanceLoading(false));
+      loadMaintenanceRecords(true, debouncedSearch, categoryFilter, maintenanceDateFilter).then(() =>
+        setMaintenanceLoading(false),
+      );
     }
-  }, [vehicleId, subTab, debouncedSearch, categoryFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [vehicleId, subTab, debouncedSearch, categoryFilter, maintenanceDateFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fuelEfficiencyById: Record<string, FuelEfficiency> = {};
   for (const point of computeFuelEfficiencyPoints(fuelLogs)) {
@@ -207,7 +233,7 @@ export default function HistoryPage() {
       {subTab === "fuel" && (
         <section>
           <h2>{t("fuelLogsHeading")}</h2>
-          <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+          <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input
               type="text"
               placeholder={t("searchFuelPlaceholder")}
@@ -215,6 +241,7 @@ export default function HistoryPage() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 flex: 1,
+                minWidth: 160,
                 minHeight: 38,
                 fontSize: 13,
                 borderRadius: 8,
@@ -223,6 +250,29 @@ export default function HistoryPage() {
                 outline: "none",
               }}
             />
+            <input
+              type="date"
+              value={fuelDateFilter}
+              onChange={(e) => setFuelDateFilter(e.target.value)}
+              style={{
+                minHeight: 38,
+                fontSize: 13,
+                borderRadius: 8,
+                border: "1px solid var(--color-border-light)",
+                padding: "0 12px",
+                outline: "none",
+              }}
+            />
+            {fuelDateFilter && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setFuelDateFilter("")}
+                style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
+              >
+                {t("dateFilterClear")}
+              </button>
+            )}
           </div>
           {fuelLoading ? (
             <p>{t("loading")}</p>
@@ -303,7 +353,7 @@ export default function HistoryPage() {
               </button>
             ))}
           </div>
-          <div style={{ marginBottom: 12, display: "flex", gap: 8 }}>
+          <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
             <input
               type="text"
               placeholder={t("searchMaintenancePlaceholder")}
@@ -311,6 +361,7 @@ export default function HistoryPage() {
               onChange={(e) => setSearch(e.target.value)}
               style={{
                 flex: 1,
+                minWidth: 160,
                 minHeight: 38,
                 fontSize: 13,
                 borderRadius: 8,
@@ -319,6 +370,29 @@ export default function HistoryPage() {
                 outline: "none",
               }}
             />
+            <input
+              type="date"
+              value={maintenanceDateFilter}
+              onChange={(e) => setMaintenanceDateFilter(e.target.value)}
+              style={{
+                minHeight: 38,
+                fontSize: 13,
+                borderRadius: 8,
+                border: "1px solid var(--color-border-light)",
+                padding: "0 12px",
+                outline: "none",
+              }}
+            />
+            {maintenanceDateFilter && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setMaintenanceDateFilter("")}
+                style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
+              >
+                {t("dateFilterClear")}
+              </button>
+            )}
           </div>
           {maintenanceLoading ? (
             <p>{t("loading")}</p>
@@ -1611,7 +1685,7 @@ function TripSection({
             onClick={() => setTripDateFilter("")}
             style={{ minHeight: 38, fontSize: 13, flexShrink: 0 }}
           >
-            {t("tripDateFilterClear")}
+            {t("dateFilterClear")}
           </button>
         )}
       </div>
