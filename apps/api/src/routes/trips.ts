@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
 import { haversineKm, simplifyRouteForDisplay } from "../lib/geo.js";
 import { ROUTE_START_MAX_GAP_KM } from "../jobs/trips.js";
+import { parseDayRange } from "../lib/dateRange.js";
 
 const MAX_LIMIT = 1000;
 
@@ -45,9 +46,8 @@ export async function tripRoutes(app: FastifyInstance) {
     }
 
     if (date) {
-      const dayStart = new Date(`${date}T00:00:00.000Z`);
-      const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-      whereClause.startTime = { gte: dayStart, lt: dayEnd };
+      const range = parseDayRange(date);
+      if (range) whereClause.startTime = range;
     }
 
     const trips = await prisma.trip.findMany({
