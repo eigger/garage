@@ -255,6 +255,7 @@ export const translations = {
     presetsApplyExistingAdministrativeConfirm:
       "현재 행정·법정 프리셋 기준으로 모든 차량 스케줄의 주기를 업데이트합니다. 계속하시겠습니까?",
     presetsApplyExistingDone: "{{count}}대 차량에 반영했습니다.",
+    presetsApplyConfirm: "반영",
     dashboardOdometer: "현재 주행거리",
     dashboardWeeklyDistance: "최근 7일 주행",
     dashboardLastFuelCost: "최근 주유",
@@ -820,6 +821,7 @@ export const translations = {
     presetsApplyExistingAdministrativeConfirm:
       "Update all vehicle schedules with current admin & legal preset intervals. Continue?",
     presetsApplyExistingDone: "Applied to {{count}} vehicle(s).",
+    presetsApplyConfirm: "Apply",
     dashboardOdometer: "Current odometer",
     dashboardWeeklyDistance: "Distance (last 7 days)",
     dashboardLastFuelCost: "Last fuel cost",
