@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, API_URL, getToken, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
@@ -39,6 +39,44 @@ type FuelEfficiency = {
   kmPerLiter: number;
   litersPer100Km: number;
 };
+
+const historySectionHeadingStyle: CSSProperties = {
+  margin: 0,
+  fontSize: 16,
+  fontWeight: 600,
+  lineHeight: 1.3,
+};
+
+const historyHeaderControlHeight = 32;
+
+function HistorySectionHeader({
+  title,
+  children,
+}: {
+  title: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        gap: 8,
+        flexWrap: "wrap",
+        marginBottom: 12,
+        minHeight: historyHeaderControlHeight,
+      }}
+    >
+      <h2 style={historySectionHeadingStyle}>{title}</h2>
+      {children ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, flexWrap: "wrap" }}>
+          {children}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function HistoryPage() {
   const params = useParams<{ id: string }>();
@@ -233,7 +271,7 @@ export default function HistoryPage() {
 
       {subTab === "fuel" && (
         <section>
-          <h2>{t("fuelLogsHeading")}</h2>
+          <HistorySectionHeader title={t("fuelLogsHeading")} />
           <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <input
               type="text"
@@ -307,8 +345,7 @@ export default function HistoryPage() {
 
       {subTab === "maintenance" && (
         <section>
-          <h2>{t("maintenanceAndAdminHeading")}</h2>
-          <div style={{ marginBottom: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <HistorySectionHeader title={t("maintenanceAndAdminHeading")}>
             {(
               [
                 ["all", "historyCategoryAll"],
@@ -321,9 +358,13 @@ export default function HistoryPage() {
                 type="button"
                 onClick={() => setCategoryFilter(value)}
                 style={{
-                  fontSize: 12,
-                  padding: "4px 10px",
-                  minHeight: "auto",
+                  fontSize: 13,
+                  height: historyHeaderControlHeight,
+                  minHeight: historyHeaderControlHeight,
+                  padding: "0 10px",
+                  borderRadius: 8,
+                  border: "none",
+                  cursor: "pointer",
                   background: categoryFilter === value ? "var(--color-primary)" : "var(--color-surface-secondary)",
                   color: categoryFilter === value ? "var(--color-text-on-primary)" : "var(--color-text-on-secondary)",
                 }}
@@ -331,7 +372,7 @@ export default function HistoryPage() {
                 {t(labelKey)}
               </button>
             ))}
-          </div>
+          </HistorySectionHeader>
           <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <input
               type="text"
@@ -1597,17 +1638,23 @@ function TripSection({
 
   return (
     <section>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 12 }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>{t("tripsHeading")}</h2>
+      <HistorySectionHeader title={t("tripsHeading")}>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value as "week" | "month")}
-          style={{ height: 36, minHeight: 36, fontSize: 13, padding: "0 28px 0 8px", flexShrink: 0 }}
+          style={{
+            height: historyHeaderControlHeight,
+            minHeight: historyHeaderControlHeight,
+            fontSize: 13,
+            padding: "0 28px 0 10px",
+            borderRadius: 8,
+            flexShrink: 0,
+          }}
         >
           <option value="week">{t("tripPeriodWeek")}</option>
           <option value="month">{t("tripPeriodMonth")}</option>
         </select>
-      </div>
+      </HistorySectionHeader>
 
       <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
         <input
