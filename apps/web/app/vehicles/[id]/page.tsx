@@ -52,6 +52,7 @@ export default function VehicleOverviewPage() {
   const isDriving = isRecent && vehicle && vehicle.speed !== null && vehicle.speed !== undefined && vehicle.speed > 0;
   const isStopped = isRecent && !isDriving;
   const [summary, setSummary] = useState<TripSummary | null>(null);
+  const [summaryPeriod, setSummaryPeriod] = useState<"week" | "month">("week");
   const [lastTrip, setLastTrip] = useState<Trip | null>(null);
   const [monthFuelCost, setMonthFuelCost] = useState(0);
   const [monthMaintenanceCost, setMonthMaintenanceCost] = useState(0);
@@ -76,7 +77,7 @@ export default function VehicleOverviewPage() {
   async function load() {
     const [vehicleRes, summaryRes, fuelRes, maintenanceRes, lastTripRes] = await Promise.all([
       apiFetch(`/api/vehicles/${vehicleId}`),
-      apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=week`),
+      apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=${summaryPeriod}`),
       apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=500`),
       apiFetch(`/api/vehicles/${vehicleId}/maintenance-records?limit=500`),
       apiFetch(`/api/trips?vehicleId=${vehicleId}&limit=1`),
@@ -120,9 +121,19 @@ export default function VehicleOverviewPage() {
     setLoading(false);
   }
 
+  async function loadSummary(period: "week" | "month") {
+    const res = await apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=${period}`);
+    if (res.ok) setSummary(await res.json());
+  }
+
   useEffect(() => {
     load();
   }, [vehicleId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (loading) return;
+    loadSummary(summaryPeriod);
+  }, [summaryPeriod]); // eslint-disable-line react-hooks/exhaustive-deps
 
 
 
@@ -203,31 +214,60 @@ export default function VehicleOverviewPage() {
         </section>
       )}
 
-      <Link href={`/vehicles/${vehicleId}/history`} className="card" style={{ display: "block", textDecoration: "none", marginTop: 12 }}>
-        <div style={{ fontSize: 13, color: "var(--color-text-muted)", marginBottom: 8 }}>
-          {t("tripPeriodWeek")}
+      <section className="card" style={{ marginTop: 12 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 8,
+            marginBottom: 8,
+          }}
+        >
+          <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{t("tripsHeading")}</div>
+          <select
+            value={summaryPeriod}
+            onChange={(e) => setSummaryPeriod(e.target.value as "week" | "month")}
+            aria-label={t("tripsHeading")}
+            style={{
+              height: 32,
+              minHeight: 32,
+              fontSize: 13,
+              padding: "0 28px 0 10px",
+              borderRadius: 8,
+              flexShrink: 0,
+            }}
+          >
+            <option value="week">{t("tripPeriodWeek")}</option>
+            <option value="month">{t("tripPeriodMonth")}</option>
+          </select>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDistance")}</div>
-            <strong style={{ color: "var(--color-primary)" }}>
-              {summary ? formatDistance(summary.totalDistanceKm) : "-"}
-            </strong>
+        <Link
+          href={`/vehicles/${vehicleId}/history`}
+          style={{ display: "block", textDecoration: "none", color: "inherit" }}
+        >
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDistance")}</div>
+              <strong style={{ color: "var(--color-primary)" }}>
+                {summary ? formatDistance(summary.totalDistanceKm) : "-"}
+              </strong>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDuration")}</div>
+              <strong style={{ color: "var(--color-primary)" }}>
+                {summary ? formatDuration(summary.totalDurationSec, t) : "-"}
+              </strong>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("tripCountLabel")}</div>
+              <strong style={{ color: "var(--color-primary)" }}>
+                {summary ? t("tripCountValue", { count: summary.tripCount }) : "-"}
+              </strong>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDuration")}</div>
-            <strong style={{ color: "var(--color-primary)" }}>
-              {summary ? formatDuration(summary.totalDurationSec, t) : "-"}
-            </strong>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("tripCountLabel")}</div>
-            <strong style={{ color: "var(--color-primary)" }}>
-              {summary ? t("tripCountValue", { count: summary.tripCount }) : "-"}
-            </strong>
-          </div>
-        </div>
-      </Link>
+        </Link>
+      </section>
 
       <section className="card" style={{ marginTop: 12 }}>
         <h2 style={{ margin: "0 0 8px", fontSize: 16 }}>{t("monthlyCostSummary")}</h2>
