@@ -6,7 +6,7 @@ import { apiFetch, API_URL, getToken, uploadFileWithProgress } from "../../../..
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
-import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, TripSummary, Vehicle } from "../../../../lib/types";
+import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import { formatDuration } from "../../../../lib/duration";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
@@ -1511,11 +1511,9 @@ function TripSection({
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   const CHUNK_SIZE = 5;
-  const [period, setPeriod] = useState<"week" | "month">("week");
   const [trips, setTrips] = useState<Trip[]>([]);
   const [tripOffset, setTripOffset] = useState(0);
   const [hasMoreTrips, setHasMoreTrips] = useState(true);
-  const [summary, setSummary] = useState<TripSummary | null>(null);
   const [selectedTripId, setSelectedTripId] = useState<string | null>(null);
   const [tripPointsCache, setTripPointsCache] = useState<Record<string, SpeedPoint[]>>({});
   const [tripAddressCache, setTripAddressCache] = useState<Record<string, string | null>>({});
@@ -1616,12 +1614,6 @@ function TripSection({
     loadTrips(true, debouncedTripSearch, tripPeriodFilter);
   }, [vehicleId, debouncedTripSearch, tripPeriodFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  function loadSummary() {
-    apiFetch(`/api/trips/summary?vehicleId=${vehicleId}&period=${period}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then(setSummary);
-  }
-
   async function handleDeleteTrip(tripId: string) {
     if (!(await confirm(t("confirmDelete")))) return;
     const res = await apiFetch(`/api/trips/${tripId}`, { method: "DELETE" });
@@ -1629,7 +1621,6 @@ function TripSection({
       showToast(t("toastDeleted"), "success");
       if (selectedTripId === tripId) setSelectedTripId(null);
       setTrips((prev) => prev.filter((trip) => trip.id !== tripId));
-      loadSummary();
     } else {
       showToast(t("toastError"), "error");
     }
@@ -1639,30 +1630,9 @@ function TripSection({
     setTrips((prev) => prev.map((trip) => (trip.id === tripId ? { ...trip, notes } : trip)));
   }
 
-  useEffect(() => {
-    loadSummary();
-  }, [vehicleId, period]); // eslint-disable-line react-hooks/exhaustive-deps
-
-
   return (
     <section>
-      <HistorySectionHeader title={t("tripsHeading")}>
-        <select
-          value={period}
-          onChange={(e) => setPeriod(e.target.value as "week" | "month")}
-          style={{
-            height: historyHeaderControlHeight,
-            minHeight: historyHeaderControlHeight,
-            fontSize: 13,
-            padding: "0 28px 0 10px",
-            borderRadius: 8,
-            flexShrink: 0,
-          }}
-        >
-          <option value="week">{t("tripPeriodWeek")}</option>
-          <option value="month">{t("tripPeriodMonth")}</option>
-        </select>
-      </HistorySectionHeader>
+      <HistorySectionHeader title={t("tripsHeading")} />
 
       <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
         <input
@@ -1689,22 +1659,6 @@ function TripSection({
           scope="trips"
         />
       </div>
-
-      {summary && (
-        <div className="card" style={{ display: "flex", gap: 20, marginBottom: 12 }}>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDistance")}</div>
-            <strong>{formatDistance(summary.totalDistanceKm)}</strong>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("totalDuration")}</div>
-            <strong>{formatDuration(summary.totalDurationSec, t)}</strong>
-          </div>
-          <div>
-            <div style={{ fontSize: 12, color: "var(--color-text-muted)" }}>{t("tripCount", { count: summary.tripCount })}</div>
-          </div>
-        </div>
-      )}
 
       {trips.length === 0 ? (
         <p>{t("noTrips")}</p>
