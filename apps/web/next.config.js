@@ -14,6 +14,11 @@ process.env.NEXT_PUBLIC_BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? basePat
 const nextConfig = {
   output: "standalone",
   basePath,
+  // basePath 루트 URL이 슬래시로 끝나게 한다. 기본값(false)이면 Next가 "<base>/"를 "<base>"로
+  // 정규화하는데, Home Assistant Ingress는 /api/hassio_ingress/{token}/{path:.*} 한 가지로만
+  // 라우트를 등록해서 슬래시가 없는 그 주소를 404로 떨군다 — 서버 응답(308)이든 클라이언트
+  // 라우터의 router.push("/")든 마찬가지라, 로그인 후 홈으로 가는 순간 앱 밖으로 떨어진다.
+  trailingSlash: true,
   env: {
     APP_VERSION: pkg.version,
   },

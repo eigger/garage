@@ -7,6 +7,7 @@ import { useSettings } from "../../lib/i18n/settings-context";
 import { PageLoader } from "../../components/PageLoader";
 import { useToast } from "../../lib/toast-context";
 import { useConfirm } from "../../lib/confirm-context";
+import { withBasePath } from "../../lib/base-path";
 
 export default function BackupPage() {
   const { user, loading: authLoading, requireAuth, isAdmin } = useAuth();
@@ -84,7 +85,7 @@ export default function BackupPage() {
         // A short delay lets the success toast be visible before the full page reload wipes it.
         localStorage.clear();
         setTimeout(() => {
-          window.location.href = "/login";
+          window.location.href = withBasePath("/login");
         }, 1200);
       } else {
         const err = await res.json();

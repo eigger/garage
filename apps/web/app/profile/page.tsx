@@ -12,6 +12,7 @@ import { useMapProviders } from "../../lib/maps/useMapProviders";
 import { isMapProvider, MAP_PROVIDER_STORAGE_KEY } from "../../lib/maps/types";
 import { SettingsGearIcon, CheckIcon, XIcon } from "../../components/icons";
 import type { AccentColor } from "../../lib/i18n/settings-context";
+import { withBasePath } from "../../lib/base-path";
 
 const ACCENT_SWATCHES: { value: AccentColor; hex: string; labelKey: "accentGreen" | "accentBlue" | "accentPurple" | "accentOrange" | "accentBlack" }[] = [
   { value: "green", hex: "#18523f", labelKey: "accentGreen" },
@@ -89,7 +90,7 @@ export default function ProfilePage() {
   async function handleHyundaiLink() {
     setHyundaiActionLoading(true);
     try {
-      const redirectUri = `${window.location.origin}/profile/hyundai/callback`;
+      const redirectUri = `${window.location.origin}${withBasePath("/profile/hyundai/callback")}`;
       const res = await apiFetch(`/api/hyundai/authorize-url?redirectUri=${encodeURIComponent(redirectUri)}`);
       if (res.ok) {
         const { url } = await res.json();
