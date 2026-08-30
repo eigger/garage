@@ -19,7 +19,7 @@ export function isPushSupported(): boolean {
 }
 
 export async function getPushConfig(): Promise<{ configured: boolean; publicKey: string | null }> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"}/api/push/config`);
+  const res = await apiFetch("/api/push/config");
   if (!res.ok) return { configured: false, publicKey: null };
   return res.json();
 }
