@@ -1,13 +1,15 @@
-const CACHE_NAME = "garage-shell-v1";
+const CACHE_NAME = "garage-shell-v2";
 
 // public/ 파일은 빌드 시 basePath가 붙지 않는다. 대신 서비스워커는 자기 스코프를 알고 있으므로
 // 거기서 배포 프리픽스를 그대로 얻는다 — 루트 배포면 "", /garage 아래면 "/garage".
 const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/+$/, "");
 const url = (path) => `${BASE_PATH}${path}`;
 
+// 화면 경로에는 뒤 슬래시가 있어야 한다. trailingSlash 설정 때문에 슬래시 없는 주소는 308이
+// 되는데, cache.addAll은 리다이렉트된 응답을 저장하지 못해 목록 전체가 통째로 실패한다.
 const SHELL_ASSETS = [
   url("/"),
-  url("/login"),
+  url("/login/"),
   url("/manifest.webmanifest"),
   url("/icons/icon-192.png"),
   url("/icons/icon-512.png"),
