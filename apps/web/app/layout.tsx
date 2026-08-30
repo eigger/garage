@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { RegisterServiceWorker } from "./register-sw";
+import { withBasePath } from "../lib/base-path";
 import { SettingsProvider } from "../lib/i18n/settings-context";
 import { AuthProvider } from "../lib/auth-context";
 import { ToastProvider } from "../lib/toast-context";
@@ -18,8 +19,8 @@ export const metadata: Metadata = {
     statusBarStyle: "default",
   },
   icons: {
-    icon: "/icons/icon-192.png",
-    apple: "/icons/icon-192.png",
+    icon: withBasePath("/icons/icon-192.png"),
+    apple: withBasePath("/icons/icon-192.png"),
   },
 };
 

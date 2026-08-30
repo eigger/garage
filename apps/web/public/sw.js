@@ -1,5 +1,17 @@
 const CACHE_NAME = "garage-shell-v1";
-const SHELL_ASSETS = ["/", "/login", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png"];
+
+// public/ 파일은 빌드 시 basePath가 붙지 않는다. 대신 서비스워커는 자기 스코프를 알고 있으므로
+// 거기서 배포 프리픽스를 그대로 얻는다 — 루트 배포면 "", /garage 아래면 "/garage".
+const BASE_PATH = new URL(self.registration.scope).pathname.replace(/\/+$/, "");
+const url = (path) => `${BASE_PATH}${path}`;
+
+const SHELL_ASSETS = [
+  url("/"),
+  url("/login"),
+  url("/manifest.webmanifest"),
+  url("/icons/icon-192.png"),
+  url("/icons/icon-512.png"),
+];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -31,12 +43,12 @@ self.addEventListener("fetch", (event) => {
         caches.open(CACHE_NAME).then((cache) => cache.put(request, copy)).catch(() => {});
         return response;
       })
-      .catch(() => caches.match(request).then((cached) => cached ?? caches.match("/"))),
+      .catch(() => caches.match(request).then((cached) => cached ?? caches.match(url("/")))),
   );
 });
 
 self.addEventListener("push", (event) => {
-  let data = { title: "Garage", body: "", url: "/" };
+  let data = { title: "Garage", body: "", url: url("/") };
   try {
     if (event.data) data = { ...data, ...event.data.json() };
   } catch {
@@ -46,26 +58,28 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: "/icons/icon-192.png",
-      badge: "/icons/icon-192.png",
-      data: { url: data.url || "/" },
+      icon: url("/icons/icon-192.png"),
+      badge: url("/icons/icon-192.png"),
+      data: { url: data.url || url("/") },
     }),
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || "/";
+  // 서버가 보낸 url은 앱 기준 경로(/vehicles/1)이므로 프리픽스를 붙여 연다.
+  const raw = event.notification.data?.url || "/";
+  const target = raw.startsWith(BASE_PATH) ? raw : url(raw);
 
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if (client.url.includes(url) && "focus" in client) {
+        if (client.url.includes(target) && "focus" in client) {
           return client.focus();
         }
       }
       if (self.clients.openWindow) {
-        return self.clients.openWindow(url);
+        return self.clients.openWindow(target);
       }
     }),
   );

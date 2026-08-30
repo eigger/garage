@@ -258,6 +258,23 @@ npm run dev:web            # :3000
 - 이미지: `ghcr.io/<owner>/garage-api` / `garage-web` (`latest` + semver)
 - LXC 업데이트: 컨테이너에서 `update` (compose 이미지 pull)
 
+### 서브패스에 올리기 (`BASE_PATH`)
+
+기본은 오리진 루트(`https://example.com/`)입니다. 리버스 프록시의 하위 경로에 붙이려면 web
+컨테이너에 `BASE_PATH`만 넘기면 됩니다 — 이미지를 다시 빌드할 필요는 없습니다.
+
+```bash
+BASE_PATH=/garage docker compose -f docker-compose.prod.yml up -d web
+```
+
+`next build`는 `basePath`를 산출물에 박아버리는데, 배포 경로를 빌드 시점에 알 수 없는 경우가
+있습니다(Home Assistant Ingress는 `/api/hassio_ingress/<token>/` 이 설치본마다 다릅니다).
+그래서 이미지는 `/__BASE_PATH__` 플레이스홀더로 빌드해두고, 컨테이너가 뜰 때
+[`apps/web/docker-entrypoint.sh`](./apps/web/docker-entrypoint.sh)가 실제 값으로 치환합니다.
+값을 바꿔 다시 띄우면 원본에서 다시 치환하므로 여러 번 바꿔도 됩니다.
+
+프록시는 프리픽스를 **떼고** 넘겨야 합니다(HA Ingress는 기본 동작이 그렇습니다).
+
 ### 업데이트 시 참고 (사용자 관리 개편)
 
 이메일이 소문자로 정규화됩니다. **대소문자만 다른 계정이 두 개 이상 있으면** 마이그레이션이 다음 메시지와 함께 중단되고 API 컨테이너가 기동되지 않습니다(데이터는 변경되지 않고 그대로 롤백됩니다).
