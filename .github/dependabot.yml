@@ -1,0 +1,52 @@
+# Dependabot — 주 1회 npm / Actions / Docker 베이스 이미지 업데이트
+#
+# 정책: minor/patch는 그룹으로 자동 PR. **semver-major는 전부 수동 일괄**
+# (메이저를 PR마다 쪼개면 호환 수정·검증이 분산되고 리뷰 부담만 늘어난다.
+#  올릴 때는 한 브랜치에서 한 번에 올리고 검증한다.)
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+    groups:
+      production-minor-patch:
+        dependency-type: production
+        update-types:
+          - "minor"
+          - "patch"
+      development-minor-patch:
+        dependency-type: development
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Docker는 태그만 따라가므로 LTS가 아닌 Current(홀수)로 major가 올라갈 수 있다.
+  # major(예: 20→21)는 수동 판단; minor/patch(보안·버그픽스)만 자동 제안.
+  - package-ecosystem: docker
+    directory: "/apps/api"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directory: "/apps/web"
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
