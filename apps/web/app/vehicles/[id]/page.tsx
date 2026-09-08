@@ -39,7 +39,7 @@ export default function VehicleOverviewPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const vehicleId = params.id;
-  const { t, formatDistance, formatCurrency, locale } = useSettings();
+  const { t, formatDistance, formatCurrency, locale, distanceUnit, toDisplayDistance, toStoredDistance } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const mapConfig = useMapProviders();
@@ -69,6 +69,9 @@ export default function VehicleOverviewPage() {
   const [tireSize, setTireSize] = useState("");
   const [batteryCapacity, setBatteryCapacity] = useState("");
   const [odometer, setOdometer] = useState("");
+  // 표시 단위로 채우고 저장 직전에 km로 되돌린다. 마일 왕복은 정수 반올림이라 값이
+  // 흔들리므로, 채워준 값 그대로면 원본 km를 보낸다.
+  const [prefilledOdometer, setPrefilledOdometer] = useState("");
   const [regFile, setRegFile] = useState<File | null>(null);
   const [savingState, setSavingState] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -92,7 +95,9 @@ export default function VehicleOverviewPage() {
       setVin(vData.vin || "");
       setTireSize(vData.tireSize || "");
       setBatteryCapacity(vData.batteryCapacity || "");
-      setOdometer(vData.odometer ? String(vData.odometer) : "0");
+      const prefill = vData.odometer ? String(toDisplayDistance(vData.odometer)) : "0";
+      setOdometer(prefill);
+      setPrefilledOdometer(prefill);
     }
     if (summaryRes.ok) setSummary(await summaryRes.json());
     if (lastTripRes.ok) {
@@ -160,7 +165,12 @@ export default function VehicleOverviewPage() {
           vin: vin || null,
           tireSize: tireSize || null,
           batteryCapacity: batteryCapacity || null,
-          odometer: odometer ? Number(odometer) : 0,
+          odometer:
+            odometer === prefilledOdometer
+              ? vehicle?.odometer ?? 0
+              : odometer
+                ? toStoredDistance(Number(odometer))
+                : 0,
         }),
       });
 
@@ -378,7 +388,7 @@ export default function VehicleOverviewPage() {
                 <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("dashboardOdometer")}</label>
                 <input
                   type="number"
-                  placeholder={t("dashboardOdometer")}
+                  placeholder={`${t("dashboardOdometer")} (${distanceUnit})`}
                   value={odometer}
                   onChange={(e) => setOdometer(e.target.value)}
                   style={{ width: "100%" }}

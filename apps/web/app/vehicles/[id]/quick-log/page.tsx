@@ -84,10 +84,13 @@ function QuickLogPageInner() {
 
 function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const { showToast } = useToast();
-  const { currency, locale, distanceUnit, volumeUnit } = useSettings();
+  const { currency, locale, distanceUnit, volumeUnit, toDisplayDistance, toStoredDistance } = useSettings();
   const isKo = locale === "ko";
   const currencyUnit = currency === "KRW" ? "원" : "$";
   const [odometer, setOdometer] = useState("");
+  // 입력란은 사용자가 고른 거리 단위로 채운다. 저장 직전에 km로 되돌리는데 마일 왕복은
+  // 정수 반올림이라 값이 1km씩 흔들릴 수 있어서, 채워준 값 그대로면 원본 km를 보낸다.
+  const [prefilledOdometer, setPrefilledOdometer] = useState("");
   const [liters, setLiters] = useState("");
   const [cost, setCost] = useState("");
   const [showMore, setShowMore] = useState(false);
@@ -167,7 +170,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         setVehicle(data);
         if (data) {
           setBaseOdometer(data.odometer);
-          setOdometer(data.odometer > 0 ? String(data.odometer) : "");
+          const prefill = data.odometer > 0 ? String(toDisplayDistance(data.odometer)) : "";
+          setOdometer(prefill);
+          setPrefilledOdometer(prefill);
         }
       });
 
@@ -364,7 +369,10 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         method: "POST",
         body: JSON.stringify({
           date,
-          odometer: Number(odometer),
+          odometer:
+            odometer === prefilledOdometer && baseOdometer > 0
+              ? baseOdometer
+              : toStoredDistance(Number(odometer)),
           liters: toStoredVolume(Number(liters), vehicle?.fuelType ?? null, effectiveVolumeUnit),
           cost: Number(cost),
           fullTank,
@@ -425,9 +433,9 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           {distanceUnit}
         </span>
       </div>
-      {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
+      {Number(odometer) > 0 && Number(odometer) < toDisplayDistance(baseOdometer) && (
         <p style={{ color: "var(--badge-amber-accent)", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
-          <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
+          <AlertIcon size={14} /> {t("odometerWarning", { base: String(toDisplayDistance(baseOdometer)), unit: distanceUnit })}
         </p>
       )}
 
@@ -718,9 +726,11 @@ function QuickMaintenanceForm({
   t: Translator;
   initialType?: string | null;
 }) {
-  const { currency, distanceUnit } = useSettings();
+  const { currency, distanceUnit, toDisplayDistance, toStoredDistance } = useSettings();
   const currencyUnit = currency === "KRW" ? "원" : "$";
   const [odometer, setOdometer] = useState("");
+  // 주유 폼과 같은 이유로 채워준 값 그대로면 원본 km를 보낸다.
+  const [prefilledOdometer, setPrefilledOdometer] = useState("");
   const [showMore, setShowMore] = useState(false);
   const [date, setDate] = useState(today());
   const [cost, setCost] = useState("");
@@ -776,7 +786,9 @@ function QuickMaintenanceForm({
       .then((res) => (res.ok ? res.json() : { odometer: 0 }))
       .then((data) => {
         if (data.odometer > 0) {
-          setOdometer(String(data.odometer));
+          const prefill = String(toDisplayDistance(data.odometer));
+          setOdometer(prefill);
+          setPrefilledOdometer(prefill);
           setBaseOdometer(data.odometer);
         }
       });
@@ -827,7 +839,10 @@ function QuickMaintenanceForm({
           method: "POST",
           body: JSON.stringify({
             date,
-            odometer: Number(odometer),
+            odometer:
+              odometer === prefilledOdometer && baseOdometer > 0
+                ? baseOdometer
+                : toStoredDistance(Number(odometer)),
             type: finalType,
             category: recordCategory,
             cost: cost ? Number(cost) : undefined,
@@ -901,9 +916,9 @@ function QuickMaintenanceForm({
             {distanceUnit}
           </span>
         </div>
-        {Number(odometer) > 0 && Number(odometer) < baseOdometer && (
+        {Number(odometer) > 0 && Number(odometer) < toDisplayDistance(baseOdometer) && (
           <p style={{ color: "var(--badge-amber-accent)", fontSize: 13, margin: "-6px 0 2px", fontWeight: "500", display: "flex", alignItems: "center", gap: 4 }}>
-            <AlertIcon size={14} /> {t("odometerWarning", { base: String(baseOdometer), unit: distanceUnit })}
+            <AlertIcon size={14} /> {t("odometerWarning", { base: String(toDisplayDistance(baseOdometer)), unit: distanceUnit })}
           </p>
         )}
 

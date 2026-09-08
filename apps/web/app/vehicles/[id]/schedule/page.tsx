@@ -47,7 +47,7 @@ function StatusBadge({ status, t }: { status: Status; t: Translator }) {
 export default function SchedulePage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
-  const { t, formatDistance } = useSettings();
+  const { t, formatDistance, distanceUnit, toDisplayDistance, toStoredDistance } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
 
@@ -139,6 +139,9 @@ export default function SchedulePage() {
             onChanged={load}
             t={t}
             formatDistance={formatDistance}
+            distanceUnit={distanceUnit}
+            toDisplayDistance={toDisplayDistance}
+            toStoredDistance={toStoredDistance}
             showToast={showToast}
             confirm={confirm}
           />
@@ -146,7 +149,15 @@ export default function SchedulePage() {
       </ul>
 
       <h2>{t("addCustomItem")}</h2>
-      <AddScheduleItemForm vehicleId={vehicleId} odometer={odometer} onCreated={load} t={t} showToast={showToast} />
+      <AddScheduleItemForm
+        vehicleId={vehicleId}
+        odometer={odometer}
+        onCreated={load}
+        t={t}
+        distanceUnit={distanceUnit}
+        toStoredDistance={toStoredDistance}
+        showToast={showToast}
+      />
     </section>
   );
 }
@@ -157,6 +168,9 @@ function ScheduleRow({
   onChanged,
   t,
   formatDistance,
+  distanceUnit,
+  toDisplayDistance,
+  toStoredDistance,
   showToast,
   confirm,
 }: {
@@ -165,19 +179,24 @@ function ScheduleRow({
   onChanged: () => void;
   t: Translator;
   formatDistance: (km: number) => string;
+  distanceUnit: string;
+  toDisplayDistance: (km: number) => number;
+  toStoredDistance: (value: number) => number;
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
 }) {
   const [editing, setEditing] = useState(false);
   const [partType, setPartType] = useState(part.partType);
-  const [expectedLifeKm, setExpectedLifeKm] = useState(
-    part.expectedLifeKm ? String(part.expectedLifeKm) : "",
-  );
+  // 주기·장착 주행거리 모두 km로 저장된다. 표시 단위로 채우고 저장 직전에 되돌리되,
+  // 마일 왕복은 정수 반올림이라 값이 흔들리므로 입력이 그대로면 원본 km를 보낸다.
+  const initialLifeKm = part.expectedLifeKm ? String(toDisplayDistance(part.expectedLifeKm)) : "";
+  const initialInstalledOdometer = String(toDisplayDistance(part.installedOdometer));
+  const [expectedLifeKm, setExpectedLifeKm] = useState(initialLifeKm);
   const [expectedLifeMonths, setExpectedLifeMonths] = useState(
     part.expectedLifeMonths ? String(part.expectedLifeMonths) : "",
   );
   const [installedDate, setInstalledDate] = useState(part.installedDate.slice(0, 10));
-  const [installedOdometer, setInstalledOdometer] = useState(String(part.installedOdometer));
+  const [installedOdometer, setInstalledOdometer] = useState(initialInstalledOdometer);
   const [submitting, setSubmitting] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [completionCost, setCompletionCost] = useState("");
@@ -248,8 +267,15 @@ function ScheduleRow({
         body: JSON.stringify({
           ...(isCatalog ? {} : { partType }),
           installedDate,
-          installedOdometer: Number(installedOdometer),
-          expectedLifeKm: expectedLifeKm ? Number(expectedLifeKm) : undefined,
+          installedOdometer:
+            installedOdometer === initialInstalledOdometer
+              ? part.installedOdometer
+              : toStoredDistance(Number(installedOdometer)),
+          expectedLifeKm: !expectedLifeKm
+            ? undefined
+            : expectedLifeKm === initialLifeKm
+              ? part.expectedLifeKm ?? undefined
+              : toStoredDistance(Number(expectedLifeKm)),
           expectedLifeMonths: expectedLifeMonths ? Number(expectedLifeMonths) : undefined,
         }),
       });
@@ -351,7 +377,7 @@ function ScheduleRow({
           {part.category !== "ADMINISTRATIVE" && (
             <input
               type="number"
-              placeholder={t("intervalKm")}
+              placeholder={t("intervalDistance", { unit: distanceUnit })}
               value={expectedLifeKm}
               onChange={(e) => setExpectedLifeKm(e.target.value)}
             />
@@ -370,7 +396,7 @@ function ScheduleRow({
           />
           <input
             type="number"
-            placeholder={t("installedOdometer")}
+            placeholder={`${t("installedOdometer")} (${distanceUnit})`}
             value={installedOdometer}
             onChange={(e) => setInstalledOdometer(e.target.value)}
             required
@@ -535,12 +561,16 @@ function AddScheduleItemForm({
   odometer,
   onCreated,
   t,
+  distanceUnit,
+  toStoredDistance,
   showToast,
 }: {
   vehicleId: string;
   odometer: number;
   onCreated: () => void;
   t: Translator;
+  distanceUnit: string;
+  toStoredDistance: (value: number) => number;
   showToast: (message: string, type?: "success" | "error") => void;
 }) {
   const [partType, setPartType] = useState("");
@@ -567,7 +597,7 @@ function AddScheduleItemForm({
           category,
           installedDate: new Date().toISOString().slice(0, 10),
           installedOdometer: odometer,
-          expectedLifeKm: expectedLifeKm ? Number(expectedLifeKm) : undefined,
+          expectedLifeKm: expectedLifeKm ? toStoredDistance(Number(expectedLifeKm)) : undefined,
           expectedLifeMonths: expectedLifeMonths ? Number(expectedLifeMonths) : undefined,
         }),
       });
@@ -612,7 +642,7 @@ function AddScheduleItemForm({
       {category === "MAINTENANCE" && (
         <input
           type="number"
-          placeholder={t("intervalKm")}
+          placeholder={t("intervalDistance", { unit: distanceUnit })}
           value={expectedLifeKm}
           onChange={(e) => setExpectedLifeKm(e.target.value)}
         />
