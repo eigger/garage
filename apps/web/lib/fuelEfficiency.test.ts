@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { computeFuelCostPerDistancePoints, computeFuelEfficiencyPoints } from "./fuelEfficiency";
+import {
+  computeFuelCostPerDistancePoints,
+  computeFuelEfficiencyPoints,
+  efficiencyUnitLabels,
+  fuelVolumeUnit,
+  toDisplayConsumption,
+  toDisplayEfficiency,
+  toDisplayVolume,
+  toStoredVolume,
+} from "./fuelEfficiency";
 import type { FuelLog } from "./types";
 
 function log(overrides: Partial<FuelLog> & { id: string; odometer: number; liters: number }): FuelLog {
@@ -137,5 +146,58 @@ describe("computeFuelCostPerDistancePoints", () => {
     // 기준점이 "b"로 넘어가므로 500km가 아니라 300km — "b" 이전 주행은 이미 지나간 구간이다.
     expect(points[0].distanceKm).toBe(300);
     expect(points[0].costPerKm).toBeCloseTo(150);
+  });
+});
+
+describe("unit conversion", () => {
+  it("labels the mile+gallon combination as mpg, other combinations literally", () => {
+    expect(efficiencyUnitLabels("GASOLINE", "km", "L")).toEqual({ perUnit: "km/L", per100: "L/100km" });
+    expect(efficiencyUnitLabels("GASOLINE", "mi", "L")).toEqual({ perUnit: "mi/L", per100: "L/100mi" });
+    expect(efficiencyUnitLabels("GASOLINE", "km", "gal")).toEqual({ perUnit: "km/gal", per100: "gal/100km" });
+    expect(efficiencyUnitLabels("GASOLINE", "mi", "gal")).toEqual({ perUnit: "mpg", per100: "gal/100mi" });
+  });
+
+  it("never converts an EV's kWh to gallons", () => {
+    expect(fuelVolumeUnit("ELECTRIC", "gal")).toBe("kWh");
+    expect(toDisplayVolume(50, "ELECTRIC", "gal")).toBe(50);
+    expect(efficiencyUnitLabels("ELECTRIC", "mi", "gal")).toEqual({
+      perUnit: "mi/kWh",
+      per100: "kWh/100mi",
+    });
+  });
+
+  it("converts km/L to mpg and L/100km to gal/100mi", () => {
+    expect(toDisplayEfficiency(14.6, "GASOLINE", "mi", "gal")).toBeCloseTo(34.34, 1);
+    expect(toDisplayConsumption(6.8, "GASOLINE", "mi", "gal")).toBeCloseTo(2.89, 1);
+    // 단위를 안 바꾼 사용자에게는 값이 그대로여야 한다.
+    expect(toDisplayEfficiency(14.6, "GASOLINE", "km", "L")).toBeCloseTo(14.6);
+    expect(toDisplayConsumption(6.8, "GASOLINE", "km", "L")).toBeCloseTo(6.8);
+  });
+
+  it("round-trips a volume through display and storage without drift", () => {
+    const stored = 25;
+    const shown = toDisplayVolume(stored, "GASOLINE", "gal");
+    expect(shown).toBeCloseTo(6.6, 1);
+    expect(toStoredVolume(shown, "GASOLINE", "gal")).toBeCloseTo(stored);
+  });
+});
+
+describe("unit conversion guards", () => {
+  it("treats an unknown fuel type as unconvertible so kWh is never scaled", () => {
+    // 차량 조회 전/실패 시 fuelType은 null이다. 이때 갤런 환산이 걸리면 전기차 충전량이
+    // 3.8배로 저장되므로, 호출부는 연료 타입을 알기 전까지 "L"을 넘겨 환산을 막는다.
+    expect(toStoredVolume(40, null, "L")).toBe(40);
+    expect(fuelVolumeUnit(null, "L")).toBe("L");
+    // 환산을 걸면 실제로 3.8배가 된다는 것 — 위 가드가 막는 값이다.
+    expect(toStoredVolume(40, null, "gal")).toBeCloseTo(151.4, 1);
+  });
+
+  it("does not drift a liter value that survives a 2-decimal gallon round trip", () => {
+    const round2 = (v: number) => Math.round(v * 100) / 100;
+    const shown = round2(toDisplayVolume(25, "GASOLINE", "gal"));
+    // 표시값을 그대로 되돌리면 25L가 아니라 24.98L이 된다 — 그래서 화면단은 입력이
+    // 그대로면 원본 리터를 보낸다.
+    expect(toStoredVolume(shown, "GASOLINE", "gal")).not.toBeCloseTo(25, 3);
+    expect(toStoredVolume(shown, "GASOLINE", "gal")).toBeCloseTo(24.98, 1);
   });
 });

@@ -24,6 +24,8 @@ import {
   computeFuelEfficiencyPoints,
   efficiencyUnitLabels,
   fuelVolumeUnit,
+  toDisplayEfficiency,
+  toDisplayVolume,
 } from "../../../../lib/fuelEfficiency";
 import { DownloadIcon } from "../../../../components/icons";
 
@@ -32,7 +34,7 @@ type Period = "all" | "1w" | "1m" | "6m" | "1y";
 export default function AnalyticsPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
-  const { t, locale, distanceUnit, formatCurrency } = useSettings();
+  const { t, locale, distanceUnit, volumeUnit, formatCurrency } = useSettings();
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
@@ -64,7 +66,7 @@ export default function AnalyticsPage() {
   }, [vehicleId]);
 
   const localeTag = locale === "ko" ? "ko-KR" : "en-US";
-  const units = efficiencyUnitLabels(vehicle?.fuelType ?? null);
+  const units = efficiencyUnitLabels(vehicle?.fuelType ?? null, distanceUnit, volumeUnit);
 
   const periodStart = useMemo(() => {
     if (period === "all") return null;
@@ -198,16 +200,22 @@ export default function AnalyticsPage() {
   // 나오므로 차트를 따로 두지 않고 한 차트에 합쳐서 스크롤을 줄인다 — logId로 맞춰서
   // 연비가 없는 주유 건은 그 지점만 끊기고(null) 단가 선은 계속 이어진다.
   const combinedFuelChartData = useMemo(() => {
-    const efficiencyByLogId = new Map(filteredEfficiencyPoints.map((p) => [p.logId, Math.round(p.kmPerLiter * 10) / 10]));
+    const fuelType = vehicle?.fuelType ?? null;
+    const efficiencyByLogId = new Map(
+      filteredEfficiencyPoints.map((p) => [
+        p.logId,
+        Math.round(toDisplayEfficiency(p.kmPerLiter, fuelType, distanceUnit, volumeUnit) * 10) / 10,
+      ]),
+    );
     return filteredLogs
       .filter((l) => l.liters > 0)
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
       .map((l) => ({
         date: new Intl.DateTimeFormat(localeTag, { month: "numeric", day: "numeric" }).format(new Date(l.date)),
         efficiency: efficiencyByLogId.get(l.id) ?? null,
-        price: Math.round((l.cost / l.liters) * 10) / 10,
+        price: Math.round((l.cost / toDisplayVolume(l.liters, fuelType, volumeUnit)) * 10) / 10,
       }));
-  }, [filteredLogs, filteredEfficiencyPoints, localeTag]);
+  }, [filteredLogs, filteredEfficiencyPoints, localeTag, vehicle?.fuelType, distanceUnit, volumeUnit]);
 
   // 연비 차트와 같은 이유로 기간 필터는 원본 로그가 아니라 계산된 점에 건다 — 기간 시작
   // 직전 주유까지 잘라내면 그 구간의 거리 기준점이 사라져 첫 점이 통째로 빠진다.
@@ -229,8 +237,14 @@ export default function AnalyticsPage() {
     if (filteredEfficiencyPoints.length === 0) return null;
     const totalDistance = filteredEfficiencyPoints.reduce((sum, p) => sum + p.distanceKm, 0);
     const totalLiters = filteredEfficiencyPoints.reduce((sum, p) => sum + p.distanceKm / p.kmPerLiter, 0);
-    return totalLiters > 0 ? totalDistance / totalLiters : null;
-  }, [filteredEfficiencyPoints]);
+    if (totalLiters <= 0) return null;
+    return toDisplayEfficiency(
+      totalDistance / totalLiters,
+      vehicle?.fuelType ?? null,
+      distanceUnit,
+      volumeUnit,
+    );
+  }, [filteredEfficiencyPoints, vehicle?.fuelType, distanceUnit, volumeUnit]);
 
   if (loading) {
     return (
@@ -332,7 +346,7 @@ export default function AnalyticsPage() {
                 formatter={(value, name, props: any) => {
                   if (value === null || value === undefined) return ["-", name];
                   if (props?.dataKey === "price") {
-                    return [`${formatCurrency(Number(value))}/${fuelVolumeUnit(vehicle?.fuelType ?? null)}`, name];
+                    return [`${formatCurrency(Number(value))}/${fuelVolumeUnit(vehicle?.fuelType ?? null, volumeUnit)}`, name];
                   }
                   return [`${value} ${units.perUnit}`, name];
                 }}

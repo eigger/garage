@@ -29,6 +29,8 @@ export default function ProfilePage() {
     setLocale,
     distanceUnit,
     setDistanceUnit,
+    volumeUnit,
+    setVolumeUnit,
     currency,
     setCurrency,
     theme,
@@ -417,6 +419,18 @@ export default function ProfilePage() {
             <option value="km">km</option>
             <option value="mi">mi</option>
           </select>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("volumeUnitLabel")}</label>
+          <select
+            value={volumeUnit}
+            onChange={(e) => setVolumeUnit(e.target.value as any)}
+            style={{ width: "100%", height: 48, minHeight: 48 }}
+          >
+            <option value="L">{t("volumeUnitLiter")}</option>
+            <option value="gal">{t("volumeUnitGallon")}</option>
+          </select>
+          <p style={{ margin: 0, fontSize: 12, color: "var(--color-text-muted)" }}>{t("volumeUnitHint")}</p>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <label style={{ fontSize: 13, fontWeight: "600", color: "var(--color-text-secondary)" }}>{t("currencyLabel")}</label>

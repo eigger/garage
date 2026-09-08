@@ -5,6 +5,8 @@ import { translations, type Locale, type TranslationKey } from "./translations";
 import { formatDistanceVal, formatCurrencyVal, formatDateTimeVal } from "./format";
 
 export type DistanceUnit = "km" | "mi";
+// 전기차의 충전량(kWh)은 이 설정과 무관하다 — 액체 연료 부피에만 적용된다.
+export type VolumeUnit = "L" | "gal";
 export type CurrencyCode = "KRW" | "USD";
 export type ThemeMode = "system" | "light" | "dark";
 export type AccentColor = "green" | "blue" | "purple" | "orange" | "black";
@@ -14,6 +16,7 @@ const KM_TO_MI = 0.621371;
 const STORAGE_KEYS = {
   locale: "garage_locale",
   distanceUnit: "garage_distance_unit",
+  volumeUnit: "garage_volume_unit",
   currency: "garage_currency",
   theme: "garage_theme",
   accentColor: "garage_accent_color",
@@ -37,6 +40,8 @@ interface SettingsContextValue {
   setLocale: (locale: Locale) => void;
   distanceUnit: DistanceUnit;
   setDistanceUnit: (unit: DistanceUnit) => void;
+  volumeUnit: VolumeUnit;
+  setVolumeUnit: (unit: VolumeUnit) => void;
   currency: CurrencyCode;
   setCurrency: (currency: CurrencyCode) => void;
   theme: ThemeMode;
@@ -54,6 +59,7 @@ const SettingsContext = createContext<SettingsContextValue | null>(null);
 export function SettingsProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>("ko");
   const [distanceUnit, setDistanceUnitState] = useState<DistanceUnit>("km");
+  const [volumeUnit, setVolumeUnitState] = useState<VolumeUnit>("L");
   const [currency, setCurrencyState] = useState<CurrencyCode>("KRW");
   const [theme, setThemeState] = useState<ThemeMode>("system");
   const [accentColor, setAccentColorState] = useState<AccentColor>("green");
@@ -62,11 +68,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const savedLocale = localStorage.getItem(STORAGE_KEYS.locale) as Locale | null;
     const savedUnit = localStorage.getItem(STORAGE_KEYS.distanceUnit) as DistanceUnit | null;
+    const savedVolumeUnit = localStorage.getItem(STORAGE_KEYS.volumeUnit) as VolumeUnit | null;
     const savedCurrency = localStorage.getItem(STORAGE_KEYS.currency) as CurrencyCode | null;
     const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) as ThemeMode | null;
     const savedAccent = localStorage.getItem(STORAGE_KEYS.accentColor) as AccentColor | null;
     if (savedLocale) setLocaleState(savedLocale);
     if (savedUnit) setDistanceUnitState(savedUnit);
+    if (savedVolumeUnit) setVolumeUnitState(savedVolumeUnit);
     if (savedCurrency) setCurrencyState(savedCurrency);
     if (savedTheme) setThemeState(savedTheme);
     if (savedAccent) setAccentColorState(savedAccent);
@@ -122,6 +130,11 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(STORAGE_KEYS.distanceUnit, next);
   }
 
+  function setVolumeUnit(next: VolumeUnit) {
+    setVolumeUnitState(next);
+    localStorage.setItem(STORAGE_KEYS.volumeUnit, next);
+  }
+
   function setTheme(next: ThemeMode) {
     setThemeState(next);
     localStorage.setItem(STORAGE_KEYS.theme, next);
@@ -172,6 +185,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setLocale,
         distanceUnit,
         setDistanceUnit,
+        volumeUnit,
+        setVolumeUnit,
         currency,
         setCurrency,
         theme,

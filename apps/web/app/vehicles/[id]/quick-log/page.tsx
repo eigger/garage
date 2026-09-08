@@ -10,7 +10,8 @@ import type { RecordCategory } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { AlertIcon, TrashIcon, SearchIcon } from "../../../../components/icons";
-import { fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
+import { fuelVolumeNameKey, fuelVolumeUnit, toStoredVolume } from "../../../../lib/fuelEfficiency";
+import type { VolumeUnit } from "../../../../lib/i18n/settings-context";
 import type { OpinetStationSummary } from "@garage/shared";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { geocodeAddress } from "../../../../lib/maps/geocode";
@@ -83,7 +84,7 @@ function QuickLogPageInner() {
 
 function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   const { showToast } = useToast();
-  const { currency, locale, distanceUnit } = useSettings();
+  const { currency, locale, distanceUnit, volumeUnit } = useSettings();
   const isKo = locale === "ko";
   const currencyUnit = currency === "KRW" ? "원" : "$";
   const [odometer, setOdometer] = useState("");
@@ -140,6 +141,12 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   // Opinet convenience states
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
+  // 차량을 아직 못 받아왔으면 이 입력란이 리터인지 kWh인지 알 수 없다. 그 상태로 갤런
+  // 환산을 걸면 전기차 충전량이 3.8배로 저장되므로, 연료 타입을 알기 전에는 환산하지 않고
+  // 입력란도 저장 단위 그대로 보여준다 — 라벨과 저장값이 항상 같은 단위를 가리키게 된다.
+  // (차량 조회가 실패하면 vehicle은 계속 null이라 이 상태가 유지될 수 있다.)
+  const effectiveVolumeUnit: VolumeUnit = vehicle ? volumeUnit : "L";
+  const volumeUnitLabel = fuelVolumeUnit(vehicle?.fuelType ?? null, effectiveVolumeUnit);
   const [opinetConfigured, setOpinetConfigured] = useState(false);
   const [stations, setStations] = useState<OpinetStationSummary[]>([]);
   const [selectedStationId, setSelectedStationId] = useState("");
@@ -187,7 +194,15 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   // 단가를 채우면서 이미 입력된 금액/리터 중 하나가 있으면 나머지를 자동 계산한다.
   // 오피넷 검색 선택과 단골 버튼 탭이 공통으로 쓴다.
-  function applyUnitPrice(price: number) {
+  // 오피넷 단가와 단골 주유소 폴백 단가는 항상 원/리터로 들어온다 — 갤런 표시를 쓰는
+  // 사용자에게는 여기서 한 번만 환산해두면, 이후 단가·주유량·금액 계산은 전부 표시 단위
+  // 안에서 맞아떨어진다(금액은 어느 단위로 계산하든 같다).
+  function perLiterToDisplayPrice(pricePerLiter: number): number {
+    return Math.round(pricePerLiter / toStoredVolume(1, vehicle?.fuelType ?? null, effectiveVolumeUnit));
+  }
+
+  function applyUnitPrice(pricePerLiter: number) {
+    const price = perLiterToDisplayPrice(pricePerLiter);
     setUnitPrice(String(price));
     if (cost && Number(cost) > 0) {
       setLiters(String((Number(cost) / price).toFixed(2)));
@@ -350,7 +365,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         body: JSON.stringify({
           date,
           odometer: Number(odometer),
-          liters: Number(liters),
+          liters: toStoredVolume(Number(liters), vehicle?.fuelType ?? null, effectiveVolumeUnit),
           cost: Number(cost),
           fullTank,
           location: location || undefined,
@@ -436,7 +451,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
               <option value="" disabled>{t("selectStation")}</option>
               {stations.map((s) => (
                 <option key={s.id} value={s.id}>
-                  [{s.brandLabel}] {s.name} - {s.price}원 ({s.distance}m)
+                  [{s.brandLabel}] {s.name} - {perLiterToDisplayPrice(s.price)}원/{volumeUnitLabel} ({s.distance}m)
                 </option>
               ))}
             </select>
@@ -520,7 +535,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         <input
           type="number"
           inputMode="numeric"
-          placeholder={t("unitPrice")}
+          placeholder={t("unitPricePerVolume", { unit: t(fuelVolumeNameKey(vehicle?.fuelType ?? null, effectiveVolumeUnit)) })}
           value={unitPrice}
           onChange={(e) => handleUnitPriceChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
@@ -535,13 +550,13 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           type="number"
           inputMode="decimal"
           step="0.01"
-          placeholder={vehicle?.fuelType === "ELECTRIC" ? t("chargeAmount") : t("liters")}
+          placeholder={vehicle?.fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel}
           value={liters}
           onChange={(e) => handleLitersChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
         />
         <span style={{ position: "absolute", right: 12, color: "var(--color-text-muted)", fontSize: 13, pointerEvents: "none" }}>
-          {fuelVolumeUnit(vehicle?.fuelType ?? null)}
+          {volumeUnitLabel}
         </span>
       </div>
 

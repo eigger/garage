@@ -10,6 +10,7 @@ import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, Vehicle } from "
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import { formatDuration } from "../../../../lib/duration";
 import { KM_TO_MI } from "../../../../lib/i18n/format";
+import type { DistanceUnit, VolumeUnit } from "../../../../lib/i18n/settings-context";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
 import { TripRouteMap } from "../../../../components/maps/TripRouteMap";
@@ -28,6 +29,11 @@ import {
   computeFuelEfficiencyPoints,
   efficiencyUnitLabels,
   fuelVolumeUnit,
+  fuelVolumeNameKey,
+  toDisplayConsumption,
+  toDisplayEfficiency,
+  toDisplayVolume,
+  toStoredVolume,
 } from "../../../../lib/fuelEfficiency";
 import type { FuelType } from "../../../../lib/types";
 import dynamic from "next/dynamic";
@@ -38,6 +44,11 @@ const LastLocationMap = dynamic(
   () => import("../../../../components/maps/LastLocationMap").then((m) => ({ default: m.LastLocationMap })),
   { ssr: false },
 );
+
+// 갤런 환산은 소수점이 길게 남아서(25L → 6.6043...gal) 표시·입력값 모두 두 자리로 자른다.
+function round2(value: number): number {
+  return Math.round(value * 100) / 100;
+}
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type FuelEfficiency = {
@@ -92,7 +103,7 @@ function HistorySectionHeader({
 export default function HistoryPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
-  const { t, formatDistance, formatCurrency, formatDateTime, distanceUnit } = useSettings();
+  const { t, formatDistance, formatCurrency, formatDateTime, distanceUnit, volumeUnit } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const mapConfig = useMapProviders();
@@ -332,6 +343,7 @@ export default function HistoryPage() {
                       efficiency={fuelEfficiencyById[f.id] ?? null}
                       costPerDistance={fuelCostPerDistanceById[f.id] ?? null}
                       distanceUnit={distanceUnit}
+                      volumeUnit={volumeUnit}
                       fuelType={vehicle?.fuelType ?? null}
                       onChanged={() => loadFuelLogs(true)}
                       t={t}
@@ -482,6 +494,7 @@ function FuelLogRow({
   efficiency,
   costPerDistance,
   distanceUnit,
+  volumeUnit,
   fuelType,
   onChanged,
   t,
@@ -495,7 +508,8 @@ function FuelLogRow({
   log: FuelLog;
   efficiency: FuelEfficiency | null;
   costPerDistance: FuelCostPerDistance | null;
-  distanceUnit: string;
+  distanceUnit: DistanceUnit;
+  volumeUnit: VolumeUnit;
   fuelType: FuelType | null;
   onChanged: () => void;
   t: Translator;
@@ -505,12 +519,18 @@ function FuelLogRow({
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
   mapConfig: MapProvidersConfig;
 }) {
-  const units = efficiencyUnitLabels(fuelType);
-  const volumeUnit = fuelVolumeUnit(fuelType);
+  const units = efficiencyUnitLabels(fuelType, distanceUnit, volumeUnit);
+  const volumeUnitLabel = fuelVolumeUnit(fuelType, volumeUnit);
+  // 입력란은 사용자가 고른 단위로 보여주고, 저장 직전에 리터로 되돌린다.
+  const displayLiters = toDisplayVolume(log.liters, fuelType, volumeUnit);
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(log.date.slice(0, 10));
   const [odometer, setOdometer] = useState(String(log.odometer));
-  const [liters, setLiters] = useState(String(log.liters));
+  // 표시용으로 두 자리에서 자른 값을 그대로 되돌리면 안 건드린 기록도 저장할 때마다
+  // 반올림 오차만큼 리터가 바뀐다(25L → 6.6gal → 24.98L). 입력값이 처음 채워준 값과
+  // 같으면 사용자가 손대지 않은 것이므로 원본 리터를 그대로 보낸다.
+  const initialLiters = String(round2(displayLiters));
+  const [liters, setLiters] = useState(initialLiters);
   const [cost, setCost] = useState(String(log.cost));
   const [fullTank, setFullTank] = useState(log.fullTank);
   const [location, setLocation] = useState(log.location || "");
@@ -549,7 +569,7 @@ function FuelLogRow({
     if (editing) {
       setDate(log.date.slice(0, 10));
       setOdometer(String(log.odometer));
-      setLiters(String(log.liters));
+      setLiters(initialLiters);
       setCost(String(log.cost));
       setFullTank(log.fullTank);
       setLocation(log.location || "");
@@ -576,7 +596,7 @@ function FuelLogRow({
         body: JSON.stringify({
           date,
           odometer: Number(odometer),
-          liters: Number(liters),
+          liters: liters === initialLiters ? log.liters : toStoredVolume(Number(liters), fuelType, volumeUnit),
           cost: Number(cost),
           fullTank,
           location: location.trim() === "" ? null : location,
@@ -646,7 +666,7 @@ function FuelLogRow({
             <input
               type="number"
               step="0.01"
-              placeholder={fuelType === "ELECTRIC" ? t("chargeAmount") : t("liters")}
+              placeholder={fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel}
               value={liters}
               onChange={(e) => setLiters(e.target.value)}
               required
@@ -819,10 +839,13 @@ function FuelLogRow({
         </span>
       </div>
       <div>
-        {formatDistance(log.odometer)} · {log.liters}{volumeUnit} · {formatCurrency(log.cost)}
+        {formatDistance(log.odometer)} · {round2(displayLiters)}{volumeUnitLabel} · {formatCurrency(log.cost)}
       </div>
       <div style={{ fontSize: 13, color: "var(--color-text-muted)", display: "flex", gap: 6, flexWrap: "wrap" }}>
-        <span>{t("unitPrice")} {formatCurrency(Math.round(log.cost / log.liters))}/{volumeUnit}</span>
+        <span>
+          {t("unitPricePerVolume", { unit: t(fuelVolumeNameKey(fuelType, volumeUnit)) })}{" "}
+          {formatCurrency(Math.round(log.cost / displayLiters))}/{volumeUnitLabel}
+        </span>
         <span>· {log.fullTank ? t("fullTank") : t("partialTank")}</span>
         {log.location && <span>· {log.location}</span>}
       </div>
@@ -842,7 +865,8 @@ function FuelLogRow({
                 border: "1px solid var(--badge-green-border)",
                 borderRadius: 6,
               }}>
-                <LeafIcon /> {efficiency.kmPerLiter.toFixed(1)} {units.perUnit}
+                <LeafIcon /> {toDisplayEfficiency(efficiency.kmPerLiter, fuelType, distanceUnit, volumeUnit).toFixed(1)}{" "}
+                {units.perUnit}
               </span>
               <span style={{
                 display: "inline-flex",
@@ -856,7 +880,9 @@ function FuelLogRow({
                 border: "1px solid var(--badge-grey-border)",
                 borderRadius: 6,
               }}>
-                <BarChartIcon /> {efficiency.litersPer100Km.toFixed(1)} {units.per100}
+                <BarChartIcon />{" "}
+                {toDisplayConsumption(efficiency.litersPer100Km, fuelType, distanceUnit, volumeUnit).toFixed(1)}{" "}
+                {units.per100}
               </span>
             </>
           )}

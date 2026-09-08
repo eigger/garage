@@ -1,4 +1,6 @@
 export const KM_TO_MI = 0.621371;
+// 미국 액량 갤런 기준(1 gal = 3.785411784 L).
+export const L_TO_GAL = 0.26417205;
 
 export function formatDistanceVal(km: number, distanceUnit: "km" | "mi"): string {
   if (distanceUnit === "mi") {
