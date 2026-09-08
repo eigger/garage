@@ -181,3 +181,23 @@ describe("unit conversion", () => {
     expect(toStoredVolume(shown, "GASOLINE", "gal")).toBeCloseTo(stored);
   });
 });
+
+describe("unit conversion guards", () => {
+  it("treats an unknown fuel type as unconvertible so kWh is never scaled", () => {
+    // 차량 조회 전/실패 시 fuelType은 null이다. 이때 갤런 환산이 걸리면 전기차 충전량이
+    // 3.8배로 저장되므로, 호출부는 연료 타입을 알기 전까지 "L"을 넘겨 환산을 막는다.
+    expect(toStoredVolume(40, null, "L")).toBe(40);
+    expect(fuelVolumeUnit(null, "L")).toBe("L");
+    // 환산을 걸면 실제로 3.8배가 된다는 것 — 위 가드가 막는 값이다.
+    expect(toStoredVolume(40, null, "gal")).toBeCloseTo(151.4, 1);
+  });
+
+  it("does not drift a liter value that survives a 2-decimal gallon round trip", () => {
+    const round2 = (v: number) => Math.round(v * 100) / 100;
+    const shown = round2(toDisplayVolume(25, "GASOLINE", "gal"));
+    // 표시값을 그대로 되돌리면 25L가 아니라 24.98L이 된다 — 그래서 화면단은 입력이
+    // 그대로면 원본 리터를 보낸다.
+    expect(toStoredVolume(shown, "GASOLINE", "gal")).not.toBeCloseTo(25, 3);
+    expect(toStoredVolume(shown, "GASOLINE", "gal")).toBeCloseTo(24.98, 1);
+  });
+});

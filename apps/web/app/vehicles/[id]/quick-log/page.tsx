@@ -11,6 +11,7 @@ import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { AlertIcon, TrashIcon, SearchIcon } from "../../../../components/icons";
 import { fuelVolumeNameKey, fuelVolumeUnit, toStoredVolume } from "../../../../lib/fuelEfficiency";
+import type { VolumeUnit } from "../../../../lib/i18n/settings-context";
 import type { OpinetStationSummary } from "@garage/shared";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { geocodeAddress } from "../../../../lib/maps/geocode";
@@ -140,7 +141,12 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
 
   // Opinet convenience states
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
-  const volumeUnitLabel = fuelVolumeUnit(vehicle?.fuelType ?? null, volumeUnit);
+  // 차량을 아직 못 받아왔으면 이 입력란이 리터인지 kWh인지 알 수 없다. 그 상태로 갤런
+  // 환산을 걸면 전기차 충전량이 3.8배로 저장되므로, 연료 타입을 알기 전에는 환산하지 않고
+  // 입력란도 저장 단위 그대로 보여준다 — 라벨과 저장값이 항상 같은 단위를 가리키게 된다.
+  // (차량 조회가 실패하면 vehicle은 계속 null이라 이 상태가 유지될 수 있다.)
+  const effectiveVolumeUnit: VolumeUnit = vehicle ? volumeUnit : "L";
+  const volumeUnitLabel = fuelVolumeUnit(vehicle?.fuelType ?? null, effectiveVolumeUnit);
   const [opinetConfigured, setOpinetConfigured] = useState(false);
   const [stations, setStations] = useState<OpinetStationSummary[]>([]);
   const [selectedStationId, setSelectedStationId] = useState("");
@@ -192,7 +198,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
   // 사용자에게는 여기서 한 번만 환산해두면, 이후 단가·주유량·금액 계산은 전부 표시 단위
   // 안에서 맞아떨어진다(금액은 어느 단위로 계산하든 같다).
   function perLiterToDisplayPrice(pricePerLiter: number): number {
-    return Math.round(pricePerLiter / toStoredVolume(1, vehicle?.fuelType ?? null, volumeUnit));
+    return Math.round(pricePerLiter / toStoredVolume(1, vehicle?.fuelType ?? null, effectiveVolumeUnit));
   }
 
   function applyUnitPrice(pricePerLiter: number) {
@@ -359,7 +365,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         body: JSON.stringify({
           date,
           odometer: Number(odometer),
-          liters: toStoredVolume(Number(liters), vehicle?.fuelType ?? null, volumeUnit),
+          liters: toStoredVolume(Number(liters), vehicle?.fuelType ?? null, effectiveVolumeUnit),
           cost: Number(cost),
           fullTank,
           location: location || undefined,
@@ -529,7 +535,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         <input
           type="number"
           inputMode="numeric"
-          placeholder={t("unitPricePerVolume", { unit: t(fuelVolumeNameKey(vehicle?.fuelType ?? null, volumeUnit)) })}
+          placeholder={t("unitPricePerVolume", { unit: t(fuelVolumeNameKey(vehicle?.fuelType ?? null, effectiveVolumeUnit)) })}
           value={unitPrice}
           onChange={(e) => handleUnitPriceChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
