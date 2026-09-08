@@ -1,4 +1,6 @@
 import type { FuelLog, FuelType } from "./types";
+import type { DistanceUnit, VolumeUnit } from "./i18n/settings-context";
+import { KM_TO_MI, L_TO_GAL } from "./i18n/format";
 
 export type FuelEfficiencyPoint = {
   logId: string;
@@ -90,12 +92,78 @@ export function computeFuelCostPerDistancePoints(fuelLogs: FuelLog[]): FuelCostP
   return points;
 }
 
-export function efficiencyUnitLabels(fuelType: FuelType | null): { perUnit: string; per100: string } {
-  if (fuelType === "ELECTRIC") return { perUnit: "km/kWh", per100: "kWh/100km" };
-  return { perUnit: "km/L", per100: "L/100km" };
+// FuelLog.liters는 필드명과 달리 전기차는 충전량(kWh)을 저장하는 용도로 재사용된다.
+// kWh는 갤런으로 환산할 수 있는 값이 아니므로 전기차는 부피 단위 설정을 따르지 않는다.
+function usesGallons(fuelType: FuelType | null, volumeUnit: VolumeUnit): boolean {
+  return fuelType !== "ELECTRIC" && volumeUnit === "gal";
 }
 
-// FuelLog.liters는 필드명과 달리 전기차는 충전량(kWh)을 저장하는 용도로 재사용된다.
-export function fuelVolumeUnit(fuelType: FuelType | null): string {
-  return fuelType === "ELECTRIC" ? "kWh" : "L";
+export function fuelVolumeUnit(fuelType: FuelType | null, volumeUnit: VolumeUnit = "L"): string {
+  if (fuelType === "ELECTRIC") return "kWh";
+  return volumeUnit === "gal" ? "gal" : "L";
+}
+
+// DB는 항상 리터(전기차는 kWh)로 저장한다 — 표시할 때만 환산하고, 입력값은 저장 직전에
+// 되돌린다. 두 함수는 서로의 역이라 왕복해도 값이 어긋나지 않는다.
+export function toDisplayVolume(
+  liters: number,
+  fuelType: FuelType | null,
+  volumeUnit: VolumeUnit,
+): number {
+  return usesGallons(fuelType, volumeUnit) ? liters * L_TO_GAL : liters;
+}
+
+export function toStoredVolume(
+  displayed: number,
+  fuelType: FuelType | null,
+  volumeUnit: VolumeUnit,
+): number {
+  return usesGallons(fuelType, volumeUnit) ? displayed / L_TO_GAL : displayed;
+}
+
+// 배지·축 라벨에는 기호(L·gal·kWh)를 쓰지만, "리터당 단가" 같은 문장에는 기호보다
+// 풀어쓴 이름이 자연스러워서 번역 키를 따로 돌려준다.
+export function fuelVolumeNameKey(
+  fuelType: FuelType | null,
+  volumeUnit: VolumeUnit,
+): "volumeNameKwh" | "volumeNameGallon" | "volumeNameLiter" {
+  if (fuelType === "ELECTRIC") return "volumeNameKwh";
+  return volumeUnit === "gal" ? "volumeNameGallon" : "volumeNameLiter";
+}
+
+export function efficiencyUnitLabels(
+  fuelType: FuelType | null,
+  distanceUnit: DistanceUnit = "km",
+  volumeUnit: VolumeUnit = "L",
+): { perUnit: string; per100: string } {
+  const distance = distanceUnit === "mi" ? "mi" : "km";
+  const volume = fuelVolumeUnit(fuelType, volumeUnit);
+  // 마일+갤런 조합만은 "mi/gal"보다 관용 표기인 mpg가 훨씬 잘 읽힌다.
+  const perUnit = distance === "mi" && volume === "gal" ? "mpg" : `${distance}/${volume}`;
+  return { perUnit, per100: `${volume}/100${distance}` };
+}
+
+// 연비(거리÷부피)는 거리 환산을 곱하고 부피 환산을 나눈다. 소모율(부피÷거리)은 그 반대다.
+function distanceFactor(distanceUnit: DistanceUnit): number {
+  return distanceUnit === "mi" ? KM_TO_MI : 1;
+}
+
+export function toDisplayEfficiency(
+  kmPerLiter: number,
+  fuelType: FuelType | null,
+  distanceUnit: DistanceUnit,
+  volumeUnit: VolumeUnit,
+): number {
+  const volume = usesGallons(fuelType, volumeUnit) ? L_TO_GAL : 1;
+  return (kmPerLiter * distanceFactor(distanceUnit)) / volume;
+}
+
+export function toDisplayConsumption(
+  litersPer100Km: number,
+  fuelType: FuelType | null,
+  distanceUnit: DistanceUnit,
+  volumeUnit: VolumeUnit,
+): number {
+  const volume = usesGallons(fuelType, volumeUnit) ? L_TO_GAL : 1;
+  return (litersPer100Km * volume) / distanceFactor(distanceUnit);
 }
