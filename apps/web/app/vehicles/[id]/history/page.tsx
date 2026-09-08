@@ -9,6 +9,7 @@ import { useConfirm } from "../../../../lib/confirm-context";
 import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import { formatDuration } from "../../../../lib/duration";
+import { KM_TO_MI } from "../../../../lib/i18n/format";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
 import { TripRouteMap } from "../../../../components/maps/TripRouteMap";
@@ -21,8 +22,13 @@ import { pickDefaultProvider, type MapProvidersConfig } from "../../../../lib/ma
 import { geocodeAddress, reverseGeocode } from "../../../../lib/maps/geocode";
 import type { SpeedPoint } from "../../../../lib/maps/polyline";
 import { decodeRoute } from "../../../../lib/maps/polyline";
-import { LeafIcon, BarChartIcon, RouteIcon, FileTextIcon, MapPinIcon, XIcon, SearchIcon } from "../../../../components/icons";
-import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
+import { LeafIcon, BarChartIcon, RouteIcon, CoinIcon, FileTextIcon, MapPinIcon, XIcon, SearchIcon } from "../../../../components/icons";
+import {
+  computeFuelCostPerDistancePoints,
+  computeFuelEfficiencyPoints,
+  efficiencyUnitLabels,
+  fuelVolumeUnit,
+} from "../../../../lib/fuelEfficiency";
 import type { FuelType } from "../../../../lib/types";
 import dynamic from "next/dynamic";
 import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
@@ -38,6 +44,11 @@ type FuelEfficiency = {
   distanceKm: number;
   kmPerLiter: number;
   litersPer100Km: number;
+};
+// 연비와 달리 가득 주유가 아니어도 계산되는 값 — 부분 주유 기록에도 배지를 붙일 수 있다.
+type FuelCostPerDistance = {
+  distanceKm: number;
+  costPerKm: number;
 };
 
 const historySectionHeadingStyle: CSSProperties = {
@@ -81,7 +92,7 @@ function HistorySectionHeader({
 export default function HistoryPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
-  const { t, formatDistance, formatCurrency, formatDateTime } = useSettings();
+  const { t, formatDistance, formatCurrency, formatDateTime, distanceUnit } = useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const mapConfig = useMapProviders();
@@ -232,6 +243,14 @@ export default function HistoryPage() {
     };
   }
 
+  const fuelCostPerDistanceById: Record<string, FuelCostPerDistance> = {};
+  for (const point of computeFuelCostPerDistancePoints(fuelLogs)) {
+    fuelCostPerDistanceById[point.logId] = {
+      distanceKm: point.distanceKm,
+      costPerKm: point.costPerKm,
+    };
+  }
+
   const tabs: { key: SubTab; label: string }[] = [
     { key: "trips", label: t("historyTabTrips") },
     { key: "fuel", label: t("historyTabFuel") },
@@ -311,6 +330,8 @@ export default function HistoryPage() {
                       vehicleId={vehicleId}
                       log={f}
                       efficiency={fuelEfficiencyById[f.id] ?? null}
+                      costPerDistance={fuelCostPerDistanceById[f.id] ?? null}
+                      distanceUnit={distanceUnit}
                       fuelType={vehicle?.fuelType ?? null}
                       onChanged={() => loadFuelLogs(true)}
                       t={t}
@@ -459,6 +480,8 @@ function FuelLogRow({
   vehicleId,
   log,
   efficiency,
+  costPerDistance,
+  distanceUnit,
   fuelType,
   onChanged,
   t,
@@ -471,6 +494,8 @@ function FuelLogRow({
   vehicleId: string;
   log: FuelLog;
   efficiency: FuelEfficiency | null;
+  costPerDistance: FuelCostPerDistance | null;
+  distanceUnit: string;
   fuelType: FuelType | null;
   onChanged: () => void;
   t: Translator;
@@ -801,36 +826,42 @@ function FuelLogRow({
         <span>· {log.fullTank ? t("fullTank") : t("partialTank")}</span>
         {log.location && <span>· {log.location}</span>}
       </div>
-      {efficiency && (
+      {(efficiency || costPerDistance) && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6, marginBottom: 4 }}>
-          <span style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "3px 6px",
-            fontSize: 11,
-            fontWeight: "600",
-            color: "var(--badge-green-text)",
-            backgroundColor: "var(--badge-green-bg)",
-            border: "1px solid var(--badge-green-border)",
-            borderRadius: 6,
-          }}>
-            <LeafIcon /> {efficiency.kmPerLiter.toFixed(1)} {units.perUnit}
-          </span>
-          <span style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "3px 6px",
-            fontSize: 11,
-            fontWeight: "500",
-            color: "var(--badge-grey-text)",
-            backgroundColor: "var(--badge-grey-bg)",
-            border: "1px solid var(--badge-grey-border)",
-            borderRadius: 6,
-          }}>
-            <BarChartIcon /> {efficiency.litersPer100Km.toFixed(1)} {units.per100}
-          </span>
+          {efficiency && (
+            <>
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "3px 6px",
+                fontSize: 11,
+                fontWeight: "600",
+                color: "var(--badge-green-text)",
+                backgroundColor: "var(--badge-green-bg)",
+                border: "1px solid var(--badge-green-border)",
+                borderRadius: 6,
+              }}>
+                <LeafIcon /> {efficiency.kmPerLiter.toFixed(1)} {units.perUnit}
+              </span>
+              <span style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "3px 6px",
+                fontSize: 11,
+                fontWeight: "500",
+                color: "var(--badge-grey-text)",
+                backgroundColor: "var(--badge-grey-bg)",
+                border: "1px solid var(--badge-grey-border)",
+                borderRadius: 6,
+              }}>
+                <BarChartIcon /> {efficiency.litersPer100Km.toFixed(1)} {units.per100}
+              </span>
+            </>
+          )}
+          {/* 거리 기준점은 연비가 있으면 그 연비와 같은 구간(직전 가득 주유 이후), 없으면 직전
+              주유 이후다 — 어느 쪽이든 같은 행의 다른 배지와 같은 구간을 가리킨다. */}
           <span style={{
             display: "inline-flex",
             alignItems: "center",
@@ -843,8 +874,25 @@ function FuelLogRow({
             border: "1px solid var(--badge-blue-border)",
             borderRadius: 6,
           }}>
-            <RouteIcon /> {efficiency.distanceKm.toFixed(0)}km {t("historyTabTrips")}
+            <RouteIcon /> {formatDistance(efficiency ? efficiency.distanceKm : costPerDistance!.distanceKm)}{" "}
+            {t("historyTabTrips")}
           </span>
+          {costPerDistance && (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 6px",
+              fontSize: 11,
+              fontWeight: "500",
+              color: "var(--badge-amber-text)",
+              backgroundColor: "var(--badge-amber-bg)",
+              border: "1px solid var(--badge-amber-border)",
+              borderRadius: 6,
+            }}>
+              <CoinIcon /> {formatCurrency(Math.round(costPerDistance.costPerKm * (distanceUnit === "mi" ? 1 / KM_TO_MI : 1)))}/{distanceUnit}
+            </span>
+          )}
         </div>
       )}
       {(log.address || (log.latitude !== null && log.longitude !== null)) && (

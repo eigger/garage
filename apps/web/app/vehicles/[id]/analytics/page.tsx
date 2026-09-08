@@ -19,7 +19,12 @@ import { useSettings } from "../../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../../components/PageLoader";
 import { KM_TO_MI } from "../../../../lib/i18n/format";
 import type { FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
-import { computeFuelEfficiencyPoints, efficiencyUnitLabels, fuelVolumeUnit } from "../../../../lib/fuelEfficiency";
+import {
+  computeFuelCostPerDistancePoints,
+  computeFuelEfficiencyPoints,
+  efficiencyUnitLabels,
+  fuelVolumeUnit,
+} from "../../../../lib/fuelEfficiency";
 import { DownloadIcon } from "../../../../components/icons";
 
 type Period = "all" | "1w" | "1m" | "6m" | "1y";
@@ -204,6 +209,20 @@ export default function AnalyticsPage() {
       }));
   }, [filteredLogs, filteredEfficiencyPoints, localeTag]);
 
+  // 연비 차트와 같은 이유로 기간 필터는 원본 로그가 아니라 계산된 점에 건다 — 기간 시작
+  // 직전 주유까지 잘라내면 그 구간의 거리 기준점이 사라져 첫 점이 통째로 빠진다.
+  const allCostPerDistancePoints = useMemo(() => computeFuelCostPerDistancePoints(fuelLogs), [fuelLogs]);
+  const costPerDistanceChartData = useMemo(() => {
+    const points = periodStart
+      ? allCostPerDistancePoints.filter((p) => new Date(p.date) >= periodStart)
+      : allCostPerDistancePoints;
+    return points.map((p) => ({
+      date: new Intl.DateTimeFormat(localeTag, { month: "numeric", day: "numeric" }).format(new Date(p.date)),
+      costPerDistance:
+        Math.round((distanceUnit === "mi" ? p.costPerKm / KM_TO_MI : p.costPerKm) * 10) / 10,
+    }));
+  }, [allCostPerDistancePoints, periodStart, localeTag, distanceUnit]);
+
   // 구간별 연비 비율의 단순 평균이 아니라, 전체 주행거리/전체 주유량으로 계산해야
   // 짧은 구간 하나가 평균을 왜곡하지 않는다.
   const avgEfficiency = useMemo(() => {
@@ -335,6 +354,43 @@ export default function AnalyticsPage() {
                 type="monotone"
                 dataKey="price"
                 name={t("analyticsFuelPriceLegend")}
+                stroke="var(--chart-secondary)"
+                strokeWidth={2}
+                dot={{ r: 3 }}
+              />
+            </ComposedChart>
+          </ResponsiveContainer>
+        )}
+      </section>
+
+      <section className="card" style={{ marginTop: 16 }}>
+        <div style={{ marginBottom: 12 }}>
+          <h2 style={{ margin: 0, fontSize: 16 }}>{t("analyticsCostPerDistanceChartTitle")}</h2>
+          <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-muted)" }}>
+            {t("analyticsCostPerDistanceHint")}
+          </p>
+        </div>
+        {costPerDistanceChartData.length === 0 ? (
+          <EmptyState
+            title={hasAnyFuelData ? t("analyticsNoDataInPeriod") : t("analyticsEmptyTitle")}
+            desc={hasAnyFuelData ? undefined : t("analyticsEmptyDesc")}
+          />
+        ) : (
+          <ResponsiveContainer width="100%" height={200}>
+            <ComposedChart data={costPerDistanceChartData} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+              <XAxis dataKey="date" tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-text-muted)" }} width={44} />
+              <Tooltip
+                formatter={(value, name) => [`${formatCurrency(Number(value))}/${distanceUnit}`, name]}
+                labelStyle={{ fontSize: 12 }}
+                contentStyle={{ fontSize: 12, borderRadius: 8 }}
+              />
+              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Line
+                type="monotone"
+                dataKey="costPerDistance"
+                name={t("analyticsCostPerDistanceLegend")}
                 stroke="var(--chart-secondary)"
                 strokeWidth={2}
                 dot={{ r: 3 }}
