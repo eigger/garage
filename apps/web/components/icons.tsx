@@ -122,6 +122,17 @@ export function RouteIcon({ size = 12 }: IconProps) {
   );
 }
 
+export function CoinIcon({ size = 12 }: IconProps) {
+  return (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M15 9h-4a2 2 0 0 0 0 4h2a2 2 0 0 1 0 4H9" />
+      <line x1="12" y1="7" x2="12" y2="9" />
+      <line x1="12" y1="15" x2="12" y2="17" />
+    </svg>
+  );
+}
+
 export function FileTextIcon({ size = 14 }: IconProps) {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
