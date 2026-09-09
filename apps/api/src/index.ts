@@ -5,6 +5,7 @@ import { startReminderJob } from "./jobs/reminders.js";
 import { startTripJob } from "./jobs/trips.js";
 import { startTelemetryRetentionJob } from "./jobs/telemetryRetention.js";
 import { startHyundaiSyncJob } from "./jobs/hyundaiSync.js";
+import { startBackupJobSweep } from "./jobs/backupSweep.js";
 import { ensureMaintenancePresets } from "./lib/seedPresets.js";
 
 const app = await buildApp();
@@ -13,6 +14,7 @@ startReminderJob();
 startTripJob();
 startTelemetryRetentionJob();
 startHyundaiSyncJob();
+startBackupJobSweep();
 
 // 기존 차량 중 apiToken이 없는 차량에 대해 토큰을 생성해 준다 (하위 호환성).
 async function backfillVehicleTokens() {

@@ -7,8 +7,24 @@ import { createReadStream, createWriteStream, existsSync } from "fs";
 import { pipeline } from "stream/promises";
 import { mkdir, writeFile, readFile, rm, readdir, copyFile, link, stat } from "fs/promises";
 
+import {
+  activeBackupJob,
+  backupJobPercent,
+  BackupJobCancelledError,
+  createBackupJob,
+  deleteBackupJob,
+  getBackupJob,
+  measureUploads,
+  requestBackupJobCancel,
+  updateBackupJob,
+  type BackupJob,
+} from "../lib/backupJobs.js";
+
 const execAsync = promisify(exec);
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), "uploads");
+
+/** 아카이브가 자라는 속도를 재는 주기 */
+const ARCHIVE_POLL_MS = 500;
 
 /** 복원으로 받을 아카이브 상한. 전역 20MB는 영수증 한 장 기준이라 백업에는 턱없이 부족하다 */
 const RESTORE_LIMIT_BYTES = 500 * 1024 * 1024;
@@ -40,28 +56,21 @@ export async function backupRoutes(app: FastifyInstance) {
     }
   });
 
-  // GET /api/backup/export
-  app.get("/export", async (request, reply) => {
-    const tempDirName = `backup_${Date.now()}`;
-    const tempDir = path.join(UPLOAD_DIR, tempDirName);
+  /**
+   * 아카이브를 만든다. 요청 밖에서 돈다 — 응답을 붙잡고 만들던 시절에는 화면이
+   * 버튼만 "저장 중..."으로 바꾼 채 몇 분씩 아무 말도 못 했다.
+   */
+  async function runBackupJob(job: BackupJob): Promise<void> {
+    const tempDir = path.join(UPLOAD_DIR, job.tempDirName);
     const filesDir = path.join(tempDir, "files");
-    const archivePath = path.join(UPLOAD_DIR, `${tempDirName}.tar.gz`);
+    const archivePath = path.join(UPLOAD_DIR, `${job.tempDirName}.tar.gz`);
 
-    const cleanup = () => {
-      rm(tempDir, { recursive: true, force: true }).catch(() => {});
-      rm(archivePath, { force: true }).catch(() => {});
+    const abortIfCancelled = () => {
+      if (getBackupJob(job.id)?.cancelRequested) throw new BackupJobCancelledError();
     };
 
-    // 빌드는 첨부가 많으면 분 단위인데, 정리 핸들러는 빌드가 끝나야 걸린다. 그동안
-    // 탭을 닫으면 이미 지나간 close 이벤트는 다시 오지 않아 사본과 아카이브가 그대로
-    // 남는다 — 누를 때마다 쌓인다. 요청이 끊긴 것을 빌드 전부터 지켜본다.
-    let clientGone = false;
-    request.raw.on("close", () => {
-      clientGone = true;
-    });
-
     try {
-      // 1. Gather all database records
+      updateBackupJob(job.id, { phase: "database" });
       const [
         users,
         vehicles,
@@ -105,68 +114,186 @@ export async function backupRoutes(app: FastifyInstance) {
         pushSubscriptions,
       };
 
-      // 2. Create temp backup directory structure
       await mkdir(filesDir, { recursive: true });
-
-      // 3. Write db.json
       // TelemetryRaw.id는 BigInt라 JSON.stringify가 기본적으로 직렬화하지 못한다 — 문자열로 변환.
       const jsonReplacer = (_key: string, value: unknown) => (typeof value === "bigint" ? value.toString() : value);
       await writeFile(path.join(tempDir, "db.json"), JSON.stringify(dbData, jsonReplacer, 2), "utf8");
 
-      // 4. Copy all existing uploaded files in UPLOAD_DIR into filesDir
+      abortIfCancelled();
+      updateBackupJob(job.id, { phase: "files" });
       if (existsSync(UPLOAD_DIR)) {
         const items = await readdir(UPLOAD_DIR, { withFileTypes: true });
         for (const item of items) {
-          // Skip temp directory and any other tar.gz files to avoid recursive backup
-          if (item.isDirectory() && item.name === tempDirName) continue;
-          if (item.isFile() && item.name.endsWith(".tar.gz")) continue;
+          // 작업 디렉터리와 이전 아카이브를 백업에 다시 담지 않는다
+          if (!item.isFile() || item.name.endsWith(".tar.gz")) continue;
 
-          if (item.isFile()) {
-            await linkOrCopy(path.join(UPLOAD_DIR, item.name), path.join(filesDir, item.name));
-          }
+          const source = path.join(UPLOAD_DIR, item.name);
+          const size = await stat(source).then((info) => info.size).catch(() => 0);
+          await linkOrCopy(source, path.join(filesDir, item.name));
+          const current = getBackupJob(job.id);
+          if (current) current.stagedBytes += size;
+          abortIfCancelled();
         }
       }
 
-      // 5. Compress into tar.gz
-      // Using -C to change directory to tempDir and compress the contents (not the folder itself)
-      await execAsync(`tar -czf "${archivePath}" -C "${tempDir}" .`);
+      abortIfCancelled();
+      updateBackupJob(job.id, { phase: "archiving" });
+      await archiveWithProgress(job, tempDir, archivePath);
 
-      const archiveStat = await stat(archivePath);
-
-      if (clientGone) {
-        app.log.warn({ bytes: archiveStat.size }, "Backup export abandoned before delivery; discarding archive");
-        cleanup();
-        reply.hijack();
-        reply.raw.destroy();
-        return reply;
-      }
-
-      // 6. 아카이브를 스트림으로 흘려보낸다.
-      //    예전에는 readFile()로 통째로 읽어 Buffer로 보냈다 — 상한이 없는 쪽이라
-      //    첨부가 쌓인 인스턴스에서는 그대로 프로세스를 죽이는 길이었다.
-      //    사본은 아카이브가 나온 시점에 이미 쓸모가 없으므로 여기서 바로 버린다.
+      // 사본은 아카이브가 나온 시점에 쓸모가 없다
       await rm(tempDir, { recursive: true, force: true }).catch(() => {});
 
-      const stream = createReadStream(archivePath);
-      const dropArchive = () => {
-        rm(archivePath, { force: true }).catch(() => {});
-      };
-      stream.on("close", dropArchive);
-      stream.on("error", dropArchive);
-      reply.raw.on("close", dropArchive);
-
-      return reply
-        .header("Content-Type", "application/gzip")
-        // 길이를 알려야 브라우저가 진행률을 그리고, 길이 없는 chunked 응답을 통째로
-        // 버퍼링하는 프록시에 걸리지 않는다.
-        .header("Content-Length", String(archiveStat.size))
-        .header("Content-Disposition", `attachment; filename="garage_backup_${new Date().toISOString().slice(0, 10)}.tar.gz"`)
-        .send(stream);
+      const archiveStat = await stat(archivePath);
+      updateBackupJob(job.id, { phase: "ready", archiveBytes: archiveStat.size });
+      app.log.info({ jobId: job.id, bytes: archiveStat.size }, "Backup archive built");
     } catch (err: any) {
+      await rm(tempDir, { recursive: true, force: true }).catch(() => {});
+      await rm(archivePath, { force: true }).catch(() => {});
+
+      if (err instanceof BackupJobCancelledError || getBackupJob(job.id)?.cancelRequested) {
+        // 취소는 실패가 아니다. 여기서 목록에서 뺀다 — 그전에 빼면 빌드가 도는 채로
+        // 잠금이 풀려 두 번째 빌드가 시작된다.
+        app.log.info({ jobId: job.id }, "Backup export cancelled");
+        deleteBackupJob(job.id);
+        return;
+      }
+
       app.log.error(err, "Backup export failed");
-      cleanup();
-      return reply.code(500).send({ error: `Backup export failed: ${err.message || err}` });
+      updateBackupJob(job.id, {
+        phase: "failed",
+        error: err instanceof Error ? err.message.slice(0, 300) : String(err),
+      });
     }
+  }
+
+  /**
+   * tar를 돌리면서 아카이브 파일이 자라는 것을 진행률로 삼는다. 담는 단계가
+   * 하드링크라 순식간에 끝나므로, 여기에 진행률이 없으면 막대가 10%에서 멈춰 있다.
+   * verbose 출력을 파싱하지 않는 이유는 GNU tar와 busybox tar의 형식이 다르고,
+   * 알고 싶은 것이 파일 수가 아니라 바이트이기 때문이다.
+   */
+  async function archiveWithProgress(job: BackupJob, tempDir: string, archivePath: string): Promise<void> {
+    const running = execAsync(`tar -czf "${archivePath}" -C "${tempDir}" .`);
+
+    const poll = setInterval(() => {
+      void (async () => {
+        // 압축 중에는 확인 지점이 여기뿐이다. 반쯤 쓴 아카이브는 취소 경로가 지운다.
+        if (getBackupJob(job.id)?.cancelRequested) {
+          running.child?.kill();
+          return;
+        }
+        try {
+          updateBackupJob(job.id, { archivedBytes: (await stat(archivePath)).size });
+        } catch {
+          /* 아직 안 만들어졌다 */
+        }
+      })();
+    }, ARCHIVE_POLL_MS);
+
+    try {
+      await running;
+    } finally {
+      clearInterval(poll);
+    }
+    if (getBackupJob(job.id)?.cancelRequested) throw new BackupJobCancelledError();
+  }
+
+  function backupJobView(job: BackupJob) {
+    return {
+      jobId: job.id,
+      phase: job.phase,
+      percent: backupJobPercent(job),
+      stagedBytes: job.stagedBytes,
+      archivedBytes: job.archivedBytes,
+      totalBytes: job.totalBytes,
+      archiveBytes: job.archiveBytes,
+      error: job.error,
+    };
+  }
+
+  // POST /api/backup/export/jobs — 빌드를 시작하고 즉시 돌아온다
+  app.post("/export/jobs", async (request, reply) => {
+    const running = activeBackupJob();
+    if (running) {
+      // 빌드 하나가 tar 한 벌을 만든다. 둘이 겹치면 디스크가 두 배다.
+      return reply.code(409).send({ ...backupJobView(running), error: "backup_already_running" });
+    }
+
+    const job = createBackupJob(request.user.sub, await measureUploads(UPLOAD_DIR));
+    // 일부러 await하지 않는다 — 요청은 지금 돌려주고 빌드는 뒤에서 돈다.
+    void runBackupJob(job);
+    return backupJobView(job);
+  });
+
+  // GET /api/backup/export/jobs/:jobId — 진행률
+  app.get("/export/jobs/:jobId", async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const job = getBackupJob(jobId);
+    if (!job || job.userId !== request.user.sub) {
+      return reply.code(404).send({ error: "backup_job_not_found" });
+    }
+    return backupJobView(job);
+  });
+
+  // DELETE /api/backup/export/jobs/:jobId — 취소하거나 다 만든 아카이브를 버린다
+  app.delete("/export/jobs/:jobId", async (request, reply) => {
+    const { jobId } = request.params as { jobId: string };
+    const job = getBackupJob(jobId);
+    if (!job || job.userId !== request.user.sub) {
+      return reply.code(404).send({ error: "backup_job_not_found" });
+    }
+
+    // 빌드 중이면 파일을 여기서 지우지 않는다 — 쓰고 있는 것을 지우면 tar가 깨진다.
+    if (requestBackupJobCancel(job.id)) return { ok: true, cancelling: true };
+
+    await rm(path.join(UPLOAD_DIR, `${job.tempDirName}.tar.gz`), { force: true }).catch(() => {});
+    deleteBackupJob(job.id);
+    return { ok: true, cancelling: false };
+  });
+
+  /**
+   * GET /api/backup/export?jobId=... — **만들지 않는다.** 미리 만들어 둔 것을 흘려보낸다.
+   *
+   * 인증은 이 파일 위쪽의 훅이 그대로 건다. 브라우저 링크는 Authorization 헤더를
+   * 붙일 수 없으므로 기존 `?token=` 폴백(app.ts의 resolveUser)을 탄다 — 첨부 파일·
+   * 리포트 내보내기 링크가 이미 쓰는 경로와 같다.
+   */
+  app.get("/export", async (request, reply) => {
+    const { jobId } = request.query as { jobId?: string };
+    const job = jobId ? getBackupJob(jobId) : null;
+    if (!job || job.userId !== request.user.sub) {
+      return reply.code(404).send({ error: "backup_job_not_found" });
+    }
+    if (job.phase !== "ready") {
+      return reply.code(409).send({ error: "backup_not_ready", phase: job.phase });
+    }
+
+    const archivePath = path.join(UPLOAD_DIR, `${job.tempDirName}.tar.gz`);
+    let archiveStat;
+    try {
+      archiveStat = await stat(archivePath);
+    } catch {
+      // 스윕이 이미 걷어 갔다 — 작업만 남아 "받을 수 있다"고 거짓말하지 않게 지운다
+      deleteBackupJob(job.id);
+      return reply.code(409).send({ error: "backup_not_ready", phase: "gone" });
+    }
+
+    const stream = createReadStream(archivePath);
+    const dropArchive = () => {
+      rm(archivePath, { force: true }).catch(() => {});
+      deleteBackupJob(job.id);
+    };
+    stream.on("close", dropArchive);
+    stream.on("error", dropArchive);
+    reply.raw.on("close", dropArchive);
+
+    return reply
+      .header("Content-Type", "application/gzip")
+      // 길이를 알려야 브라우저가 진행률을 그리고, 길이 없는 chunked 응답을 통째로
+      // 버퍼링하는 프록시에 걸린다.
+      .header("Content-Length", String(archiveStat.size))
+      .header("Content-Disposition", `attachment; filename="garage_backup_${new Date().toISOString().slice(0, 10)}.tar.gz"`)
+      .send(stream);
   });
 
   // POST /api/backup/restore
