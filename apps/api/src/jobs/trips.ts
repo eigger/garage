@@ -167,11 +167,12 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
   let finalDistance = distanceKm;
   const odometerPoints = segment.filter((p): p is Point & { odometer: number } => p.odometer !== null && p.odometer > 0);
   const priorOdo = shouldConnectToPrior && priorPoint!.odometer !== null && priorPoint!.odometer > 0 ? priorPoint!.odometer : null;
-  if (odometerPoints.length > 0) {
+  // 트립 종료 시점의 계기판 값. 텔레메트리는 1년만 보관하므로 트립 행에 직접 남겨둔다.
+  const endOdometer = odometerPoints.length > 0 ? odometerPoints[odometerPoints.length - 1].odometer : null;
+  if (endOdometer !== null) {
     const firstOdo = priorOdo ?? (odometerPoints.length >= 2 ? odometerPoints[0].odometer : null);
     if (firstOdo !== null) {
-      const lastOdo = odometerPoints[odometerPoints.length - 1].odometer;
-      const diff = lastOdo - firstOdo;
+      const diff = endOdometer - firstOdo;
       if (diff >= 0) {
         finalDistance = diff;
       }
@@ -202,6 +203,7 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
         startTime,
         endTime,
         distanceKm: Math.round(finalDistance * 100) / 100,
+        endOdometer,
         avgSpeed: avgSpeed !== null ? Math.round(avgSpeed * 10) / 10 : null,
         idleTimeSec: Math.round(idleTimeSec),
         routePolyline,
