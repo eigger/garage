@@ -242,6 +242,11 @@ export default function BackupPage() {
               <p style={{ margin: 0, fontWeight: 600 }}>{t("backupReadyTitle")}</p>
               <a
                 href={downloadUrl(job)}
+                // 성공하면 Content-Disposition 때문에 이동 없이 받아진다. 실패하면
+                // JSON이 그대로 나가는데, target이 없으면 **이 화면이** 그 JSON으로
+                // 이동해 버린다.
+                target="_blank"
+                rel="noopener"
                 onClick={() => setJob(null)}
                 style={{ alignSelf: "flex-start", fontWeight: 600, textDecoration: "underline" }}
               >

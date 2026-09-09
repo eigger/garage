@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   BACKUP_JOB_TTL_MS,
   activeBackupJob,
+  backupArtifactCreatedAt,
   backupJobPercent,
   clearBackupJobs,
   createBackupJob,
@@ -12,6 +13,7 @@ import {
   measureUploads,
   requestBackupJobCancel,
   sweepExpiredBackupJobs,
+  sweepStaleBackupArtifacts,
   updateBackupJob,
 } from "./backupJobs.js";
 
@@ -101,6 +103,48 @@ describe("backup sweep", () => {
     expect(await sweepExpiredBackupJobs(dir, job.createdAt + BACKUP_JOB_TTL_MS + 1)).toEqual([job.id]);
     expect(getBackupJob(job.id)).toBeNull();
     await expect(stat(archivePath)).rejects.toThrow();
+  });
+});
+
+/**
+ * 작업 목록은 메모리에만 있다. 프로세스가 재시작하면 디스크의 아카이브를 아무도
+ * 모르므로, 이름에 박힌 시각으로 직접 걷어야 한다 — 예전에는 finally가 늘 지워
+ * 없던 경로다.
+ */
+describe("sweepStaleBackupArtifacts", () => {
+  let dir = "";
+
+  afterEach(async () => {
+    if (dir) await rm(dir, { recursive: true, force: true }).catch(() => {});
+  });
+
+  it("removes archives the in-memory registry no longer knows about", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "garage-artifacts-"));
+    const old = Date.now() - BACKUP_JOB_TTL_MS - 1;
+    await writeFile(path.join(dir, `backup_${old}.tar.gz`), "stale");
+    await writeFile(path.join(dir, `backup_${Date.now()}.tar.gz`), "fresh");
+    await writeFile(path.join(dir, "receipt.jpg"), "user file");
+
+    const swept = await sweepStaleBackupArtifacts(dir);
+
+    expect(swept).toEqual([`backup_${old}.tar.gz`]);
+    await expect(stat(path.join(dir, "receipt.jpg"))).resolves.toBeDefined();
+  });
+
+  // 빌드 중인 것을 걷어 가면 tar가 깨진다 — 이름의 시각이 근거다
+  it("leaves a build that is still young alone", async () => {
+    dir = await mkdtemp(path.join(tmpdir(), "garage-artifacts-"));
+    const name = `backup_${Date.now()}`;
+    await mkdtemp(path.join(dir, "unused-"));
+    await writeFile(path.join(dir, `${name}.tar.gz`), "building");
+
+    expect(await sweepStaleBackupArtifacts(dir)).toEqual([]);
+  });
+
+  it("ignores names that are not backup artifacts", () => {
+    expect(backupArtifactCreatedAt("backup_notes.txt")).toBeNull();
+    expect(backupArtifactCreatedAt("receipt.jpg")).toBeNull();
+    expect(backupArtifactCreatedAt("backup_1757000000000")).toBe(1757000000000);
   });
 });
 

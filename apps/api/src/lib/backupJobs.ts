@@ -153,6 +153,42 @@ export async function measureUploads(uploadDir: string): Promise<number> {
 }
 
 /**
+ * 이름에 박힌 생성 시각으로 나이를 잰다. mtime은 빌드가 길면 계속 갱신되어
+ * "오래된 것"을 못 고른다.
+ */
+export function backupArtifactCreatedAt(name: string): number | null {
+  const match = /^backup_(\d{10,})(?:\.tar\.gz)?$/.exec(name);
+  if (!match) return null;
+  const ts = Number(match[1]);
+  return Number.isFinite(ts) ? ts : null;
+}
+
+/**
+ * 디스크에 남은 백업 찌꺼기를 걷는다.
+ *
+ * 작업 목록은 메모리에만 있다 — 프로세스가 재시작하면 아카이브가 디스크에 있어도
+ * 아무도 그걸 모른다. 예전에는 내보내기가 응답 안에서 끝나 `finally`가 늘 지웠으니
+ * 없던 경로다. 이름으로 나이를 재서 직접 걷는다.
+ */
+export async function sweepStaleBackupArtifacts(uploadDir: string, now = Date.now()): Promise<string[]> {
+  const swept: string[] = [];
+  let entries;
+  try {
+    entries = await readdir(uploadDir, { withFileTypes: true });
+  } catch {
+    return swept;
+  }
+  for (const entry of entries) {
+    const createdAt = backupArtifactCreatedAt(entry.name);
+    if (createdAt === null) continue;
+    if (now - createdAt <= BACKUP_JOB_TTL_MS) continue;
+    await rm(path.join(uploadDir, entry.name), { recursive: true, force: true }).catch(() => {});
+    swept.push(entry.name);
+  }
+  return swept;
+}
+
+/**
  * 나이를 다 먹은 작업과 그 아카이브를 걷는다. 아무도 받아 가지 않은 tar.gz가
  * 영원히 남지 않게 — 예전에는 `finally`가 늘 지웠지만, 이제 다운로드를 기다리느라
  * 응답 밖에서 살아남는다.
