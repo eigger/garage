@@ -9,6 +9,17 @@ export function formatDistanceVal(km: number, distanceUnit: "km" | "mi"): string
   return `${km.toFixed(0)} km`;
 }
 
+// 주행거리·주기는 DB에 km 정수로 저장한다. 입력란은 사용자가 고른 단위로 보여주고 저장
+// 직전에 km로 되돌리는데, 정수로 반올림하는 왕복이라 값이 1 단위씩 흔들릴 수 있다 —
+// 호출부는 "사용자가 입력란을 건드리지 않았으면 원본 km를 그대로 보낸다"로 이를 막는다.
+export function toDisplayDistanceVal(km: number, distanceUnit: "km" | "mi"): number {
+  return distanceUnit === "mi" ? Math.round(km * KM_TO_MI) : km;
+}
+
+export function toStoredDistanceVal(value: number, distanceUnit: "km" | "mi"): number {
+  return distanceUnit === "mi" ? Math.round(value / KM_TO_MI) : value;
+}
+
 export function formatCurrencyVal(amountInKrw: number, currency: "KRW" | "USD"): string {
   const localeTag = currency === "USD" ? "en-US" : "ko-KR";
   return new Intl.NumberFormat(localeTag, {

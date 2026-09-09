@@ -2,7 +2,13 @@
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { translations, type Locale, type TranslationKey } from "./translations";
-import { formatDistanceVal, formatCurrencyVal, formatDateTimeVal } from "./format";
+import {
+  formatDistanceVal,
+  formatCurrencyVal,
+  formatDateTimeVal,
+  toDisplayDistanceVal,
+  toStoredDistanceVal,
+} from "./format";
 
 export type DistanceUnit = "km" | "mi";
 // 전기차의 충전량(kWh)은 이 설정과 무관하다 — 액체 연료 부피에만 적용된다.
@@ -50,6 +56,8 @@ interface SettingsContextValue {
   setAccentColor: (accentColor: AccentColor) => void;
   t: (key: TranslationKey, params?: Record<string, string | number>) => string;
   formatDistance: (km: number) => string;
+  toDisplayDistance: (km: number) => number;
+  toStoredDistance: (value: number) => number;
   formatCurrency: (amountInKrw: number) => string;
   formatDateTime: (iso: string) => string;
 }
@@ -167,6 +175,15 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return formatDistanceVal(km, distanceUnit);
   }
 
+  // 표시용 문자열이 아니라 입력란에 채울 숫자가 필요할 때 쓴다(주행거리·주기 입력).
+  function toDisplayDistance(km: number): number {
+    return toDisplayDistanceVal(km, distanceUnit);
+  }
+
+  function toStoredDistance(value: number): number {
+    return toStoredDistanceVal(value, distanceUnit);
+  }
+
   // 주의: 실시간 환율 연동은 하지 않는다. 저장된 금액(원)을 그대로 두고
   // 통화 기호·천단위 구분 같은 "표시 형식"만 선택한 통화 관례에 맞춘다.
   function formatCurrency(amountInKrw: number): string {
@@ -195,6 +212,8 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
         setAccentColor,
         t,
         formatDistance,
+        toDisplayDistance,
+        toStoredDistance,
         formatCurrency,
         formatDateTime,
       }}

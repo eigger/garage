@@ -103,7 +103,8 @@ function HistorySectionHeader({
 export default function HistoryPage() {
   const params = useParams<{ id: string }>();
   const vehicleId = params.id;
-  const { t, formatDistance, formatCurrency, formatDateTime, distanceUnit, volumeUnit } = useSettings();
+  const { t, formatDistance, formatCurrency, formatDateTime, distanceUnit, volumeUnit, toDisplayDistance, toStoredDistance } =
+    useSettings();
   const { showToast } = useToast();
   const confirm = useConfirm();
   const mapConfig = useMapProviders();
@@ -349,6 +350,8 @@ export default function HistoryPage() {
                       t={t}
                       formatCurrency={formatCurrency}
                       formatDistance={formatDistance}
+                      toDisplayDistance={toDisplayDistance}
+                      toStoredDistance={toStoredDistance}
                       showToast={showToast}
                       confirm={confirm}
                       mapConfig={mapConfig}
@@ -453,6 +456,9 @@ export default function HistoryPage() {
                     t={t}
                     formatCurrency={formatCurrency}
                     formatDistance={formatDistance}
+                    distanceUnit={distanceUnit}
+                    toDisplayDistance={toDisplayDistance}
+                    toStoredDistance={toStoredDistance}
                     showToast={showToast}
                     confirm={confirm}
                     mapConfig={mapConfig}
@@ -500,6 +506,8 @@ function FuelLogRow({
   t,
   formatCurrency,
   formatDistance,
+  toDisplayDistance,
+  toStoredDistance,
   showToast,
   confirm,
   mapConfig,
@@ -515,6 +523,8 @@ function FuelLogRow({
   t: Translator;
   formatCurrency: (amount: number) => string;
   formatDistance: (km: number) => string;
+  toDisplayDistance: (km: number) => number;
+  toStoredDistance: (value: number) => number;
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
   mapConfig: MapProvidersConfig;
@@ -525,7 +535,10 @@ function FuelLogRow({
   const displayLiters = toDisplayVolume(log.liters, fuelType, volumeUnit);
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(log.date.slice(0, 10));
-  const [odometer, setOdometer] = useState(String(log.odometer));
+  // 주행거리도 주유량과 같다 — 표시 단위로 보여주고 저장 직전에 km로 되돌리되, 마일
+  // 왕복은 정수 반올림이라 값이 흔들리므로 입력이 그대로면 원본 km를 보낸다.
+  const initialOdometer = String(toDisplayDistance(log.odometer));
+  const [odometer, setOdometer] = useState(initialOdometer);
   // 표시용으로 두 자리에서 자른 값을 그대로 되돌리면 안 건드린 기록도 저장할 때마다
   // 반올림 오차만큼 리터가 바뀐다(25L → 6.6gal → 24.98L). 입력값이 처음 채워준 값과
   // 같으면 사용자가 손대지 않은 것이므로 원본 리터를 그대로 보낸다.
@@ -568,7 +581,7 @@ function FuelLogRow({
   useEffect(() => {
     if (editing) {
       setDate(log.date.slice(0, 10));
-      setOdometer(String(log.odometer));
+      setOdometer(initialOdometer);
       setLiters(initialLiters);
       setCost(String(log.cost));
       setFullTank(log.fullTank);
@@ -595,7 +608,7 @@ function FuelLogRow({
         method: "PATCH",
         body: JSON.stringify({
           date,
-          odometer: Number(odometer),
+          odometer: odometer === initialOdometer ? log.odometer : toStoredDistance(Number(odometer)),
           liters: liters === initialLiters ? log.liters : toStoredVolume(Number(liters), fuelType, volumeUnit),
           cost: Number(cost),
           fullTank,
@@ -658,7 +671,7 @@ function FuelLogRow({
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <input
               type="number"
-              placeholder={t("odometer")}
+              placeholder={`${t("odometer")} (${distanceUnit})`}
               value={odometer}
               onChange={(e) => setOdometer(e.target.value)}
               required
@@ -1092,6 +1105,9 @@ function MaintenanceRow({
   t,
   formatCurrency,
   formatDistance,
+  distanceUnit,
+  toDisplayDistance,
+  toStoredDistance,
   showToast,
   confirm,
   mapConfig,
@@ -1102,13 +1118,17 @@ function MaintenanceRow({
   t: Translator;
   formatCurrency: (amount: number) => string;
   formatDistance: (km: number) => string;
+  distanceUnit: DistanceUnit;
+  toDisplayDistance: (km: number) => number;
+  toStoredDistance: (value: number) => number;
   showToast: (message: string, type?: "success" | "error") => void;
   confirm: (message: string, options?: { confirmLabel?: string; cancelLabel?: string }) => Promise<boolean>;
   mapConfig: MapProvidersConfig;
 }) {
   const [editing, setEditing] = useState(false);
   const [date, setDate] = useState(record.date.slice(0, 10));
-  const [odometer, setOdometer] = useState(String(record.odometer));
+  const initialOdometer = String(toDisplayDistance(record.odometer));
+  const [odometer, setOdometer] = useState(initialOdometer);
   const [category, setCategory] = useState<RecordCategory>(record.category);
   const [selectedPartType, setSelectedPartType] = useState("");
   const [customType, setCustomType] = useState("");
@@ -1152,7 +1172,7 @@ function MaintenanceRow({
     if (!editing) return;
 
     setDate(record.date.slice(0, 10));
-    setOdometer(String(record.odometer));
+    setOdometer(initialOdometer);
     setCategory(record.category);
     setCost(record.cost !== null ? String(record.cost) : "");
     setShop(record.shop ?? "");
@@ -1201,7 +1221,7 @@ function MaintenanceRow({
         method: "PATCH",
         body: JSON.stringify({
           date,
-          odometer: Number(odometer),
+          odometer: odometer === initialOdometer ? record.odometer : toStoredDistance(Number(odometer)),
           type: finalType,
           category: recordCategory,
           cost: cost ? Number(cost) : undefined,
@@ -1265,7 +1285,7 @@ function MaintenanceRow({
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <input
               type="number"
-              placeholder={t("odometer")}
+              placeholder={`${t("odometer")} (${distanceUnit})`}
               value={odometer}
               onChange={(e) => setOdometer(e.target.value)}
               required
