@@ -138,10 +138,48 @@ describe("backup export/restore round trip", () => {
     await prisma.$disconnect();
   });
 
+  /**
+   * 내보내기는 두 걸음이다 — 빌드를 시작시키고, 다 될 때까지 진행률을 물어본다.
+   * 예전처럼 GET /export 하나가 만들면서 흘려보내지 않는다.
+   */
+  async function buildReadyJob(): Promise<string> {
+    const startRes = await app.inject({
+      method: "POST",
+      url: "/api/backup/export/jobs",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(startRes.statusCode).toBe(200);
+    const { jobId } = startRes.json() as { jobId: string };
+
+    for (let i = 0; i < 200; i += 1) {
+      const statusRes = await app.inject({
+        method: "GET",
+        url: `/api/backup/export/jobs/${jobId}`,
+        headers: { authorization: `Bearer ${adminToken}` },
+      });
+      expect(statusRes.statusCode).toBe(200);
+      const job = statusRes.json() as { phase: string; error: string | null };
+      if (job.phase === "ready") return jobId;
+      expect(job.phase, job.error ?? "").not.toBe("failed");
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    }
+    throw new Error("backup job did not become ready");
+  }
+
+  it("refuses to hand out an archive for a job that is not ready", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/backup/export?jobId=no-such-job",
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(res.statusCode).toBe(404);
+  });
+
   it("round-trips every backed-up table through export and restore", async () => {
+    const jobId = await buildReadyJob();
     const exportRes = await app.inject({
       method: "GET",
-      url: "/api/backup/export",
+      url: `/api/backup/export?jobId=${jobId}`,
       headers: { authorization: `Bearer ${adminToken}` },
     });
     expect(exportRes.statusCode).toBe(200);
