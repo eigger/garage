@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
+import type { DistanceUnit } from "../../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../../components/PageLoader";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
@@ -179,7 +180,7 @@ function ScheduleRow({
   onChanged: () => void;
   t: Translator;
   formatDistance: (km: number) => string;
-  distanceUnit: string;
+  distanceUnit: DistanceUnit;
   toDisplayDistance: (km: number) => number;
   toStoredDistance: (value: number) => number;
   showToast: (message: string, type?: "success" | "error") => void;
@@ -569,7 +570,7 @@ function AddScheduleItemForm({
   odometer: number;
   onCreated: () => void;
   t: Translator;
-  distanceUnit: string;
+  distanceUnit: DistanceUnit;
   toStoredDistance: (value: number) => number;
   showToast: (message: string, type?: "success" | "error") => void;
 }) {

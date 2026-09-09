@@ -456,6 +456,7 @@ export default function HistoryPage() {
                     t={t}
                     formatCurrency={formatCurrency}
                     formatDistance={formatDistance}
+                    distanceUnit={distanceUnit}
                     toDisplayDistance={toDisplayDistance}
                     toStoredDistance={toStoredDistance}
                     showToast={showToast}
@@ -670,7 +671,7 @@ function FuelLogRow({
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <input
               type="number"
-              placeholder={t("odometer")}
+              placeholder={`${t("odometer")} (${distanceUnit})`}
               value={odometer}
               onChange={(e) => setOdometer(e.target.value)}
               required
@@ -1104,6 +1105,7 @@ function MaintenanceRow({
   t,
   formatCurrency,
   formatDistance,
+  distanceUnit,
   toDisplayDistance,
   toStoredDistance,
   showToast,
@@ -1116,6 +1118,7 @@ function MaintenanceRow({
   t: Translator;
   formatCurrency: (amount: number) => string;
   formatDistance: (km: number) => string;
+  distanceUnit: DistanceUnit;
   toDisplayDistance: (km: number) => number;
   toStoredDistance: (value: number) => number;
   showToast: (message: string, type?: "success" | "error") => void;
@@ -1282,7 +1285,7 @@ function MaintenanceRow({
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <input
               type="number"
-              placeholder={t("odometer")}
+              placeholder={`${t("odometer")} (${distanceUnit})`}
               value={odometer}
               onChange={(e) => setOdometer(e.target.value)}
               required
