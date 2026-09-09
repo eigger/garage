@@ -146,7 +146,12 @@ describe("backup export/restore round trip", () => {
     });
     expect(exportRes.statusCode).toBe(200);
     expect(exportRes.headers["content-type"]).toBe("application/gzip");
+    // 아카이브는 스트림으로 나간다 — 예전에는 readFile()로 통째로 읽어 Buffer로 보냈고,
+    // 첨부가 쌓인 인스턴스에서는 그게 그대로 프로세스를 죽였다. 길이를 실어야 브라우저가
+    // 진행률을 그리고, 길이 없는 응답을 버퍼링하는 프록시에도 걸리지 않는다.
+    expect(exportRes.headers["content-length"]).toBeDefined();
     const archive = exportRes.rawPayload;
+    expect(Number(exportRes.headers["content-length"])).toBe(archive.length);
     expect(archive.length).toBeGreaterThan(0);
 
     const restoreRes = await postRestore(app, adminToken, archive);
