@@ -115,4 +115,20 @@ describe("closeTripsForVehicle — no phantom 0km trips after a real trip", () =
     });
     expect(orphansInRange).toBe(0);
   });
+
+  it("records the odometer reading at the end of the trip", async () => {
+    await seedCommuteWithIdleAndTailPoints();
+
+    await closeTripsForVehicle(vehicleId);
+
+    const trip = await prisma.trip.findFirstOrThrow({ where: { vehicleId } });
+    const lastPoint = await prisma.telemetryRaw.findFirstOrThrow({
+      where: { vehicleId, odometer: { not: null } },
+      orderBy: { time: "desc" },
+    });
+
+    // 주행 이력에서 주행 거리와 누적 주행거리를 나란히 보여주려면 트립 행 자체에 종료 시점
+    // 계기판 값이 남아 있어야 한다 — 원시 텔레메트리는 1년 뒤 삭제되기 때문.
+    expect(trip.endOdometer).toBe(lastPoint.odometer);
+  });
 });

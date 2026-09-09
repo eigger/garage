@@ -1921,6 +1921,11 @@ function TripRow({
         <div>
           {trip.distanceKm !== null ? formatDistance(trip.distanceKm) : "-"}
           {durationSec !== null && ` · ${formatDuration(durationSec, t)}`}
+          {trip.endOdometer !== null && trip.endOdometer !== undefined && (
+            <span style={{ marginLeft: 8, fontSize: 13, color: "var(--color-text-muted)" }}>
+              {t("tripEndOdometer", { value: formatDistance(trip.endOdometer) })}
+            </span>
+          )}
         </div>
         {fuelConsumedStr && (
           <div style={{ fontSize: 13, color: "var(--color-text-muted)" }}>{fuelConsumedStr}</div>

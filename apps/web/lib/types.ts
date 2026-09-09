@@ -126,6 +126,7 @@ export type Trip = {
   startTime: string;
   endTime: string | null;
   distanceKm: number | null;
+  endOdometer: number | null;
   avgSpeed: number | null;
   idleTimeSec: number | null;
   routePolyline: string | null;
