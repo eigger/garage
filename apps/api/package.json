@@ -24,14 +24,14 @@
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "bcryptjs": "^3.0.3",
-    "fastify": "^5.12.3",
+    "fastify": "^5.12.4",
     "heic-convert": "^2.1.0",
     "mqtt": "^5.15.2",
     "node-cron": "^4.6.0",
     "proj4": "^2.22.0",
     "sharp": "^0.35.4",
     "web-push": "^3.6.7",
-    "zod": "^4.5.4"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
