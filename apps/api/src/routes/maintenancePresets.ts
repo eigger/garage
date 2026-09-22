@@ -6,6 +6,7 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { getLatestOdometer } from "../lib/odometer.js";
 import { storedTypeVariants } from "../lib/consumablePartBaseline.js";
+import { todayDateOnly } from "../lib/dateRange.js";
 import { syncReminders } from "../jobs/reminders.js";
 
 // 연료타입별 정비·전역 행정 마스터 템플릿. 조회는 인증된 누구나,
@@ -145,7 +146,7 @@ export async function maintenancePresetRoutes(app: FastifyInstance) {
             vehicleId: vehicle.id,
             partType: preset.name,
             category: targetCategory,
-            installedDate: new Date(),
+            installedDate: todayDateOnly(),
             installedOdometer: currentOdometer,
             expectedLifeKm: preset.intervalKm,
             expectedLifeMonths: preset.intervalMonths,

@@ -2,9 +2,18 @@ import { describe, it, expect } from "vitest";
 import {
   formatDistanceVal,
   formatCurrencyVal,
+  localDateString,
   toDisplayDistanceVal,
   toStoredDistanceVal,
 } from "./format";
+
+describe("localDateString", () => {
+  it("formats the local calendar date as YYYY-MM-DD", () => {
+    // Date(y, m, d, …)는 로컬 자정이라 toISOString().slice와 어긋날 수 있다.
+    expect(localDateString(new Date(2026, 8, 23, 8, 0, 0))).toBe("2026-09-23");
+    expect(localDateString(new Date(2026, 0, 5, 0, 0, 0))).toBe("2026-01-05");
+  });
+});
 
 describe("formatDistanceVal", () => {
   it("should format distance in kilometers with 0 decimal places", () => {

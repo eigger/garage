@@ -16,6 +16,7 @@ import type { OpinetStationSummary } from "@garage/shared";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { geocodeAddress } from "../../../../lib/maps/geocode";
 import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
+import { localDateString } from "../../../../lib/i18n/format";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type Tab = "fuel" | "maintenance";
@@ -31,7 +32,7 @@ type FrequentStation = {
 };
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return localDateString();
 }
 
 export default function QuickLogPage() {

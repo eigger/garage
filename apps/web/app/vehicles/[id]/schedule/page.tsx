@@ -15,6 +15,7 @@ import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { resolveCatalogKey } from "@garage/shared";
 import { computeScheduleStatus, type ScheduleStatus } from "../../../../lib/scheduleStatus";
+import { localDateString } from "../../../../lib/i18n/format";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
@@ -302,7 +303,7 @@ function ScheduleRow({
       const res = await apiFetch(`/api/consumable-parts/${part.id}`, {
         method: "PATCH",
         body: JSON.stringify({
-          installedDate: new Date().toISOString().slice(0, 10),
+          installedDate: localDateString(),
           installedOdometer: odometer,
           recordCompletion: true,
           hasPhoto: completionFile !== null,
@@ -596,7 +597,7 @@ function AddScheduleItemForm({
           vehicleId,
           partType,
           category,
-          installedDate: new Date().toISOString().slice(0, 10),
+          installedDate: localDateString(),
           installedOdometer: odometer,
           expectedLifeKm: expectedLifeKm ? toStoredDistance(Number(expectedLifeKm)) : undefined,
           expectedLifeMonths: expectedLifeMonths ? Number(expectedLifeMonths) : undefined,
