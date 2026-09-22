@@ -30,6 +30,14 @@ export function formatCurrencyVal(amountInKrw: number, currency: "KRW" | "USD"):
   }).format(amountInKrw);
 }
 
+/** 브라우저 로컬 캘린더 기준 YYYY-MM-DD. `toISOString().slice(0, 10)`은 UTC라 자정~오전(한국 9시 전)에 어제 날짜가 된다. */
+export function localDateString(d: Date = new Date()): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 // 서버는 항상 UTC ISO 문자열을 내려주므로, 문자열을 그대로 slice하면 뷰어의 로컬 시간대가
 // 반영되지 않는다 — Date로 파싱한 뒤 Intl로 브라우저의 로컬 시간대에 맞춰 표시해야 한다.
 export function formatDateTimeVal(iso: string, locale: "ko" | "en"): string {

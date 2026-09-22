@@ -22,7 +22,7 @@ import {
   storedTypeVariants,
   syncConsumablePartFromLatestRecord,
 } from "../lib/consumablePartBaseline.js";
-import { periodRangeFromQuery } from "../lib/dateRange.js";
+import { periodRangeFromQuery, todayDateOnly } from "../lib/dateRange.js";
 import { listHistoryPeriods } from "../lib/historyPeriods.js";
 import { syncReminders } from "../jobs/reminders.js";
 import {
@@ -113,7 +113,7 @@ async function applyPresetsToVehicle(vehicleId: string, fuelType: string): Promi
         vehicleId,
         partType: preset.name,
         category: "MAINTENANCE",
-        installedDate: new Date(),
+        installedDate: todayDateOnly(),
         installedOdometer: currentOdometer,
         expectedLifeKm: preset.intervalKm,
         expectedLifeMonths: preset.intervalMonths,

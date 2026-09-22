@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseDayRange, parsePeriodRange, periodRangeFromQuery } from "./dateRange.js";
+import { parseDayRange, parsePeriodRange, periodRangeFromQuery, todayDateOnly } from "./dateRange.js";
 
 describe("parsePeriodRange", () => {
   it("parses a UTC year range", () => {
@@ -45,5 +45,18 @@ describe("periodRangeFromQuery", () => {
 
   it("falls back to date", () => {
     expect(periodRangeFromQuery({ date: "2026-08-07" })).toEqual(parsePeriodRange("2026-08-07"));
+  });
+});
+
+describe("todayDateOnly", () => {
+  it("uses Asia/Seoul calendar date as UTC midnight", () => {
+    // UTC 2026-09-22 23:00 = KST 2026-09-23 08:00 → KST "오늘"은 9/23
+    expect(todayDateOnly(new Date("2026-09-22T23:00:00.000Z")).toISOString()).toBe(
+      "2026-09-23T00:00:00.000Z",
+    );
+    // UTC 2026-09-22 14:00 = KST 2026-09-22 23:00 → 아직 9/22
+    expect(todayDateOnly(new Date("2026-09-22T14:00:00.000Z")).toISOString()).toBe(
+      "2026-09-22T00:00:00.000Z",
+    );
   });
 });

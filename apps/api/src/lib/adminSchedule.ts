@@ -4,6 +4,7 @@ import {
 } from "@garage/shared";
 import { prisma } from "./prisma.js";
 import { getLatestOdometer } from "./odometer.js";
+import { todayDateOnly } from "./dateRange.js";
 import { syncReminders } from "../jobs/reminders.js";
 
 /** 없는 행정 항목만 추가한다 — 기존 차량·중복 호출에도 안전 */
@@ -32,7 +33,7 @@ export async function ensureAdminSchedule(vehicleId: string): Promise<void> {
   if (missing.length === 0) return;
 
   const odometer = await getLatestOdometer(vehicleId);
-  const installedDate = new Date();
+  const installedDate = todayDateOnly();
   const presetByName = new Map(presets.map((preset) => [preset.name, preset]));
 
   await prisma.consumablePart.createMany({

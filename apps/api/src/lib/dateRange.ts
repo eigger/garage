@@ -1,5 +1,21 @@
 export type DateRange = { gte: Date; lt: Date };
 
+/**
+ * Asia/Seoul 캘린더 기준 오늘을 UTC 자정 Date로 만든다.
+ * date-only 필드(installedDate 등)는 클라이언트가 `YYYY-MM-DD`를 보내면
+ * `T00:00:00.000Z`로 저장되므로, 서버에서 "오늘"을 넣을 때도 같은 규칙을 쓴다.
+ * Docker 등 TZ=UTC 환경에서도 KST 날짜가 어긋나지 않는다.
+ */
+export function todayDateOnly(now: Date = new Date(), timeZone = "Asia/Seoul"): Date {
+  const ymd = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  return new Date(`${ymd}T00:00:00.000Z`);
+}
+
 /** `YYYY-MM-DD` 문자열을 UTC 하루 반개구간 [start, end) 로 바꾼다. */
 export function parseDayRange(date: string): DateRange | null {
   return parsePeriodRange(date);
