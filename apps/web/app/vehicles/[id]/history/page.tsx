@@ -116,6 +116,10 @@ export default function HistoryPage() {
 
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [fuelLogs, setFuelLogs] = useState<FuelLog[]>([]);
+  // 목록은 5건씩 자르지만, 연비·거리당 비용은 직전 가득 채움(또는 직전 주유)까지
+  // 이어져야 해서 페이지에 안 보이는 기록이 필요하다. 분석 화면과 같이 전체를 따로 받아
+  // 배지만 계산하고, 화면에는 페이지네이션된 fuelLogs만 그린다.
+  const [fuelStatsLogs, setFuelStatsLogs] = useState<FuelLog[]>([]);
   const [fuelOffset, setFuelOffset] = useState(0);
   const [hasMoreFuel, setHasMoreFuel] = useState(true);
 
@@ -135,6 +139,11 @@ export default function HistoryPage() {
   // 뒤에 붙어버림). 요청마다 순번을 매겨서 이후에 더 최신 요청이 있었으면 그 응답은 버린다.
   const fuelRequestSeq = useRef(0);
   const maintenanceRequestSeq = useRef(0);
+
+  async function loadFuelStatsLogs() {
+    const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs?limit=1000`);
+    if (res.ok) setFuelStatsLogs(await res.json());
+  }
 
   async function loadFuelLogs(reset = false, searchOverride?: string, periodOverride?: string) {
     const currentOffset = reset ? 0 : fuelOffset;
@@ -161,6 +170,11 @@ export default function HistoryPage() {
         setHasMoreFuel(data.length === CHUNK_SIZE);
       }
     }
+  }
+
+  function reloadFuel() {
+    loadFuelLogs(true);
+    loadFuelStatsLogs();
   }
 
   async function loadMaintenanceRecords(
@@ -210,6 +224,7 @@ export default function HistoryPage() {
   // Reset logs and states when vehicle changes
   useEffect(() => {
     setFuelLogs([]);
+    setFuelStatsLogs([]);
     setFuelOffset(0);
     setHasMoreFuel(true);
     setMaintenanceRecords([]);
@@ -236,6 +251,11 @@ export default function HistoryPage() {
     }
   }, [vehicleId, subTab, debouncedSearch, fuelPeriodFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // 배지용 전체 주유 기록 — 검색·기간이 바뀌어도 다시 받을 필요 없다.
+  useEffect(() => {
+    if (subTab === "fuel") loadFuelStatsLogs();
+  }, [vehicleId, subTab]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Load maintenance records when active tab is maintenance
   useEffect(() => {
     if (subTab === "maintenance") {
@@ -247,7 +267,7 @@ export default function HistoryPage() {
   }, [vehicleId, subTab, debouncedSearch, categoryFilter, maintenancePeriodFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fuelEfficiencyById: Record<string, FuelEfficiency> = {};
-  for (const point of computeFuelEfficiencyPoints(fuelLogs)) {
+  for (const point of computeFuelEfficiencyPoints(fuelStatsLogs)) {
     fuelEfficiencyById[point.logId] = {
       distanceKm: point.distanceKm,
       kmPerLiter: point.kmPerLiter,
@@ -256,7 +276,7 @@ export default function HistoryPage() {
   }
 
   const fuelCostPerDistanceById: Record<string, FuelCostPerDistance> = {};
-  for (const point of computeFuelCostPerDistancePoints(fuelLogs)) {
+  for (const point of computeFuelCostPerDistancePoints(fuelStatsLogs)) {
     fuelCostPerDistanceById[point.logId] = {
       distanceKm: point.distanceKm,
       costPerKm: point.costPerKm,
@@ -346,7 +366,7 @@ export default function HistoryPage() {
                       distanceUnit={distanceUnit}
                       volumeUnit={volumeUnit}
                       fuelType={vehicle?.fuelType ?? null}
-                      onChanged={() => loadFuelLogs(true)}
+                      onChanged={reloadFuel}
                       t={t}
                       formatCurrency={formatCurrency}
                       formatDistance={formatDistance}
