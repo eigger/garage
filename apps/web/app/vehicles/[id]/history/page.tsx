@@ -26,6 +26,7 @@ import { decodeRoute } from "../../../../lib/maps/polyline";
 import { LeafIcon, BarChartIcon, RouteIcon, CoinIcon, FileTextIcon, MapPinIcon, XIcon, SearchIcon } from "../../../../components/icons";
 import {
   computeFuelCostPerDistancePoints,
+  computeFuelDistancePoints,
   computeFuelEfficiencyPoints,
   efficiencyUnitLabels,
   fuelVolumeUnit,
@@ -58,7 +59,6 @@ type FuelEfficiency = {
 };
 // 연비와 달리 가득 주유가 아니어도 계산되는 값 — 부분 주유 기록에도 배지를 붙일 수 있다.
 type FuelCostPerDistance = {
-  distanceKm: number;
   costPerKm: number;
 };
 
@@ -275,12 +275,14 @@ export default function HistoryPage() {
     };
   }
 
+  const fuelDistanceKmById: Record<string, number> = {};
+  for (const point of computeFuelDistancePoints(fuelStatsLogs)) {
+    fuelDistanceKmById[point.logId] = point.distanceKm;
+  }
+
   const fuelCostPerDistanceById: Record<string, FuelCostPerDistance> = {};
   for (const point of computeFuelCostPerDistancePoints(fuelStatsLogs)) {
-    fuelCostPerDistanceById[point.logId] = {
-      distanceKm: point.distanceKm,
-      costPerKm: point.costPerKm,
-    };
+    fuelCostPerDistanceById[point.logId] = { costPerKm: point.costPerKm };
   }
 
   const tabs: { key: SubTab; label: string }[] = [
@@ -362,6 +364,7 @@ export default function HistoryPage() {
                       vehicleId={vehicleId}
                       log={f}
                       efficiency={fuelEfficiencyById[f.id] ?? null}
+                      distanceKm={fuelDistanceKmById[f.id] ?? null}
                       costPerDistance={fuelCostPerDistanceById[f.id] ?? null}
                       distanceUnit={distanceUnit}
                       volumeUnit={volumeUnit}
@@ -518,6 +521,7 @@ function FuelLogRow({
   vehicleId,
   log,
   efficiency,
+  distanceKm,
   costPerDistance,
   distanceUnit,
   volumeUnit,
@@ -535,6 +539,7 @@ function FuelLogRow({
   vehicleId: string;
   log: FuelLog;
   efficiency: FuelEfficiency | null;
+  distanceKm: number | null;
   costPerDistance: FuelCostPerDistance | null;
   distanceUnit: DistanceUnit;
   volumeUnit: VolumeUnit;
@@ -550,6 +555,12 @@ function FuelLogRow({
   mapConfig: MapProvidersConfig;
 }) {
   const units = efficiencyUnitLabels(fuelType, distanceUnit, volumeUnit);
+  // 연비는 가득→가득 구간으로 계산하므로, 사이에 부분 주유가 끼면 옆의 주행거리 배지(직전 주유
+  // 이후)와 구간이 달라진다. 그때만 연비가 어느 거리 기준인지 툴팁으로 알려준다.
+  const efficiencyIntervalHint =
+    efficiency && efficiency.distanceKm !== distanceKm
+      ? t("fuelEfficiencyIntervalHint", { distance: formatDistance(efficiency.distanceKm) })
+      : undefined;
   const volumeUnitLabel = fuelVolumeUnit(fuelType, volumeUnit);
   // 입력란은 사용자가 고른 단위로 보여주고, 저장 직전에 리터로 되돌린다.
   const displayLiters = toDisplayVolume(log.liters, fuelType, volumeUnit);
@@ -882,11 +893,11 @@ function FuelLogRow({
         <span>· {log.fullTank ? t("fullTank") : t("partialTank")}</span>
         {log.location && <span>· {log.location}</span>}
       </div>
-      {(efficiency || costPerDistance) && (
+      {(efficiency || distanceKm !== null || costPerDistance) && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6, marginBottom: 4 }}>
           {efficiency && (
             <>
-              <span style={{
+              <span title={efficiencyIntervalHint} style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
@@ -901,7 +912,7 @@ function FuelLogRow({
                 <LeafIcon /> {toDisplayEfficiency(efficiency.kmPerLiter, fuelType, distanceUnit, volumeUnit).toFixed(1)}{" "}
                 {units.perUnit}
               </span>
-              <span style={{
+              <span title={efficiencyIntervalHint} style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
@@ -919,23 +930,23 @@ function FuelLogRow({
               </span>
             </>
           )}
-          {/* 거리 기준점은 연비가 있으면 그 연비와 같은 구간(직전 가득 주유 이후), 없으면 직전
-              주유 이후다 — 어느 쪽이든 같은 행의 다른 배지와 같은 구간을 가리킨다. */}
-          <span style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 4,
-            padding: "3px 6px",
-            fontSize: 11,
-            fontWeight: "500",
-            color: "var(--badge-blue-text)",
-            backgroundColor: "var(--badge-blue-bg)",
-            border: "1px solid var(--badge-blue-border)",
-            borderRadius: 6,
-          }}>
-            <RouteIcon /> {formatDistance(efficiency ? efficiency.distanceKm : costPerDistance!.distanceKm)}{" "}
-            {t("historyTabTrips")}
-          </span>
+          {/* 주행거리·거리당 비용은 가득/부분 구분 없이 항상 직전 주유 이후 구간이다. */}
+          {distanceKm !== null && (
+            <span style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 6px",
+              fontSize: 11,
+              fontWeight: "500",
+              color: "var(--badge-blue-text)",
+              backgroundColor: "var(--badge-blue-bg)",
+              border: "1px solid var(--badge-blue-border)",
+              borderRadius: 6,
+            }}>
+              <RouteIcon /> {formatDistance(distanceKm)} {t("historyTabTrips")}
+            </span>
+          )}
           {costPerDistance && (
             <span style={{
               display: "inline-flex",

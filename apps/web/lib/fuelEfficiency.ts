@@ -44,23 +44,19 @@ export function computeFuelEfficiencyPoints(fuelLogs: FuelLog[]): FuelEfficiency
   return points;
 }
 
-export type FuelCostPerDistancePoint = {
+export type FuelDistancePoint = {
   logId: string;
   date: string;
   odometer: number;
   distanceKm: number;
-  cost: number;
-  costPerKm: number;
 };
 
-// 연비와 달리 "가득 채움" 조건이 필요 없다 — 직전 주유 이후 달린 거리(주행거리계 차이)와
-// 이번에 지불한 금액은 탱크 잔량과 무관하게 둘 다 확정된 값이기 때문이다. 그래서 부분 주유만
-// 반복하는 사용 패턴에서도 주유할 때마다 점이 하나씩 생긴다. 대신 한 번에 얼마를 넣었는지에
-// 따라 구간별로 출렁이므로(적게 넣은 다음 구간은 낮게, 그다음은 높게 나온다) 개별 점의 값보다
-// 추세를 보는 용도다.
-export function computeFuelCostPerDistancePoints(fuelLogs: FuelLog[]): FuelCostPerDistancePoint[] {
+// 직전 주유 이후 달린 거리 — 가득/부분 여부와 금액 입력 여부에 관계없이 모든 주유에 붙는다.
+// 내역 목록의 주행거리 배지는 항상 이 값을 쓴다. 가득 주유 행에서도 "직전 가득 이후"가 아니라
+// "직전 주유 이후"여야 목록을 위에서 아래로 읽을 때 구간이 겹치지 않고 이어진다.
+export function computeFuelDistancePoints(fuelLogs: FuelLog[]): FuelDistancePoint[] {
   const ascLogs = [...fuelLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-  const points: FuelCostPerDistancePoint[] = [];
+  const points: FuelDistancePoint[] = [];
   let prev: FuelLog | null = null;
 
   for (const log of ascLogs) {
@@ -74,22 +70,31 @@ export function computeFuelCostPerDistancePoints(fuelLogs: FuelLog[]): FuelCostP
     const distanceKm = log.odometer - prev.odometer;
     if (distanceKm <= 0) continue;
 
-    // 금액 미입력(0원)은 나눠봐야 의미가 없어 점을 만들지 않는다. 다만 그 사이 달린 거리는
-    // 실제 주행이므로, 다음 구간이 이 기록부터 시작하도록 기준점은 옮긴다.
-    if (log.cost > 0) {
-      points.push({
-        logId: log.id,
-        date: log.date,
-        odometer: log.odometer,
-        distanceKm,
-        cost: log.cost,
-        costPerKm: log.cost / distanceKm,
-      });
-    }
+    points.push({ logId: log.id, date: log.date, odometer: log.odometer, distanceKm });
     prev = log;
   }
 
   return points;
+}
+
+export type FuelCostPerDistancePoint = FuelDistancePoint & {
+  cost: number;
+  costPerKm: number;
+};
+
+// 연비와 달리 "가득 채움" 조건이 필요 없다 — 직전 주유 이후 달린 거리(주행거리계 차이)와
+// 이번에 지불한 금액은 탱크 잔량과 무관하게 둘 다 확정된 값이기 때문이다. 그래서 부분 주유만
+// 반복하는 사용 패턴에서도 주유할 때마다 점이 하나씩 생긴다. 대신 한 번에 얼마를 넣었는지에
+// 따라 구간별로 출렁이므로(적게 넣은 다음 구간은 낮게, 그다음은 높게 나온다) 개별 점의 값보다
+// 추세를 보는 용도다.
+export function computeFuelCostPerDistancePoints(fuelLogs: FuelLog[]): FuelCostPerDistancePoint[] {
+  const costById = new Map(fuelLogs.map((log) => [log.id, log.cost]));
+  // 금액 미입력(0원)은 나눠봐야 의미가 없어 점을 만들지 않는다. 다만 그 사이 달린 거리는
+  // 실제 주행이므로 거리 계산의 기준점은 그 기록으로 옮겨진 상태다.
+  return computeFuelDistancePoints(fuelLogs).flatMap((point) => {
+    const cost = costById.get(point.logId) ?? 0;
+    return cost > 0 ? [{ ...point, cost, costPerKm: cost / point.distanceKm }] : [];
+  });
 }
 
 // FuelLog.liters는 필드명과 달리 전기차는 충전량(kWh)을 저장하는 용도로 재사용된다.
