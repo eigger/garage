@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   computeFuelCostPerDistancePoints,
+  computeFuelDistancePoints,
   computeFuelEfficiencyPoints,
   efficiencyUnitLabels,
   fuelVolumeUnit,
@@ -92,6 +93,36 @@ describe("computeFuelEfficiencyPoints", () => {
     expect(points.map((p) => p.logId)).toEqual(["c"]);
     expect(points[0].distanceKm).toBe(300);
     expect(points[0].kmPerLiter).toBeCloseTo(12); // 300 / 25, "b"'s liters dropped along with the invalid segment
+  });
+});
+
+describe("computeFuelDistancePoints", () => {
+  it("measures every fill from the previous fill, even a full tank after partials", () => {
+    const logs = [
+      log({ id: "a", date: "2026-01-01T00:00:00.000Z", odometer: 10_000, liters: 40, fullTank: true }),
+      log({ id: "b", date: "2026-01-02T00:00:00.000Z", odometer: 10_300, liters: 20, fullTank: false }),
+      log({ id: "c", date: "2026-01-03T00:00:00.000Z", odometer: 10_600, liters: 30, fullTank: true }),
+    ];
+
+    const points = computeFuelDistancePoints(logs);
+
+    // "c"는 가득 주유지만 직전 가득("a") 기준 600km가 아니라 직전 주유("b") 기준 300km —
+    // 연비는 가득→가득 600km로 따로 계산되므로 두 구간이 겹치지 않는다.
+    expect(points.map((p) => [p.logId, p.distanceKm])).toEqual([
+      ["b", 300],
+      ["c", 300],
+    ]);
+    expect(computeFuelEfficiencyPoints(logs)[0].distanceKm).toBe(600);
+  });
+
+  it("still produces a distance for a zero-cost fill", () => {
+    const logs = [
+      log({ id: "a", date: "2026-01-01T00:00:00.000Z", odometer: 0, liters: 40, cost: 60_000 }),
+      log({ id: "b", date: "2026-01-02T00:00:00.000Z", odometer: 200, liters: 20, cost: 0 }),
+    ];
+
+    expect(computeFuelDistancePoints(logs).map((p) => [p.logId, p.distanceKm])).toEqual([["b", 200]]);
+    expect(computeFuelCostPerDistancePoints(logs)).toHaveLength(0);
   });
 });
 
