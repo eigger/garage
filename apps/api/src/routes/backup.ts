@@ -45,6 +45,11 @@ export async function linkOrCopy(source: string, dest: string): Promise<void> {
   }
 }
 
+// 인터랙티브 트랜잭션 기본 timeout은 5초라, 텔레메트리가 쌓인 인스턴스는 복원이 항상
+// "Transaction already closed"로 롤백된다. 복원은 드물고 오래 걸려도 되는 작업이다.
+const RESTORE_TX_OPTIONS = { maxWait: 30_000, timeout: 30 * 60_000 };
+const TELEMETRY_RESTORE_CHUNK = 5_000;
+
 export async function backupRoutes(app: FastifyInstance) {
   // Authenticate all routes in this file
   app.addHook("preHandler", app.authenticate);
@@ -417,9 +422,12 @@ export async function backupRoutes(app: FastifyInstance) {
           await tx.reminder.createMany({ data: dbData.reminders });
         }
         if (dbData.telemetry?.length) {
-          await tx.telemetryRaw.createMany({ data: dbData.telemetry });
+          // 한 번에 넣으면 PostgreSQL 바인드 파라미터 한도(65535)에 걸리고 쿼리도 거대해진다.
+          for (let i = 0; i < dbData.telemetry.length; i += TELEMETRY_RESTORE_CHUNK) {
+            await tx.telemetryRaw.createMany({ data: dbData.telemetry.slice(i, i + TELEMETRY_RESTORE_CHUNK) });
+          }
         }
-      });
+      }, RESTORE_TX_OPTIONS);
 
       // 5. Restore files to UPLOAD_DIR
       //    여기도 같은 파일시스템이라 링크로 잇는다. 링크는 자리가 비어 있어야 걸리므로
