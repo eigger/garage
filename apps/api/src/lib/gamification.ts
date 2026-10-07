@@ -11,6 +11,7 @@ import {
   type MaintenanceRecordInput,
 } from "@garage/shared";
 import { prisma } from "./prisma.js";
+import { computeKmPerLiterSeries } from "./fuelStats.js";
 
 // 정시 완료·꼼꼼한 기록·좋은 연비에만 XP를 준다 — 늦은 정비를 감점하지 않는다(페널티 없음).
 export async function awardXp(vehicleId: string, type: XpEventType, note?: string): Promise<void> {
@@ -169,19 +170,15 @@ export async function awardCompletionXp(params: {
 // 새로 등록된 "가득 채움" 주유 기록의 연비가 이전까지의 평균보다 좋으면 XP를 준다.
 // 기준 삼을 과거 가득 채움 구간이 최소 2개는 있어야 비교 의미가 있다 — 데이터가 적으면 그냥 넘어간다(감점 없음).
 export async function awardEfficiencyXpIfGood(vehicleId: string): Promise<void> {
-  const fullTankLogs = await prisma.fuelLog.findMany({
-    where: { vehicleId, fullTank: true },
-    orderBy: { odometer: "asc" },
-    select: { odometer: true, liters: true },
+  // 부분 주유 리터까지 합산한 구간 연비(웹·CSV와 동일). 가득 채움 기록만 읽으면 중간 주유량이 빠져
+  // 연비가 과대평가된다.
+  const logs = await prisma.fuelLog.findMany({
+    where: { vehicleId },
+    orderBy: [{ date: "asc" }, { odometer: "asc" }],
+    select: { odometer: true, liters: true, fullTank: true },
   });
 
-  const points: number[] = []; // kmPerLiter, 오래된 순
-  for (let i = 1; i < fullTankLogs.length; i++) {
-    const distanceKm = fullTankLogs[i].odometer - fullTankLogs[i - 1].odometer;
-    if (distanceKm > 0 && fullTankLogs[i].liters > 0) {
-      points.push(distanceKm / fullTankLogs[i].liters);
-    }
-  }
+  const points = computeKmPerLiterSeries(logs); // kmPerLiter, 오래된 순
   if (points.length < 3) return;
 
   const latest = points[points.length - 1];
