@@ -11,7 +11,7 @@ export type VehicleFuelStats = {
 export async function getVehicleFuelStats(vehicleId: string): Promise<VehicleFuelStats> {
   const logs = await prisma.fuelLog.findMany({
     where: { vehicleId },
-    orderBy: { date: "asc" },
+    orderBy: [{ date: "asc" }, { odometer: "asc" }],
     select: { odometer: true, liters: true, fullTank: true },
   });
 

@@ -1,19 +1,37 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
+import { APP_TIMEZONE } from "../lib/dateRange.js";
 import { REPORT_HEADERS, parseLocale } from "@garage/shared";
+
+// 서버 컨테이너는 TZ가 UTC라 getHours() 등을 쓰면 트립 시각이 KST와 9시간 어긋난다.
+// 화면과 같은 기준(Asia/Seoul)으로 찍는다.
+const csvDateFormatter = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: APP_TIMEZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+function formatCsvDate(val: Date): string {
+  // sv-SE 포맷은 "YYYY-MM-DD HH:mm:ss"
+  return csvDateFormatter.format(val);
+}
+
+// 주유·정비 날짜는 날짜만 입력받아 UTC 자정으로 저장된다. KST 시각으로 바꾸면 없는 "09:00:00"이
+// 붙으므로 저장된 달력 날짜 그대로 YYYY-MM-DD만 찍는다.
+function formatCsvDateOnly(val: Date): string {
+  return val.toISOString().slice(0, 10);
+}
 
 function escapeCsv(val: any): string {
   if (val === null || val === undefined) return "";
   if (val instanceof Date) {
-    // Format date cleanly: YYYY-MM-DD HH:mm:ss
-    const yyyy = val.getFullYear();
-    const mm = String(val.getMonth() + 1).padStart(2, "0");
-    const dd = String(val.getDate()).padStart(2, "0");
-    const hh = String(val.getHours()).padStart(2, "0");
-    const min = String(val.getMinutes()).padStart(2, "0");
-    const ss = String(val.getSeconds()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd} ${hh}:${min}:${ss}`;
+    return formatCsvDate(val);
   }
   const str = String(val);
   if (str.includes(",") || str.includes("\"") || str.includes("\n") || str.includes("\r")) {
@@ -107,7 +125,7 @@ export async function reportsRoutes(app: FastifyInstance) {
         const catLabel = rec.category === "ADMINISTRATIVE" ? headers.categoryAdministrative : headers.categoryMaintenance;
 
         csvContent += [
-          escapeCsv(rec.date),
+          escapeCsv(formatCsvDateOnly(rec.date)),
           escapeCsv(rec.odometer),
           escapeCsv(rec.type),
           escapeCsv(catLabel),
@@ -126,31 +144,34 @@ export async function reportsRoutes(app: FastifyInstance) {
         csvContent += headers.fuel;
       }
 
-      const logs = await prisma.fuelLog.findMany({
-        where: {
-          vehicleId: id,
-          ...(dateFilter ? { date: { gte: dateFilter } } : {}),
-        },
-        orderBy: { date: "asc" },
+      // 연비는 직전 "가득 주유" 이후 넣은 리터 합계로 계산한다(웹의 computeFuelEfficiencyPoints와 동일).
+      // 기간 필터 밖의 이전 기록이 필요하므로 전체를 읽고, 출력할 행만 기간으로 거른다.
+      const allLogs = await prisma.fuelLog.findMany({
+        where: { vehicleId: id },
+        orderBy: [{ date: "asc" }, { odometer: "asc" }],
       });
 
-      let prevFullTank: typeof logs[0] | null = null;
+      let prevFullTank: typeof allLogs[0] | null = null;
+      let litersSincePrevFullTank = 0;
 
-      for (const log of logs) {
+      for (const log of allLogs) {
+        litersSincePrevFullTank += log.liters;
         let efficiency = "";
         if (log.fullTank) {
-          if (prevFullTank && log.odometer > prevFullTank.odometer && log.liters > 0) {
+          if (prevFullTank && log.odometer > prevFullTank.odometer && litersSincePrevFullTank > 0) {
             const distance = log.odometer - prevFullTank.odometer;
-            const eff = distance / log.liters;
-            efficiency = eff.toFixed(2);
+            efficiency = (distance / litersSincePrevFullTank).toFixed(2);
           }
           prevFullTank = log;
+          litersSincePrevFullTank = 0;
         }
+
+        if (dateFilter && log.date < dateFilter) continue;
 
         const unitPrice = log.liters > 0 ? Math.round(log.cost / log.liters) : "";
 
         csvContent += [
-          escapeCsv(log.date),
+          escapeCsv(formatCsvDateOnly(log.date)),
           escapeCsv(log.odometer),
           escapeCsv(log.liters),
           escapeCsv(unitPrice),
@@ -164,7 +185,7 @@ export async function reportsRoutes(app: FastifyInstance) {
     }
 
     const safePlate = (vehicle.plate || vehicle.name || "vehicle").replace(/[^a-zA-Z0-9가-힣]/g, "_");
-    const filename = `${safePlate}_${category}_${period || "all"}_${new Date().toISOString().slice(0, 10)}.csv`;
+    const filename = `${safePlate}_${category}_${period || "all"}_${formatCsvDate(new Date()).slice(0, 10)}.csv`;
 
     return reply
       .header("Content-Type", "text/csv; charset=utf-8")
