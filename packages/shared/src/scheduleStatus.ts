@@ -37,6 +37,18 @@ export interface ScheduleBaseline {
   expectedLifeMonths: number | null;
 }
 
+// 날짜 전용 필드(installedDate)는 UTC 자정으로 저장되므로 UTC 기준으로 계산한다. setMonth는 결과 월에
+// 해당 일이 없으면 다음 달로 넘어가 버리므로(8/31 + 6개월 → 3/3) 그 달의 말일로 맞춘다.
+export function addMonthsClamped(date: Date, months: number): Date {
+  const result = new Date(date.getTime());
+  const day = result.getUTCDate();
+  result.setUTCDate(1);
+  result.setUTCMonth(result.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
+  result.setUTCDate(Math.min(day, lastDay));
+  return result;
+}
+
 // installedDate/installedOdometer + expectedLifeKm/expectedLifeMonths로부터 다음
 // 기준점(dueDate/dueOdometer)을 계산한다. apps/web(computeScheduleStatus)과
 // apps/api(reminders 동기화 잡, /api/ingest/reminders)가 전부 이 함수로만 계산해야
@@ -46,11 +58,7 @@ export function computeDueBaseline(
 ): { dueDate: Date | null; dueOdometer: number | null } {
   const dueOdometer = part.expectedLifeKm ? part.installedOdometer + part.expectedLifeKm : null;
 
-  let dueDate: Date | null = null;
-  if (part.expectedLifeMonths) {
-    dueDate = new Date(part.installedDate);
-    dueDate.setMonth(dueDate.getMonth() + part.expectedLifeMonths);
-  }
+  const dueDate = part.expectedLifeMonths ? addMonthsClamped(new Date(part.installedDate), part.expectedLifeMonths) : null;
 
   return { dueDate, dueOdometer };
 }
