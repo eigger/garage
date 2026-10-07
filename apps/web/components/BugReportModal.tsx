@@ -91,7 +91,7 @@ export function BugReportModal({ onClose, t }: BugReportModalProps) {
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={t("bugReportTitlePlaceholder")} aria-label={t("bugReportTitlePlaceholder")}
+              placeholder={t("bugReportTitlePlaceholder")} aria-label={t("bugReportTitleLabel")}
               autoFocus
               required
               style={{ width: "100%" }}
@@ -102,7 +102,7 @@ export function BugReportModal({ onClose, t }: BugReportModalProps) {
             <textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder={t("bugReportDescPlaceholder")} aria-label={t("bugReportDescPlaceholder")}
+              placeholder={t("bugReportDescPlaceholder")} aria-label={t("bugReportDescLabel")}
               rows={5}
               style={{ width: "100%", resize: "vertical" }}
             />

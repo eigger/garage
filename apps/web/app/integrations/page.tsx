@@ -448,7 +448,7 @@ function SettingRow({
       <form onSubmit={handleSave} className="form" noValidate style={{ flexDirection: "row" }}>
         <input
           type="password"
-          placeholder={t("settingValuePlaceholder")} aria-label={t("settingValuePlaceholder")}
+          placeholder={t("settingValuePlaceholder")} aria-label={`${meta ? t(meta.labelKey) : entry.key} – ${t("settingValuePlaceholder")}`}
           value={value}
           onChange={(e) => setValue(e.target.value)}
           style={{ flex: 1 }}

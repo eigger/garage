@@ -379,7 +379,7 @@ export default function VehicleOverviewPage() {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleTireSize")}</label>
                   <input
-                    placeholder="205/55R16" aria-label="205/55R16"
+                    placeholder="205/55R16" aria-label={t("vehicleTireSize")}
                     value={tireSize}
                     onChange={(e) => setTireSize(e.target.value)}
                   />
@@ -387,7 +387,7 @@ export default function VehicleOverviewPage() {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleBatteryCapacity")}</label>
                   <input
-                    placeholder="77.4 kWh" aria-label="77.4 kWh"
+                    placeholder="77.4 kWh" aria-label={t("vehicleBatteryCapacity")}
                     value={batteryCapacity}
                     onChange={(e) => setBatteryCapacity(e.target.value)}
                   />
