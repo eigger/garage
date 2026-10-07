@@ -100,7 +100,7 @@ export default function LoginPage() {
           if (data?.error === "bootstrap required") setNeedsBootstrap(true);
           return;
         }
-        setError(t("saveError"));
+        setError(res.status === 429 || res.status >= 500 ? loginFailureMessage(res.status) : t("saveError"));
         return;
       }
       setSignUpDone(true);
