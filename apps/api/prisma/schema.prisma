@@ -192,6 +192,9 @@ model TelemetryRaw {
   dtcCodes  String?
   odometer  Int?
   inVehicle Boolean?
+  // 사용자가 삭제한 트립에 속했던 포인트. tripId가 null로 돌아가도 트립 마감 잡이
+  // 이 포인트로 같은 트립을 다시 만들지 않도록 표시한다.
+  excludedFromTrips Boolean @default(false)
 
   vehicle Vehicle @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
   trip    Trip?   @relation(fields: [tripId], references: [id])
