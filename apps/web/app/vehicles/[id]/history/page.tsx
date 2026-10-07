@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch, API_URL, getToken, uploadFileWithProgress } from "../../../../lib/api";
+import { apiFetch, API_URL, getToken, uploadAttachment } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
@@ -659,15 +659,10 @@ function FuelLogRow({
         }
 
         if (newFile) {
-          const formData = new FormData();
-          formData.append("file", newFile);
           setUploadProgress(0);
-          await uploadFileWithProgress(
-            `/api/attachments?fuelLogId=${log.id}`,
-            formData,
-            setUploadProgress,
-          );
+          const uploaded = await uploadAttachment(`/api/attachments?fuelLogId=${log.id}`, newFile, setUploadProgress);
           setUploadProgress(null);
+          if (!uploaded) showToast(t("attachmentUploadFailed"), "error");
         }
 
         setEditing(false);
@@ -1273,15 +1268,14 @@ function MaintenanceRow({
         }
 
         if (newFile) {
-          const formData = new FormData();
-          formData.append("file", newFile);
           setUploadProgress(0);
-          await uploadFileWithProgress(
+          const uploaded = await uploadAttachment(
             `/api/attachments?maintenanceRecordId=${record.id}`,
-            formData,
+            newFile,
             setUploadProgress,
           );
           setUploadProgress(null);
+          if (!uploaded) showToast(t("attachmentUploadFailed"), "error");
         }
 
         setEditing(false);

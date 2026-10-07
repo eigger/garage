@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
-import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
+import { apiFetch, uploadAttachment } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import type { ConsumablePart, FuelLog, Vehicle } from "../../../../lib/types";
@@ -388,11 +388,10 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       if (res.ok) {
         const record = await res.json();
         if (file) {
-          const formData = new FormData();
-          formData.append("file", file);
           setUploadProgress(0);
-          await uploadFileWithProgress(`/api/attachments?fuelLogId=${record.id}`, formData, setUploadProgress);
+          const uploaded = await uploadAttachment(`/api/attachments?fuelLogId=${record.id}`, file, setUploadProgress);
           setUploadProgress(null);
+          if (!uploaded) showToast(t("attachmentUploadFailed"), "error");
         }
         setLiters("");
         setCost("");
@@ -864,15 +863,14 @@ function QuickMaintenanceForm({
       }
 
       if (file && lastRecord) {
-        const formData = new FormData();
-        formData.append("file", file);
         setUploadProgress(0);
-        await uploadFileWithProgress(
+        const uploaded = await uploadAttachment(
           `/api/attachments?maintenanceRecordId=${lastRecord.id}`,
-          formData,
+          file,
           setUploadProgress,
         );
         setUploadProgress(null);
+        if (!uploaded) showToast(t("attachmentUploadFailed"), "error");
       }
 
       setSelectedPartTypes([]);

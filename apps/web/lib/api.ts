@@ -76,3 +76,21 @@ export function uploadFileWithProgress(
     xhr.send(formData);
   });
 }
+
+// 기록은 이미 저장된 뒤에 붙이는 첨부 업로드용. 실패(HTTP 오류·네트워크 단절)해도 throw하지 않고
+// false를 돌려줘서, 호출부가 "기록은 저장됐지만 첨부는 실패"를 알리고 폼을 정상적으로 정리할 수 있다
+// (throw되면 폼이 그대로 남아 사용자가 다시 제출하다 같은 기록이 중복 생성된다).
+export async function uploadAttachment(
+  path: string,
+  file: File,
+  onProgress?: (percent: number) => void,
+): Promise<boolean> {
+  const formData = new FormData();
+  formData.append("file", file);
+  try {
+    const res = await uploadFileWithProgress(path, formData, onProgress);
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
