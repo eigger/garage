@@ -195,7 +195,9 @@ export default function ProfilePage() {
         setTimeout(() => window.location.reload(), 1200);
       } else {
         const errData = await res.json();
-        if (errData.error === "incorrect currentPassword" || errData.error === "currentPassword is required") {
+        if (res.status === 409) {
+          setError(t("emailAlreadyUsed"));
+        } else if (errData.error === "incorrect currentPassword" || errData.error === "currentPassword is required") {
           setError(t("incorrectPassword"));
         } else {
           setError(t("passwordMismatch"));
