@@ -46,7 +46,8 @@ export type BootstrapAdminInput = z.infer<typeof bootstrapAdminSchema>;
 export const updateProfileSchema = z.object({
   name: z.string().min(1).optional(),
   email: emailSchema.optional(),
-  currentPassword: z.string().min(8).optional(),
+  // 확인용 필드라 길이 규칙은 걸지 않는다 — bcrypt 비교가 판정한다(빈 값만 "required"로 처리).
+  currentPassword: z.string().min(1).optional(),
   newPassword: z.string().min(8).optional(),
 });
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;

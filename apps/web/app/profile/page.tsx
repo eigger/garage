@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch } from "../../lib/api";
+import { apiFetch, setToken } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { useToast } from "../../lib/toast-context";
@@ -170,11 +170,13 @@ export default function ProfilePage() {
 
     setSubmitting(true);
     try {
-      const body: any = { name, email };
-      if (newPassword) {
-        body.currentPassword = currentPassword;
-        body.newPassword = newPassword;
-      }
+      const body: any = { name };
+      // 이메일은 바뀐 경우에만 보낸다 — 바꾸려면 서버가 현재 비밀번호를 요구한다.
+      const emailChanged = email.trim().toLowerCase() !== (user?.email ?? "").toLowerCase();
+      if (emailChanged) body.email = email;
+      if (newPassword) body.newPassword = newPassword;
+      // 비어 있으면 보내지 않는다 — 서버가 "currentPassword is required"로 정확히 안내한다.
+      if ((newPassword || emailChanged) && currentPassword) body.currentPassword = currentPassword;
 
       const res = await apiFetch("/api/auth/profile", {
         method: "PATCH",
@@ -182,6 +184,9 @@ export default function ProfilePage() {
       });
 
       if (res.ok) {
+        // 비밀번호를 바꾸면 기존 토큰이 무효화되므로 서버가 내려준 새 토큰으로 교체한다.
+        const saved = await res.json().catch(() => null);
+        if (saved?.token) setToken(saved.token);
         setMessage(t("profileUpdated"));
         setCurrentPassword("");
         setNewPassword("");
@@ -191,7 +196,9 @@ export default function ProfilePage() {
         setTimeout(() => window.location.reload(), 1200);
       } else {
         const errData = await res.json();
-        if (errData.error === "incorrect currentPassword") {
+        if (res.status === 409) {
+          setError(t("emailAlreadyUsed"));
+        } else if (errData.error === "incorrect currentPassword" || errData.error === "currentPassword is required") {
           setError(t("incorrectPassword"));
         } else {
           setError(t("passwordMismatch"));
