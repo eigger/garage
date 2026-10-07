@@ -251,7 +251,7 @@ export function PlaceSearchModal({ mapConfig, onSelect, onClose, t, isGasStation
             <form onSubmit={handleSearch} style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
               <input
                 type="text"
-                placeholder={mapConfig.kakaoAppKey ? "상호명이나 주소를 입력하세요" : "주소를 입력하세요"}
+                placeholder={mapConfig.kakaoAppKey ? "상호명이나 주소를 입력하세요" : "주소를 입력하세요"} aria-label={mapConfig.kakaoAppKey ? "상호명이나 주소를 입력하세요" : "주소를 입력하세요"}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 style={{ flex: 1, marginBottom: 0 }}

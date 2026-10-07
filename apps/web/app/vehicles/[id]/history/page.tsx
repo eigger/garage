@@ -328,7 +328,7 @@ export default function HistoryPage() {
           <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <input
               type="text"
-              placeholder={t("searchFuelPlaceholder")}
+              placeholder={t("searchFuelPlaceholder")} aria-label={t("searchFuelPlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -441,7 +441,7 @@ export default function HistoryPage() {
           <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
             <input
               type="text"
-              placeholder={t("searchMaintenancePlaceholder")}
+              placeholder={t("searchMaintenancePlaceholder")} aria-label={t("searchMaintenancePlaceholder")}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               style={{
@@ -701,7 +701,7 @@ function FuelLogRow({
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <input
               type="number"
-              placeholder={`${t("odometer")} (${distanceUnit})`}
+              placeholder={`${t("odometer")} (${distanceUnit})`} aria-label={`${t("odometer")} (${distanceUnit})`}
               value={odometer}
               onChange={(e) => setOdometer(e.target.value)}
               required
@@ -709,21 +709,21 @@ function FuelLogRow({
             <input
               type="number"
               step="0.01"
-              placeholder={fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel}
+              placeholder={fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel} aria-label={fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel}
               value={liters}
               onChange={(e) => setLiters(e.target.value)}
               required
             />
             <input
               type="number"
-              placeholder={t("cost")}
+              placeholder={t("cost")} aria-label={t("cost")}
               value={cost}
               onChange={(e) => setCost(e.target.value)}
               required
             />
             <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
               <input
-                placeholder={t("gasStation")}
+                placeholder={t("gasStation")} aria-label={t("gasStation")}
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
@@ -780,7 +780,7 @@ function FuelLogRow({
               </div>
             )}
             <input
-              placeholder={t("addressOptional")}
+              placeholder={t("addressOptional")} aria-label={t("addressOptional")}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               onBlur={handleAddressBlur}
@@ -1318,7 +1318,7 @@ function MaintenanceRow({
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} required />
             <input
               type="number"
-              placeholder={`${t("odometer")} (${distanceUnit})`}
+              placeholder={`${t("odometer")} (${distanceUnit})`} aria-label={`${t("odometer")} (${distanceUnit})`}
               value={odometer}
               onChange={(e) => setOdometer(e.target.value)}
               required
@@ -1376,7 +1376,7 @@ function MaintenanceRow({
 
             {(selectedPartType === "CUSTOM" || !selectedPartType) && (
               <input
-                placeholder={t("maintenanceType")}
+                placeholder={t("maintenanceType")} aria-label={t("maintenanceType")}
                 value={customType}
                 onChange={(e) => setCustomType(e.target.value)}
                 required
@@ -1385,13 +1385,13 @@ function MaintenanceRow({
 
             <input
               type="number"
-              placeholder={t("cost")}
+              placeholder={t("cost")} aria-label={t("cost")}
               value={cost}
               onChange={(e) => setCost(e.target.value)}
             />
             <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
               <input
-                placeholder={t("shop")}
+                placeholder={t("shop")} aria-label={t("shop")}
                 value={shop}
                 onChange={(e) => setShop(e.target.value)}
                 style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
@@ -1448,7 +1448,7 @@ function MaintenanceRow({
               </div>
             )}
             <input
-              placeholder={t("addressOptional")}
+              placeholder={t("addressOptional")} aria-label={t("addressOptional")}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               onBlur={handleAddressBlur}
@@ -1460,7 +1460,7 @@ function MaintenanceRow({
               </p>
             )}
             <input
-              placeholder={t("notes")}
+              placeholder={t("notes")} aria-label={t("notes")}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
             />
@@ -1764,7 +1764,7 @@ function TripSection({
       <div style={{ marginBottom: 12, display: "flex", flexDirection: "column", gap: 8 }}>
         <input
           type="text"
-          placeholder={t("searchTripPlaceholder")}
+          placeholder={t("searchTripPlaceholder")} aria-label={t("searchTripPlaceholder")}
           value={tripSearch}
           onChange={(e) => setTripSearch(e.target.value)}
           style={{
@@ -1966,7 +1966,7 @@ function TripRow({
         {editing ? (
           <form onSubmit={handleSaveNotes} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             <textarea
-              placeholder={t("tripNotesPlaceholder")}
+              placeholder={t("tripNotesPlaceholder")} aria-label={t("tripNotesPlaceholder")}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}

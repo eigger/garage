@@ -374,7 +374,7 @@ function ScheduleRow({
             <p style={{ margin: 0, fontWeight: 600 }}>{formatItemLabel(t, part.partType)}</p>
           ) : (
             <input
-              placeholder={t("itemName")}
+              placeholder={t("itemName")} aria-label={t("itemName")}
               value={partType}
               onChange={(e) => setPartType(e.target.value)}
               required
@@ -383,14 +383,14 @@ function ScheduleRow({
           {part.category !== "ADMINISTRATIVE" && (
             <input
               type="number"
-              placeholder={t("intervalDistance", { unit: distanceUnit })}
+              placeholder={t("intervalDistance", { unit: distanceUnit })} aria-label={t("intervalDistance", { unit: distanceUnit })}
               value={expectedLifeKm}
               onChange={(e) => setExpectedLifeKm(e.target.value)}
             />
           )}
           <input
             type="number"
-            placeholder={part.category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")}
+            placeholder={part.category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")} aria-label={part.category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")}
             value={expectedLifeMonths}
             onChange={(e) => setExpectedLifeMonths(e.target.value)}
           />
@@ -402,7 +402,7 @@ function ScheduleRow({
           />
           <input
             type="number"
-            placeholder={`${t("installedOdometer")} (${distanceUnit})`}
+            placeholder={`${t("installedOdometer")} (${distanceUnit})`} aria-label={`${t("installedOdometer")} (${distanceUnit})`}
             value={installedOdometer}
             onChange={(e) => setInstalledOdometer(e.target.value)}
             required
@@ -499,17 +499,17 @@ function ScheduleRow({
           <p style={{ margin: "0 0 8px", fontSize: 12, color: "var(--color-text-muted)" }}>{t("completeWithCostHint")}</p>
           <input
             type="number"
-            placeholder={t("cost")}
+            placeholder={t("cost")} aria-label={t("cost")}
             value={completionCost}
             onChange={(e) => setCompletionCost(e.target.value)}
           />
           <input
-            placeholder={isInsuranceRenewal ? t("insurerLabel") : t("shop")}
+            placeholder={isInsuranceRenewal ? t("insurerLabel") : t("shop")} aria-label={isInsuranceRenewal ? t("insurerLabel") : t("shop")}
             value={completionShop}
             onChange={(e) => setCompletionShop(e.target.value)}
           />
           <input
-            placeholder={t("notes")}
+            placeholder={t("notes")} aria-label={t("notes")}
             value={completionNotes}
             onChange={(e) => setCompletionNotes(e.target.value)}
           />
@@ -641,21 +641,21 @@ function AddScheduleItemForm({
         </p>
       )}
       <input
-        placeholder={t("itemName")}
+        placeholder={t("itemName")} aria-label={t("itemName")}
         value={partType}
         onChange={(e) => setPartType(e.target.value)}
       />
       {category === "MAINTENANCE" && (
         <input
           type="number"
-          placeholder={t("intervalDistance", { unit: distanceUnit })}
+          placeholder={t("intervalDistance", { unit: distanceUnit })} aria-label={t("intervalDistance", { unit: distanceUnit })}
           value={expectedLifeKm}
           onChange={(e) => setExpectedLifeKm(e.target.value)}
         />
       )}
       <input
         type="number"
-        placeholder={category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")}
+        placeholder={category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")} aria-label={category === "ADMINISTRATIVE" ? t("intervalMonthsAdministrative") : t("intervalMonths")}
         value={expectedLifeMonths}
         onChange={(e) => setExpectedLifeMonths(e.target.value)}
       />
