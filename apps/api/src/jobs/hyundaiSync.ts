@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { APP_TIMEZONE } from "../lib/dateRange.js";
 import { prisma } from "../lib/prisma.js";
 import { fetchMileage } from "../lib/hyundai.js";
 import { getValidAccessTokenForVehicleLink } from "../lib/hyundaiToken.js";
@@ -33,5 +34,5 @@ export function startHyundaiSyncJob(): void {
   syncHyundaiMileage().catch((err) => console.error("[hyundai-sync] initial sync failed", err));
   cron.schedule("0 7,19 * * *", () => {
     syncHyundaiMileage().catch((err) => console.error("[hyundai-sync] scheduled sync failed", err));
-  });
+  }, { timezone: APP_TIMEZONE });
 }

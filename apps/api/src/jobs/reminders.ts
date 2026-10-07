@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { APP_TIMEZONE } from "../lib/dateRange.js";
 import { computeDueBaseline } from "@garage/shared";
 import { prisma } from "../lib/prisma.js";
 import { getLatestOdometer } from "../lib/odometer.js";
@@ -62,9 +63,9 @@ export function startReminderJob(): void {
   run().catch((err) => console.error("[reminders] initial sync failed", err));
   cron.schedule("0 3 * * *", () => {
     run().catch((err) => console.error("[reminders] scheduled sync failed", err));
-  });
+  }, { timezone: APP_TIMEZONE });
   // 오전 8시에도 푸시 재확인 (주행거리 변동으로 당일 기한 도래 가능)
   cron.schedule("0 8 * * *", () => {
     sendDueReminderPushes().catch((err) => console.error("[push] scheduled send failed", err));
-  });
+  }, { timezone: APP_TIMEZONE });
 }
