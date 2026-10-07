@@ -496,6 +496,13 @@ export async function backupRoutes(app: FastifyInstance) {
             await tx.telemetryRaw.createMany({ data: dbData.telemetry.slice(i, i + TELEMETRY_RESTORE_CHUNK) });
           }
         }
+
+        // 복원은 원래 id 그대로 넣기 때문에 TelemetryRaw.id의 자동 증가 시퀀스는 그대로 뒤처져 있다.
+        // 새 기기나 초기화된 DB에 복원하면 이후 수집 INSERT가 이미 있는 id와 충돌해 시퀀스가 따라잡을 때까지
+        // 포인트가 계속 유실된다.
+        // 전체를 지우고 다시 넣은 직후라 max id보다 큰 id는 아무도 쓰지 않는다 — 시퀀스를 max로 맞추면 된다.
+        await tx.$queryRaw`SELECT setval(pg_get_serial_sequence('"TelemetryRaw"', 'id'), m) FROM (SELECT MAX(id) AS m FROM "TelemetryRaw") t WHERE m IS NOT NULL`;
+
       }, RESTORE_TX_OPTIONS);
 
       // 5. Restore files to UPLOAD_DIR
