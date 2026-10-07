@@ -2,6 +2,15 @@ import type { FuelLog, FuelType } from "./types";
 import type { DistanceUnit, VolumeUnit } from "./i18n/settings-context";
 import { KM_TO_MI, L_TO_GAL } from "./i18n/format";
 
+// 같은 날 여러 번 주유하면 날짜만으로는 순서가 정해지지 않는다(API는 id 내림차순으로 내려주므로
+// 입력한 순서가 그대로 거꾸로 남는다). 주행거리계는 시간과 함께 증가하므로 이를 2차 키로 쓴다 —
+// apps/api의 CSV 내보내기·fuelStats와 같은 순서여야 화면과 파일의 연비가 일치한다.
+function sortFuelLogsAsc(fuelLogs: FuelLog[]): FuelLog[] {
+  return [...fuelLogs].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime() || a.odometer - b.odometer,
+  );
+}
+
 export type FuelEfficiencyPoint = {
   logId: string;
   date: string;
@@ -17,7 +26,7 @@ export type FuelEfficiencyPoint = {
 // 안 그러면 부분 주유로 넣은 양만큼 거리는 세고 연료는 안 센 꼴이 되어 연비가 과대평가된다.
 // 내역 화면의 개별 연비 배지와 동일한 계산식이라 두 화면의 숫자가 항상 일치한다.
 export function computeFuelEfficiencyPoints(fuelLogs: FuelLog[]): FuelEfficiencyPoint[] {
-  const ascLogs = [...fuelLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const ascLogs = sortFuelLogsAsc(fuelLogs);
   const points: FuelEfficiencyPoint[] = [];
   let prevFullTank: FuelLog | null = null;
   let litersSincePrevFullTank = 0;
@@ -55,7 +64,7 @@ export type FuelDistancePoint = {
 // 내역 목록의 주행거리 배지는 항상 이 값을 쓴다. 가득 주유 행에서도 "직전 가득 이후"가 아니라
 // "직전 주유 이후"여야 목록을 위에서 아래로 읽을 때 구간이 겹치지 않고 이어진다.
 export function computeFuelDistancePoints(fuelLogs: FuelLog[]): FuelDistancePoint[] {
-  const ascLogs = [...fuelLogs].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const ascLogs = sortFuelLogsAsc(fuelLogs);
   const points: FuelDistancePoint[] = [];
   let prev: FuelLog | null = null;
 

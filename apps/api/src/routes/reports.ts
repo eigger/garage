@@ -22,6 +22,12 @@ function formatCsvDate(val: Date): string {
   return csvDateFormatter.format(val);
 }
 
+// 주유·정비 날짜는 날짜만 입력받아 UTC 자정으로 저장된다. KST 시각으로 바꾸면 없는 "09:00:00"이
+// 붙으므로 저장된 달력 날짜 그대로 YYYY-MM-DD만 찍는다.
+function formatCsvDateOnly(val: Date): string {
+  return val.toISOString().slice(0, 10);
+}
+
 function escapeCsv(val: any): string {
   if (val === null || val === undefined) return "";
   if (val instanceof Date) {
@@ -119,7 +125,7 @@ export async function reportsRoutes(app: FastifyInstance) {
         const catLabel = rec.category === "ADMINISTRATIVE" ? headers.categoryAdministrative : headers.categoryMaintenance;
 
         csvContent += [
-          escapeCsv(rec.date),
+          escapeCsv(formatCsvDateOnly(rec.date)),
           escapeCsv(rec.odometer),
           escapeCsv(rec.type),
           escapeCsv(catLabel),
@@ -165,7 +171,7 @@ export async function reportsRoutes(app: FastifyInstance) {
         const unitPrice = log.liters > 0 ? Math.round(log.cost / log.liters) : "";
 
         csvContent += [
-          escapeCsv(log.date),
+          escapeCsv(formatCsvDateOnly(log.date)),
           escapeCsv(log.odometer),
           escapeCsv(log.liters),
           escapeCsv(unitPrice),
