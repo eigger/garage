@@ -225,7 +225,12 @@ export async function tripRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
-    await prisma.trip.delete({ where: { id } });
+    // 삭제하면 포인트의 tripId가 null로 돌아가 5분 크론이 같은 트립을 다시 만든다.
+    // 먼저 제외 표시를 해둬서 재감지되지 않게 한다.
+    await prisma.$transaction([
+      prisma.telemetryRaw.updateMany({ where: { tripId: id }, data: { excludedFromTrips: true } }),
+      prisma.trip.delete({ where: { id } }),
+    ]);
     return reply.code(204).send();
   });
 }

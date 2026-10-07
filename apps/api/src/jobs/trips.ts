@@ -35,7 +35,7 @@ export async function closeTrips(): Promise<void> {
 
 export async function closeTripsForVehicle(vehicleId: string): Promise<void> {
   const points = await prisma.telemetryRaw.findMany({
-    where: { vehicleId, tripId: null, lat: { not: null }, lon: { not: null } },
+    where: { vehicleId, tripId: null, excludedFromTrips: false, lat: { not: null }, lon: { not: null } },
     orderBy: { time: "asc" },
     select: {
       id: true,
@@ -214,7 +214,7 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
     // 미배정으로 남아 매번 다시 조회되고, 그 잔여 포인트들이 서로의 prev가 되면서 가짜
     // 트립을 계속 만들어낸다. 트립 시간 구간에 속한 포인트는 전부 이 트립에 배정한다.
     await tx.telemetryRaw.updateMany({
-      where: { vehicleId, tripId: null, time: { gte: startTime, lte: endTime } },
+      where: { vehicleId, tripId: null, excludedFromTrips: false, time: { gte: startTime, lte: endTime } },
       data: { tripId: t.id },
     });
   });

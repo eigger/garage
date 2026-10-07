@@ -2,6 +2,7 @@ import { randomUUID } from "crypto";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { closeTripsForVehicle } from "./trips.js";
 import { prisma } from "../lib/prisma.js";
+import { buildApp } from "../app.js";
 
 // 실제 버그: 트립을 닫을 때 "활성" 포인트에만 tripId를 붙였기 때문에, 신호 대기(rpm 0)나
 // 도착 후 시동 끈 꼬리 포인트는 영원히 미배정으로 남았다. 다음 실행에서 그 잔여 포인트들만
@@ -130,5 +131,35 @@ describe("closeTripsForVehicle — no phantom 0km trips after a real trip", () =
     // 주행 이력에서 주행 거리와 누적 주행거리를 나란히 보여주려면 트립 행 자체에 종료 시점
     // 계기판 값이 남아 있어야 한다 — 원시 텔레메트리는 1년 뒤 삭제되기 때문.
     expect(trip.endOdometer).toBe(lastPoint.odometer);
+  });
+
+  // 트립을 삭제하면 포인트의 tripId가 SET NULL로 돌아가고, 5분 크론이 그 포인트로 같은 트립을
+  // 다시 만들던 버그. 실제 DELETE 라우트를 거쳐 재감지되지 않는지 확인한다.
+  it("does not recreate a trip that the user deleted", async () => {
+    await seedCommuteWithIdleAndTailPoints();
+    await closeTripsForVehicle(vehicleId);
+    const trip = await prisma.trip.findFirstOrThrow({ where: { vehicleId } });
+
+    const app = await buildApp();
+    const user = await prisma.user.create({
+      data: { name: "Owner", email: `del-${randomUUID()}@example.com`, passwordHash: "x", role: "ADMIN" },
+    });
+    try {
+      const token = app.jwt.sign({ sub: user.id, role: "ADMIN" });
+      const res = await app.inject({
+        method: "DELETE",
+        url: `/api/trips/${trip.id}`,
+        headers: { authorization: `Bearer ${token}` },
+      });
+      expect(res.statusCode).toBe(204);
+    } finally {
+      await app.close();
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+    }
+
+    await closeTripsForVehicle(vehicleId);
+    await closeTripsForVehicle(vehicleId);
+
+    expect(await prisma.trip.count({ where: { vehicleId } })).toBe(0);
   });
 });
