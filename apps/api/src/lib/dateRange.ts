@@ -1,12 +1,16 @@
 export type DateRange = { gte: Date; lt: Date };
 
+// 서버 컨테이너는 TZ가 UTC라 cron 표현식은 timezone 옵션 없이는 UTC로 해석된다 —
+// 주석에 적힌 "새벽 4시/오전 8시"는 모두 이 시간대 기준이다.
+export const APP_TIMEZONE = "Asia/Seoul";
+
 /**
  * Asia/Seoul 캘린더 기준 오늘을 UTC 자정 Date로 만든다.
  * date-only 필드(installedDate 등)는 클라이언트가 `YYYY-MM-DD`를 보내면
  * `T00:00:00.000Z`로 저장되므로, 서버에서 "오늘"을 넣을 때도 같은 규칙을 쓴다.
  * Docker 등 TZ=UTC 환경에서도 KST 날짜가 어긋나지 않는다.
  */
-export function todayDateOnly(now: Date = new Date(), timeZone = "Asia/Seoul"): Date {
+export function todayDateOnly(now: Date = new Date(), timeZone = APP_TIMEZONE): Date {
   const ymd = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",

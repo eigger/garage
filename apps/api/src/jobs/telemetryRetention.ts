@@ -1,4 +1,5 @@
 import cron from "node-cron";
+import { APP_TIMEZONE } from "../lib/dateRange.js";
 import { prisma } from "../lib/prisma.js";
 
 const RETENTION_DAYS = 365;
@@ -15,5 +16,5 @@ export function startTelemetryRetentionJob(): void {
   purgeOldTelemetry().catch((err) => console.error("[telemetry-retention] initial purge failed", err));
   cron.schedule("0 4 * * *", () => {
     purgeOldTelemetry().catch((err) => console.error("[telemetry-retention] scheduled purge failed", err));
-  });
+  }, { timezone: APP_TIMEZONE });
 }
