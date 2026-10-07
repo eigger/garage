@@ -5,6 +5,8 @@ export type VehicleFuelStats = {
   avgLiters: number | null;
 };
 
+// 가득 채움 두 번을 구간 경계로 삼고, 그 사이에 낀 부분 주유의 리터도 합산한 km/L 목록(오래된 순).
+// apps/web/lib/fuelEfficiency.ts의 computeFuelEfficiencyPoints와 같은 식이다.
 export function computeKmPerLiterSeries(
   logs: Array<{ odometer: number; liters: number; fullTank: boolean }>,
 ): number[] {
@@ -27,8 +29,6 @@ export function computeKmPerLiterSeries(
 // "이득순" 계산에 필요한 이 차량의 평균 연비·평균 주유량. 만땅 기록끼리 짝지어 연비를
 // 구하는 계산식은 apps/web/lib/fuelEfficiency.ts의 computeFuelEfficiencyPoints와 동일해야
 // 두 화면의 숫자가 어긋나지 않는다 — 구간 사이에 낀 부분 주유의 리터도 반드시 합산한다.
-// 가득 채움 두 번을 구간 경계로 삼고, 그 사이에 낀 부분 주유의 리터도 합산한 km/L 목록(오래된 순).
-// apps/web/lib/fuelEfficiency.ts의 computeFuelEfficiencyPoints와 같은 식이다.
 export async function getVehicleFuelStats(vehicleId: string): Promise<VehicleFuelStats> {
   const logs = await prisma.fuelLog.findMany({
     where: { vehicleId },
