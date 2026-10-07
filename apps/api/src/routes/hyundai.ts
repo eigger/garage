@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
-import { canAccessVehicle } from "../lib/access.js";
+import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
+import { createOAuthState, verifyOAuthState } from "../lib/oauthState.js";
 import {
   isHyundaiConfigured,
   getAuthorizeUrl,
@@ -40,8 +41,7 @@ export async function hyundaiRoutes(app: FastifyInstance) {
     const { redirectUri } = request.query as { redirectUri?: string };
     if (!redirectUri) return reply.code(400).send({ error: "redirectUri is required" });
 
-    // TODO: state를 서버 세션/캐시에 저장해두고 콜백에서 검증(CSRF 방지) — 지금은 구조만.
-    const state = request.user.sub;
+    const state = createOAuthState(request.user.sub, "link");
     const url = await getAuthorizeUrl(redirectUri, state);
     if (!url) return reply.code(409).send({ error: "hyundai integration not configured" });
     return { url };
@@ -49,8 +49,9 @@ export async function hyundaiRoutes(app: FastifyInstance) {
 
   // 콜백 페이지(프론트)가 인가 코드를 받은 뒤 이 엔드포인트로 넘겨 토큰 교환 + 계정 연동 저장
   app.post("/link", async (request, reply) => {
-    const { code, redirectUri } = request.body as { code?: string; redirectUri?: string };
+    const { code, redirectUri, state } = request.body as { code?: string; redirectUri?: string; state?: string };
     if (!code || !redirectUri) return reply.code(400).send({ error: "code and redirectUri are required" });
+    if (!verifyOAuthState(state, request.user.sub, "link")) return reply.code(400).send({ error: "state mismatch" });
 
     const token = await exchangeCodeForToken(code, redirectUri);
     if (!token) return reply.code(502).send({ error: "hyundai token exchange failed" });
@@ -88,14 +89,14 @@ export async function hyundaiRoutes(app: FastifyInstance) {
     const accessToken = await getValidAccessTokenFor(link);
     if (!accessToken) return reply.code(409).send({ error: "hyundai account not linked" });
 
-    const url = await getDataConsentUrl(accessToken, request.user.sub);
+    const url = await getDataConsentUrl(accessToken, createOAuthState(request.user.sub, "consent"));
     return { url };
   });
 
   // 동의 콜백 페이지(프론트)가 리다이렉트로 받은 userId/state를 넘기면 동의 완료로 기록한다.
   app.post("/consent/complete", async (request, reply) => {
     const { state } = request.body as { userId?: string; state?: string };
-    if (state !== request.user.sub) return reply.code(400).send({ error: "state mismatch" });
+    if (!verifyOAuthState(state, request.user.sub, "consent")) return reply.code(400).send({ error: "state mismatch" });
 
     const link = await prisma.hyundaiAccountLink.findUnique({ where: { userId: request.user.sub } });
     if (!link) return reply.code(409).send({ error: "hyundai account not linked" });
@@ -140,8 +141,10 @@ export async function hyundaiRoutes(app: FastifyInstance) {
     const { carId } = request.body as { carId?: string };
     if (!carId) return reply.code(400).send({ error: "carId is required" });
 
+    // 연결을 바꾸면 이 차량의 주행거리 동기화 출처가 바뀐다 — 접근만 가능한 공유 사용자가 아니라
+    // 차량 관리 권한(관리자·등록자)이 있어야 한다.
     const { sub, role } = request.user;
-    if (!(await canAccessVehicle(sub, role, vehicleId))) return reply.code(403).send({ error: "forbidden" });
+    if (!(await getVehicleAccess(sub, role, vehicleId)).canManage) return reply.code(403).send({ error: "forbidden" });
 
     const accountLink = await prisma.hyundaiAccountLink.findUnique({ where: { userId: sub } });
     if (!accountLink) return reply.code(409).send({ error: "hyundai account not linked" });
@@ -157,7 +160,7 @@ export async function hyundaiRoutes(app: FastifyInstance) {
   app.delete("/vehicles/:vehicleId/link", async (request, reply) => {
     const { vehicleId } = request.params as { vehicleId: string };
     const { sub, role } = request.user;
-    if (!(await canAccessVehicle(sub, role, vehicleId))) return reply.code(403).send({ error: "forbidden" });
+    if (!(await getVehicleAccess(sub, role, vehicleId)).canManage) return reply.code(403).send({ error: "forbidden" });
 
     await prisma.hyundaiVehicleLink.deleteMany({ where: { vehicleId } });
     return reply.code(204).send();
