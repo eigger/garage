@@ -180,7 +180,14 @@ export default function VehicleOverviewPage() {
           setUploadProgress(0);
           const uploaded = await uploadAttachment(`/api/attachments?vehicleId=${vehicleId}`, regFile, setUploadProgress);
           setUploadProgress(null);
-          if (!uploaded) showToast(t("attachmentUploadFailed"), "error");
+          if (!uploaded) {
+            showToast(t("attachmentUploadFailed"), "error");
+          } else {
+            // 등록증은 차량당 한 장만 보여준다. 새 파일이 올라갔으면 이전 파일은 정리한다 —
+            // 남겨 두면 보이지 않는 파일이 디스크와 백업에 계속 쌓인다.
+            const previous = (vehicle?.attachments ?? []).filter((att) => att.vehicleId === vehicleId);
+            await Promise.all(previous.map((att) => apiFetch(`/api/attachments/${att.id}`, { method: "DELETE" }).catch(() => {})));
+          }
         }
         setEditing(false);
         setRegFile(null);
@@ -200,7 +207,10 @@ export default function VehicleOverviewPage() {
 
   if (loading) return <PageLoader />;
 
-  const regCertificate = vehicle?.attachments?.find((att) => att.vehicleId === vehicleId);
+  // 배열 순서가 보장되지 않으므로 가장 최근에 올린 등록증을 고른다.
+  const regCertificate = (vehicle?.attachments ?? [])
+    .filter((att) => att.vehicleId === vehicleId)
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0];
 
   return (
     <>
