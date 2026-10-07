@@ -20,6 +20,10 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
   const { t } = useSettings();
   const [vehicle, setVehicle] = useState<Vehicle | null>(null);
   const [allVehicles, setAllVehicles] = useState<Vehicle[]>([]);
+  // 403/404면 이 차량은 없거나(삭제) 볼 권한이 없다(공유 해제). 이때는 자식 화면을 그리지 않는다 —
+  // 그리면 0원짜리 카드와 입력 폼이 정상처럼 보이고, 제출해서야 일반 오류가 뜬다.
+  // 네트워크/5xx 같은 일시 오류는 차량 접근 불가로 단정할 수 없어 기존처럼 자식을 그대로 둔다.
+  const [unavailable, setUnavailable] = useState(false);
 
   useEffect(() => {
     requireAuth();
@@ -33,9 +37,24 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
+    setUnavailable(false);
     apiFetch(`/api/vehicles/${vehicleId}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then(setVehicle);
+      .then((res) => {
+        if (cancelled) return;
+        if (res.status === 403 || res.status === 404) {
+          setUnavailable(true);
+          return null;
+        }
+        return res.ok ? res.json() : null;
+      })
+      .then((data) => {
+        if (!cancelled) setVehicle(data ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, [user, vehicleId]);
 
   useEffect(() => {
@@ -61,6 +80,18 @@ export default function VehicleLayout({ children }: { children: ReactNode }) {
     );
   }
   if (!user) return null;
+
+  if (unavailable) {
+    return (
+      <main className="container">
+        <h1>{t("vehicleUnavailableTitle")}</h1>
+        <p>{t("vehicleUnavailableBody")}</p>
+        <Link href="/vehicles">
+          <button type="button">{t("backToVehicleList")}</button>
+        </Link>
+      </main>
+    );
+  }
 
   return (
     <main className="container">
