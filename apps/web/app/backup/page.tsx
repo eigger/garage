@@ -126,7 +126,7 @@ export default function BackupPage() {
    * 링크로 받는다. 예전에는 fetch로 받아 blob으로 만들어 저장했는데, 그러면
    * 아카이브가 브라우저 메모리에 통째로 올라온다 — 서버 쪽에서 같은 이유로 스트림으로
    * 바꾼 것과 같은 문제다. 브라우저 링크는 Authorization 헤더를 못 붙이므로
-   * 첨부·리포트 링크가 이미 쓰는 `?token=` 폴백을 그대로 쓴다.
+   * 리포트 내보내기 링크가 쓰는 `?token=` 폴백을 그대로 쓴다.
    */
   function downloadUrl(current: BackupJob): string {
     const token = getToken();

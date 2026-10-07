@@ -102,6 +102,16 @@ export async function buildApp(): Promise<FastifyInstance> {
   // 기본은 전역 미적용 — 무차별 대입 방어가 필요한 로그인 라우트에서만 개별적으로 설정한다.
   await app.register(rateLimit, { global: false });
 
+  // 기본 404 핸들러는 원본 URL을 메시지 문자열로 로그에 남겨 ?token= 마스킹을 우회한다.
+  app.setNotFoundHandler((request, reply) => {
+    request.log.info(`Route ${request.method}:${redactTokenInUrl(request.url)} not found`);
+    reply.code(404).send({
+      message: `Route ${request.method}:${request.url.split("?")[0]} not found`,
+      error: "Not Found",
+      statusCode: 404,
+    });
+  });
+
   // JWT 서명 검증까지만 하고, 페이로드를 그대로 신뢰하지는 않는다. 토큰 수명이 90일이라
   // 역할 강등·계정 삭제·비밀번호 초기화가 토큰에 반영되지 않으면 최대 90일간 옛 권한이
   // 살아있게 된다 — 요청마다 DB에서 현재 상태를 읽어 덮어쓰는 비용(가족 규모에선 무시 가능)이
