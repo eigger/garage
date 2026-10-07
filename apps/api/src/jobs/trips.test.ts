@@ -162,4 +162,15 @@ describe("closeTripsForVehicle — no phantom 0km trips after a real trip", () =
 
     expect(await prisma.trip.count({ where: { vehicleId } })).toBe(0);
   });
+
+  // 정기 실행은 최근 구간만 읽는다 — 기간 밖의 미배정 포인트로는 트립을 만들지 않고, 전체 실행은 따라잡는다.
+  it("scheduled runs ignore unassigned points older than the lookback window; a full run still catches up", async () => {
+    await seedCommuteWithIdleAndTailPoints();
+
+    await closeTripsForVehicle(vehicleId, new Date("2026-09-01T00:00:00.000Z"));
+    expect(await prisma.trip.count({ where: { vehicleId } })).toBe(0);
+
+    await closeTripsForVehicle(vehicleId);
+    expect(await prisma.trip.count({ where: { vehicleId } })).toBe(1);
+  });
 });

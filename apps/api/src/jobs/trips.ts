@@ -26,16 +26,39 @@ type Point = {
   odometer: number | null;
 };
 
-export async function closeTrips(): Promise<void> {
-  const vehicles = await prisma.vehicle.findMany({ select: { id: true } });
-  for (const vehicle of vehicles) {
-    await closeTripsForVehicle(vehicle.id);
+// 정기 실행이 읽는 미배정 포인트의 기간. 트립은 마지막 활성 포인트로부터 TRIP_GAP_MINUTES가 지나면
+// 바로 닫히므로, 서버가 멈춰 있던 경우가 아니면 이보다 오래된 미배정 포인트는 전부 "주차 중에 계속 들어온
+// 비활성 포인트"다. 그걸 5분마다 전부(최대 1년치) 다시 읽던 부하를 막는다. 기동 시 1회 실행은 전체를 훑어
+// 다운타임 동안 밀린 구간도 따라잡는다.
+const SCHEDULED_LOOKBACK_MS = 3 * 24 * 60 * 60 * 1000;
+
+let closing = false;
+
+export async function closeTrips({ full = false }: { full?: boolean } = {}): Promise<void> {
+  // 한 번의 실행이 5분을 넘기면 다음 실행이 같은 구간을 동시에 처리해 Trip이 중복 생성될 수 있다.
+  if (closing) return;
+  closing = true;
+  try {
+    const since = full ? undefined : new Date(Date.now() - SCHEDULED_LOOKBACK_MS);
+    const vehicles = await prisma.vehicle.findMany({ select: { id: true } });
+    for (const vehicle of vehicles) {
+      await closeTripsForVehicle(vehicle.id, since);
+    }
+  } finally {
+    closing = false;
   }
 }
 
-export async function closeTripsForVehicle(vehicleId: string): Promise<void> {
+export async function closeTripsForVehicle(vehicleId: string, since?: Date): Promise<void> {
   const points = await prisma.telemetryRaw.findMany({
-    where: { vehicleId, tripId: null, excludedFromTrips: false, lat: { not: null }, lon: { not: null } },
+    where: {
+      vehicleId,
+      tripId: null,
+      excludedFromTrips: false,
+      lat: { not: null },
+      lon: { not: null },
+      ...(since ? { time: { gte: since } } : {}),
+    },
     orderBy: { time: "asc" },
     select: {
       id: true,
@@ -222,7 +245,7 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
 
 export function startTripJob(): void {
   // 서버 기동 시 한 번 정리하고, 이후 5분마다 새로 들어온 텔레메트리를 트립으로 닫는다.
-  closeTrips().catch((err) => console.error("[trips] initial close failed", err));
+  closeTrips({ full: true }).catch((err) => console.error("[trips] initial close failed", err));
   cron.schedule("*/5 * * * *", () => {
     closeTrips().catch((err) => console.error("[trips] scheduled close failed", err));
   });
