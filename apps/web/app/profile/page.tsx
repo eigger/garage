@@ -175,7 +175,8 @@ export default function ProfilePage() {
       const emailChanged = email.trim().toLowerCase() !== (user?.email ?? "").toLowerCase();
       if (emailChanged) body.email = email;
       if (newPassword) body.newPassword = newPassword;
-      if (newPassword || emailChanged) body.currentPassword = currentPassword;
+      // 비어 있으면 보내지 않는다 — 서버가 "currentPassword is required"로 정확히 안내한다.
+      if ((newPassword || emailChanged) && currentPassword) body.currentPassword = currentPassword;
 
       const res = await apiFetch("/api/auth/profile", {
         method: "PATCH",
