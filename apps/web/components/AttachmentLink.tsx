@@ -34,7 +34,7 @@ export function AttachmentLink({
       tabIndex={0}
       style={{ cursor: "pointer", ...style }}
       onKeyDown={async (e) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
+        if ((e.key !== "Enter" && e.key !== " ") || e.repeat) return;
         e.preventDefault();
         if (!(await openAttachment(filePath, blobUrl))) showToast(t("attachmentOpenFailed"), "error");
       }}

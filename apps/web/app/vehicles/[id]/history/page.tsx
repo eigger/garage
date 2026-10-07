@@ -1077,9 +1077,11 @@ function AttachmentList({
                 backgroundColor: "var(--color-surface-secondary)",
               }}
             >
-              <span style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                <FileTextIcon /> PDF
-              </span>
+              {att.mimeType.startsWith("image/") ? undefined : (
+                <span style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                  <FileTextIcon /> PDF
+                </span>
+              )}
             </AttachmentLink>
             {editable && (
               <button
