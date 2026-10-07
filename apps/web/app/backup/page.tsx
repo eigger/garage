@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { API_URL, apiFetch, getToken } from "../../lib/api";
+import { API_URL, apiFetch, clearToken, getToken } from "../../lib/api";
 import { useAuth } from "../../lib/auth-context";
 import { useSettings } from "../../lib/i18n/settings-context";
 import { PageLoader } from "../../components/PageLoader";
@@ -92,7 +92,7 @@ export default function BackupPage() {
   if (user.role !== "ADMIN") {
     return (
       <main className="container">
-        <p style={{ color: "var(--color-danger)", fontWeight: "600" }}>Forbidden: Admin access only.</p>
+        <p style={{ color: "var(--color-danger)", fontWeight: "600" }}>{t("adminOnlyForbidden")}</p>
       </main>
     );
   }
@@ -173,7 +173,8 @@ export default function BackupPage() {
         showToast(t("backupSuccess"), "success");
         // Clear tokens and redirect to login as database is fully restored.
         // A short delay lets the success toast be visible before the full page reload wipes it.
-        localStorage.clear();
+        // 언어·테마·단위 같은 개인 설정은 남기고 세션 토큰만 지운다.
+        clearToken();
         setTimeout(() => {
           window.location.href = withBasePath("/login");
         }, 1200);
@@ -198,7 +199,7 @@ export default function BackupPage() {
         <section className="card">
           <h2>{t("backupExportButton").split(" (")[0]}</h2>
           <p style={{ fontSize: 14, color: "var(--color-text-muted)", margin: "8px 0 16px" }}>
-            내보내기를 실행하면 차량 데이터베이스 테이블 내용과 업로드된 모든 이미지/PDF 영수증 파일이 하나의 압축 파일로 다운로드됩니다.
+            {t("backupExportDescription")}
           </p>
           {!job && (
             <button type="button" onClick={handleExport} disabled={loading}>

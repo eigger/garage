@@ -28,11 +28,11 @@ function formatRelativeTime(dateStr: string, t: any): string {
   const diffMs = now.getTime() - date.getTime();
   const diffMins = Math.floor(diffMs / 60000);
   if (diffMins < 1) return t("justNow");
-  if (diffMins < 60) return `${diffMins}분 전`;
+  if (diffMins < 60) return t("minutesAgo", { n: String(diffMins) });
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}시간 전`;
+  if (diffHours < 24) return t("hoursAgo", { n: String(diffHours) });
   const diffDays = Math.floor(diffHours / 24);
-  return `${diffDays}일 전`;
+  return t("daysAgo", { n: String(diffDays) });
 }
 
 export default function VehicleOverviewPage() {
@@ -165,12 +165,13 @@ export default function VehicleOverviewPage() {
           vin: vin || null,
           tireSize: tireSize || null,
           batteryCapacity: batteryCapacity || null,
+          // 칸을 비우면 0으로 덮어쓰지 않고 기존 값을 그대로 둔다(필드를 보내지 않음).
           odometer:
             odometer === prefilledOdometer
-              ? vehicle?.odometer ?? 0
+              ? vehicle?.odometer ?? undefined
               : odometer
                 ? toStoredDistance(Number(odometer))
-                : 0,
+                : undefined,
         }),
       });
 
@@ -463,7 +464,7 @@ export default function VehicleOverviewPage() {
                         <PaperclipIcon /> {t("registrationCertificate")} ({regCertificate.mimeType.split("/")[1]?.toUpperCase() || "FILE"})
                       </a>
                     ) : (
-                      <span style={{ color: "var(--color-text-muted-2)" }}>미등록 (Not registered)</span>
+                      <span style={{ color: "var(--color-text-muted-2)" }}>{t("notRegistered")}</span>
                     )}
                   </div>
                 </>
