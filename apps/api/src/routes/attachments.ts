@@ -6,8 +6,8 @@ import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { canAccessVehicle } from "../lib/access.js";
 import { processImageForStorage } from "../lib/imageProcessing.js";
+import { UPLOAD_DIR } from "../lib/uploads.js";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), "uploads");
 const ALLOWED_MIME = new Set([
   "image/jpeg",
   "image/png",

@@ -1,5 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
+import { UPLOAD_DIR } from "../lib/uploads.js";
 import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
@@ -21,7 +22,6 @@ import {
 } from "../lib/backupJobs.js";
 
 const execAsync = promisify(exec);
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), "uploads");
 
 /** 아카이브가 자라는 속도를 재는 주기 */
 const ARCHIVE_POLL_MS = 500;
@@ -134,7 +134,13 @@ export async function backupRoutes(app: FastifyInstance) {
 
           const source = path.join(UPLOAD_DIR, item.name);
           const size = await stat(source).then((info) => info.size).catch(() => 0);
-          await linkOrCopy(source, path.join(filesDir, item.name));
+          // 목록을 읽은 뒤 그 파일이 삭제된 경우(기록 삭제와 겹침)는 건너뛴다 — 백업 전체를 실패시킬 이유가 없다.
+          try {
+            await linkOrCopy(source, path.join(filesDir, item.name));
+          } catch (err) {
+            if ((err as NodeJS.ErrnoException)?.code === "ENOENT") continue;
+            throw err;
+          }
           const current = getBackupJob(job.id);
           if (current) current.stagedBytes += size;
           abortIfCancelled();
