@@ -124,6 +124,11 @@ export async function backupRoutes(app: FastifyInstance) {
       const telemetryMax = await prisma.telemetryRaw.aggregate({ _max: { id: true } });
       const maxTelemetryId = telemetryMax._max.id;
       const vehicleIds = vehicles.map((v) => v.id);
+      // 트립 마감 잡이 내보내는 동안 기존 포인트에 새 트립을 배정할 수 있다. 스냅샷의 trips에 없는
+      // tripId를 그대로 두면 복원이 FK 위반으로 실패하므로 비운다(복원 후 트립 잡이 다시 묶는다).
+      const tripIds = new Set(trips.map((t) => t.id));
+      const stripUnknownTrip = <T extends { tripId: string | null }>(row: T): T =>
+        row.tripId !== null && !tripIds.has(row.tripId) ? { ...row, tripId: null } : row;
 
       async function* dbJsonChunks(): AsyncGenerator<string> {
         yield "{\n";
@@ -142,14 +147,18 @@ export async function backupRoutes(app: FastifyInstance) {
           let first = true;
           for (;;) {
             abortIfCancelled();
+            // Prisma의 cursor는 커서 행이 그사이 지워지면(보존 기간 삭제·차량 삭제) 빈 결과를 돌려줘
+            // 조용히 잘린 백업이 된다. 범위 조건(id > 마지막 id)은 행이 사라져도 안전하다.
             const batch = await prisma.telemetryRaw.findMany({
               take: TELEMETRY_EXPORT_BATCH,
-              where: { id: { lte: maxTelemetryId }, vehicleId: { in: vehicleIds } },
+              where: {
+                id: { lte: maxTelemetryId, ...(cursor !== undefined ? { gt: cursor } : {}) },
+                vehicleId: { in: vehicleIds },
+              },
               orderBy: { id: "asc" },
-              ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
             });
             if (batch.length === 0) break;
-            yield (first ? "\n" : ",\n") + batch.map((row) => JSON.stringify(row, jsonReplacer)).join(",\n");
+            yield (first ? "\n" : ",\n") + batch.map((row) => JSON.stringify(stripUnknownTrip(row), jsonReplacer)).join(",\n");
             first = false;
             cursor = batch[batch.length - 1].id;
             if (batch.length < TELEMETRY_EXPORT_BATCH) break;
