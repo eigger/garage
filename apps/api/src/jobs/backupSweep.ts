@@ -1,7 +1,6 @@
-import path from "node:path";
 import { sweepExpiredBackupJobs, sweepStaleBackupArtifacts } from "../lib/backupJobs.js";
+import { UPLOAD_DIR } from "../lib/uploads.js";
 
-const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), "uploads");
 const SWEEP_INTERVAL_MS = 60 * 60 * 1000;
 
 /**
