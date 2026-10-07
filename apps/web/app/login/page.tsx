@@ -190,7 +190,7 @@ export default function LoginPage() {
             <input
               type="text"
               autoComplete="name"
-              placeholder={t("name")}
+              placeholder={t("name")} aria-label={t("name")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -199,7 +199,7 @@ export default function LoginPage() {
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder={t("emailPlaceholder")}
+              placeholder={t("emailPlaceholder")} aria-label={t("emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -207,7 +207,7 @@ export default function LoginPage() {
             <input
               type="password"
               autoComplete="new-password"
-              placeholder={t("passwordPlaceholder")}
+              placeholder={t("passwordPlaceholder")} aria-label={t("passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -215,7 +215,7 @@ export default function LoginPage() {
             <input
               type="password"
               autoComplete="new-password"
-              placeholder={t("confirmPassword")}
+              placeholder={t("confirmPassword")} aria-label={t("confirmPassword")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -247,7 +247,7 @@ export default function LoginPage() {
             <input
               type="text"
               autoComplete="name"
-              placeholder={t("name")}
+              placeholder={t("name")} aria-label={t("name")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
@@ -256,7 +256,7 @@ export default function LoginPage() {
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder={t("emailPlaceholder")}
+              placeholder={t("emailPlaceholder")} aria-label={t("emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -264,7 +264,7 @@ export default function LoginPage() {
             <input
               type="password"
               autoComplete="new-password"
-              placeholder={t("passwordPlaceholder")}
+              placeholder={t("passwordPlaceholder")} aria-label={t("passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -272,7 +272,7 @@ export default function LoginPage() {
             <input
               type="password"
               autoComplete="new-password"
-              placeholder={t("confirmPassword")}
+              placeholder={t("confirmPassword")} aria-label={t("confirmPassword")}
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
@@ -302,7 +302,7 @@ export default function LoginPage() {
               type="email"
               inputMode="email"
               autoComplete="email"
-              placeholder={t("emailPlaceholder")}
+              placeholder={t("emailPlaceholder")} aria-label={t("emailPlaceholder")}
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -310,7 +310,7 @@ export default function LoginPage() {
             <input
               type="password"
               autoComplete="current-password"
-              placeholder={t("passwordPlaceholder")}
+              placeholder={t("passwordPlaceholder")} aria-label={t("passwordPlaceholder")}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

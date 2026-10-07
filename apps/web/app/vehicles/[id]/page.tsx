@@ -334,7 +334,7 @@ export default function VehicleOverviewPage() {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleMake")}</label>
                   <input
-                    placeholder={t("vehicleMake")}
+                    placeholder={t("vehicleMake")} aria-label={t("vehicleMake")}
                     value={make}
                     onChange={(e) => setMake(e.target.value)}
                   />
@@ -342,7 +342,7 @@ export default function VehicleOverviewPage() {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleModel")}</label>
                   <input
-                    placeholder={t("vehicleModel")}
+                    placeholder={t("vehicleModel")} aria-label={t("vehicleModel")}
                     value={model}
                     onChange={(e) => setModel(e.target.value)}
                   />
@@ -350,7 +350,7 @@ export default function VehicleOverviewPage() {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehiclePlate")}</label>
                   <input
-                    placeholder={t("vehiclePlate")}
+                    placeholder={t("vehiclePlate")} aria-label={t("vehiclePlate")}
                     value={plate}
                     onChange={(e) => setPlate(e.target.value)}
                   />
@@ -359,7 +359,7 @@ export default function VehicleOverviewPage() {
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleYear")}</label>
                   <input
                     type="number"
-                    placeholder={t("vehicleYear")}
+                    placeholder={t("vehicleYear")} aria-label={t("vehicleYear")}
                     value={year}
                     onChange={(e) => setYear(e.target.value)}
                   />
@@ -368,7 +368,7 @@ export default function VehicleOverviewPage() {
               <div style={{ marginTop: 12 }}>
                 <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleVin")}</label>
                 <input
-                  placeholder={t("vehicleVin")}
+                  placeholder={t("vehicleVin")} aria-label={t("vehicleVin")}
                   value={vin}
                   onChange={(e) => setVin(e.target.value)}
                   style={{ width: "100%" }}
@@ -379,7 +379,7 @@ export default function VehicleOverviewPage() {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleTireSize")}</label>
                   <input
-                    placeholder="205/55R16"
+                    placeholder="205/55R16" aria-label={t("vehicleTireSize")}
                     value={tireSize}
                     onChange={(e) => setTireSize(e.target.value)}
                   />
@@ -387,7 +387,7 @@ export default function VehicleOverviewPage() {
                 <div>
                   <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("vehicleBatteryCapacity")}</label>
                   <input
-                    placeholder="77.4 kWh"
+                    placeholder="77.4 kWh" aria-label={t("vehicleBatteryCapacity")}
                     value={batteryCapacity}
                     onChange={(e) => setBatteryCapacity(e.target.value)}
                   />
@@ -398,7 +398,7 @@ export default function VehicleOverviewPage() {
                 <label style={{ fontSize: 12, fontWeight: "600", color: "var(--color-text-muted)" }}>{t("dashboardOdometer")}</label>
                 <input
                   type="number"
-                  placeholder={`${t("dashboardOdometer")} (${distanceUnit})`}
+                  placeholder={`${t("dashboardOdometer")} (${distanceUnit})`} aria-label={`${t("dashboardOdometer")} (${distanceUnit})`}
                   value={odometer}
                   onChange={(e) => setOdometer(e.target.value)}
                   style={{ width: "100%" }}

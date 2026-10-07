@@ -238,14 +238,14 @@ function PresetRow({
           {!isAdministrative && (
             <input
               type="number"
-              placeholder={t("intervalKm")}
+              placeholder={t("intervalKm")} aria-label={t("intervalKm")}
               value={intervalKm}
               onChange={(e) => setIntervalKm(e.target.value)}
             />
           )}
           <input
             type="number"
-            placeholder={t("intervalMonths")}
+            placeholder={t("intervalMonths")} aria-label={t("intervalMonths")}
             value={intervalMonths}
             onChange={(e) => setIntervalMonths(e.target.value)}
           />
@@ -429,7 +429,7 @@ function AddPresetForm({
         </select>
       ) : (
         <input
-          placeholder={t("itemName")}
+          placeholder={t("itemName")} aria-label={t("itemName")}
           value={customName}
           onChange={(e) => setCustomName(e.target.value)}
         />
@@ -438,14 +438,14 @@ function AddPresetForm({
       {!isAdministrative && (
         <input
           type="number"
-          placeholder={t("intervalKm")}
+          placeholder={t("intervalKm")} aria-label={t("intervalKm")}
           value={intervalKm}
           onChange={(e) => setIntervalKm(e.target.value)}
         />
       )}
       <input
         type="number"
-        placeholder={t("intervalMonths")}
+        placeholder={t("intervalMonths")} aria-label={t("intervalMonths")}
         value={intervalMonths}
         onChange={(e) => setIntervalMonths(e.target.value)}
       />

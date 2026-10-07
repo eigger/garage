@@ -320,28 +320,28 @@ export default function VehiclesPage() {
       <h2>{t("addVehicle")}</h2>
       <form onSubmit={handleSubmit} className="form" noValidate>
         <input
-          placeholder={t("vehicleName")}
+          placeholder={t("vehicleName")} aria-label={t("vehicleName")}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <input
-          placeholder={t("vehiclePlate")}
+          placeholder={t("vehiclePlate")} aria-label={t("vehiclePlate")}
           value={plate}
           onChange={(e) => setPlate(e.target.value)}
         />
         <input
-          placeholder={t("vehicleMake")}
+          placeholder={t("vehicleMake")} aria-label={t("vehicleMake")}
           value={make}
           onChange={(e) => setMake(e.target.value)}
         />
         <input
-          placeholder={t("vehicleModel")}
+          placeholder={t("vehicleModel")} aria-label={t("vehicleModel")}
           value={model}
           onChange={(e) => setModel(e.target.value)}
         />
         <input
           type="number"
-          placeholder={t("vehicleYear")}
+          placeholder={t("vehicleYear")} aria-label={t("vehicleYear")}
           value={year}
           onChange={(e) => setYear(e.target.value)}
         />

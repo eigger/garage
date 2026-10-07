@@ -376,7 +376,7 @@ export default function UsersPage() {
                       <input
                         type="password"
                         autoComplete="new-password"
-                        placeholder={t("newPassword")}
+                        placeholder={t("newPassword")} aria-label={t("newPassword")}
                         value={resetPassword}
                         onChange={(e) => setResetPassword(e.target.value)}
                         style={{ flex: 1 }}
@@ -413,27 +413,27 @@ export default function UsersPage() {
       <h2>{t("addUser")}</h2>
       <form onSubmit={handleSubmit} className="form" noValidate>
         <input
-          placeholder={t("name")}
+          placeholder={t("name")} aria-label={t("name")}
           value={name}
           onChange={(e) => setName(e.target.value)}
         />
         <input
           type="email"
-          placeholder={t("emailPlaceholder")}
+          placeholder={t("emailPlaceholder")} aria-label={t("emailPlaceholder")}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
         />
         <input
           type="password"
           autoComplete="new-password"
-          placeholder={t("passwordPlaceholder")}
+          placeholder={t("passwordPlaceholder")} aria-label={t("passwordPlaceholder")}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         />
         <input
           type="password"
           autoComplete="new-password"
-          placeholder={t("confirmPassword")}
+          placeholder={t("confirmPassword")} aria-label={t("confirmPassword")}
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
         />

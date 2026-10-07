@@ -226,7 +226,7 @@ export default function ProfilePage() {
             value={name}
             onChange={(e) => setName(e.target.value)}
             required
-            placeholder={t("name")}
+            placeholder={t("name")} aria-label={t("name")}
           />
         </div>
 
@@ -237,7 +237,7 @@ export default function ProfilePage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
-            placeholder={t("emailPlaceholder")}
+            placeholder={t("emailPlaceholder")} aria-label={t("emailPlaceholder")}
           />
         </div>
 
@@ -251,7 +251,7 @@ export default function ProfilePage() {
             type="password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            placeholder={t("currentPassword")}
+            placeholder={t("currentPassword")} aria-label={t("currentPassword")}
           />
         </div>
 
@@ -262,7 +262,7 @@ export default function ProfilePage() {
             autoComplete="new-password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            placeholder={t("newPassword")}
+            placeholder={t("newPassword")} aria-label={t("newPassword")}
           />
         </div>
 
@@ -273,7 +273,7 @@ export default function ProfilePage() {
             autoComplete="new-password"
             value={confirmNewPassword}
             onChange={(e) => setConfirmNewPassword(e.target.value)}
-            placeholder={t("confirmPassword")}
+            placeholder={t("confirmPassword")} aria-label={t("confirmPassword")}
           />
         </div>
 

@@ -428,7 +428,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         <input
           type="number"
           inputMode="numeric"
-          placeholder={t("odometer")}
+          placeholder={t("odometer")} aria-label={t("odometer")}
           value={odometer}
           onChange={(e) => setOdometer(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
@@ -474,7 +474,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       {stations.length === 0 && (
         <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
           <input
-            placeholder={t("gasStation")}
+            placeholder={t("gasStation")} aria-label={t("gasStation")}
             value={location}
             onChange={(e) => {
               setLocation(e.target.value);
@@ -533,7 +533,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
       )}
 
       <input
-        placeholder={t("addressOptional")}
+        placeholder={t("addressOptional")} aria-label={t("addressOptional")}
         value={stationAddress || ""}
         onChange={(e) => setStationAddress(e.target.value)}
         onBlur={handleAddressBlur}
@@ -547,7 +547,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         <input
           type="number"
           inputMode="numeric"
-          placeholder={t("unitPricePerVolume", { unit: t(fuelVolumeNameKey(vehicle?.fuelType ?? null, effectiveVolumeUnit)) })}
+          placeholder={t("unitPricePerVolume", { unit: t(fuelVolumeNameKey(vehicle?.fuelType ?? null, effectiveVolumeUnit)) })} aria-label={t("unitPricePerVolume", { unit: t(fuelVolumeNameKey(vehicle?.fuelType ?? null, effectiveVolumeUnit)) })}
           value={unitPrice}
           onChange={(e) => handleUnitPriceChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
@@ -562,7 +562,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
           type="number"
           inputMode="decimal"
           step="0.01"
-          placeholder={vehicle?.fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel}
+          placeholder={vehicle?.fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel} aria-label={vehicle?.fuelType === "ELECTRIC" ? t("chargeAmount") : volumeUnitLabel}
           value={liters}
           onChange={(e) => handleLitersChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
@@ -576,7 +576,7 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
         <input
           type="number"
           inputMode="numeric"
-          placeholder={t("cost")}
+          placeholder={t("cost")} aria-label={t("cost")}
           value={cost}
           onChange={(e) => handleCostChange(e.target.value)}
           style={{ width: "100%", paddingRight: 40 }}
@@ -914,7 +914,7 @@ function QuickMaintenanceForm({
           <input
             type="number"
             inputMode="numeric"
-            placeholder={t("odometer")}
+            placeholder={t("odometer")} aria-label={t("odometer")}
             value={odometer}
             onChange={(e) => setOdometer(e.target.value)}
             style={{ width: "100%", paddingRight: 40 }}
@@ -1003,7 +1003,7 @@ function QuickMaintenanceForm({
 
         {/* 직접 입력 */}
         <input
-          placeholder={t("maintenanceType")}
+          placeholder={t("maintenanceType")} aria-label={t("maintenanceType")}
           value={customType}
           onChange={(e) => setCustomType(e.target.value)}
         />
@@ -1012,7 +1012,7 @@ function QuickMaintenanceForm({
           <input
             type="number"
             inputMode="numeric"
-            placeholder={t("cost")}
+            placeholder={t("cost")} aria-label={t("cost")}
             value={cost}
             onChange={(e) => setCost(e.target.value)}
             style={{ width: "100%", paddingRight: 40 }}
@@ -1050,7 +1050,7 @@ function QuickMaintenanceForm({
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
             <div style={{ display: "flex", gap: "8px", alignItems: "center", width: "100%" }}>
               <input
-                placeholder={t("shop")}
+                placeholder={t("shop")} aria-label={t("shop")}
                 value={shop}
                 onChange={(e) => setShop(e.target.value)}
                 style={{ flex: 1, marginBottom: 0, height: "48px", minHeight: "48px" }}
@@ -1107,7 +1107,7 @@ function QuickMaintenanceForm({
               </div>
             )}
             <input
-              placeholder={t("addressOptional")}
+              placeholder={t("addressOptional")} aria-label={t("addressOptional")}
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               onBlur={handleAddressBlur}
@@ -1118,7 +1118,7 @@ function QuickMaintenanceForm({
                 {t("geocoding")}
               </p>
             )}
-            <input placeholder={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <input placeholder={t("notes")} aria-label={t("notes")} value={notes} onChange={(e) => setNotes(e.target.value)} />
           </>
         )}
 
