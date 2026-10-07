@@ -51,6 +51,9 @@ export const consumablePartUpdateSchema = consumablePartSchema
   .omit({ vehicleId: true })
   .partial()
   .extend({
+    // 주기를 지우려면 null을 보낸다(undefined는 "변경 없음").
+    expectedLifeKm: z.number().int().positive().nullable().optional(),
+    expectedLifeMonths: z.number().int().positive().nullable().optional(),
     recordCompletion: z.boolean().optional(),
     completionCost: z.number().int().nonnegative().optional(),
     completionShop: z.string().optional(),

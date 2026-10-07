@@ -16,7 +16,11 @@ export async function syncReminders(vehicleId?: string): Promise<void> {
   const odometerCache = new Map<string, number>();
 
   for (const part of parts) {
-    if (!part.expectedLifeKm && !part.expectedLifeMonths) continue;
+    if (!part.expectedLifeKm && !part.expectedLifeMonths) {
+      // 주기를 모두 지운 항목의 알림은 더 이상 기준이 없으므로 정리한다.
+      await prisma.reminder.deleteMany({ where: { consumablePartId: part.id } });
+      continue;
+    }
 
     const { dueDate, dueOdometer } = computeDueBaseline(part);
 
