@@ -89,6 +89,8 @@ export async function backupRoutes(app: FastifyInstance) {
         attachments,
         presets,
         pushSubscriptions,
+        xpEvents,
+        badges,
       ] = await Promise.all([
         prisma.user.findMany(),
         prisma.vehicle.findMany(),
@@ -102,6 +104,8 @@ export async function backupRoutes(app: FastifyInstance) {
         prisma.attachment.findMany(),
         prisma.maintenancePresetTemplate.findMany(),
         prisma.pushSubscription.findMany(),
+        prisma.xpEvent.findMany(),
+        prisma.vehicleBadge.findMany(),
       ]);
 
       const dbData = {
@@ -117,6 +121,11 @@ export async function backupRoutes(app: FastifyInstance) {
         attachments,
         presets,
         pushSubscriptions,
+        // Vehicle.xp만 복원하면 숫자는 남는데 획득 내역·뱃지가 비어 레벨 화면과 어긋난다.
+        // 블루링크 연동(HyundaiAccountLink/VehicleLink)은 액세스·리프레시 토큰을 담고 있어
+        // Setting과 마찬가지로 유출 위험 때문에 일부러 백업에서 제외한다 — 복원 후 다시 연동해야 한다.
+        xpEvents,
+        badges,
       };
 
       await mkdir(filesDir, { recursive: true });
@@ -378,6 +387,8 @@ export async function backupRoutes(app: FastifyInstance) {
       // We clear tables in reverse dependency order, and insert in correct order
       await prisma.$transaction(async (tx) => {
         // Clear all existing data
+        await tx.xpEvent.deleteMany();
+        await tx.vehicleBadge.deleteMany();
         await tx.pushSubscription.deleteMany();
         await tx.telemetryRaw.deleteMany();
         await tx.reminder.deleteMany();
@@ -403,6 +414,12 @@ export async function backupRoutes(app: FastifyInstance) {
         }
         if (dbData.vehicles?.length) {
           await tx.vehicle.createMany({ data: dbData.vehicles });
+        }
+        if (dbData.xpEvents?.length) {
+          await tx.xpEvent.createMany({ data: dbData.xpEvents });
+        }
+        if (dbData.badges?.length) {
+          await tx.vehicleBadge.createMany({ data: dbData.badges });
         }
         if (dbData.access?.length) {
           await tx.userVehicleAccess.createMany({ data: dbData.access });
