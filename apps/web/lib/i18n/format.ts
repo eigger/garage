@@ -51,3 +51,11 @@ export function formatDateTimeVal(iso: string, locale: "ko" | "en"): string {
     hour12: locale !== "ko",
   }).format(new Date(iso));
 }
+
+/**
+ * 금액은 DB에 정수(원 단위)로 저장된다. 통화를 USD로 표시해도 환산하지 않으므로 소수 입력(예: 45.67)은
+ * 서버가 400으로 거부하는데, 일반 오류 문구만 보여서 원인을 알 수 없었다 — 요청 전에 걸러서 알려준다.
+ */
+export function hasFractionalAmount(value: string): boolean {
+  return value.trim() !== "" && !Number.isInteger(Number(value));
+}
