@@ -1,4 +1,5 @@
 import { randomUUID } from "crypto";
+import { collectAttachmentFiles, removeStoredFiles } from "../lib/uploads.js";
 import type { FastifyInstance } from "fastify";
 import {
   vehicleSchema,
@@ -296,7 +297,11 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!(await getVehicleAccess(sub, role, id)).canManage) {
       return reply.code(403).send({ error: "forbidden" });
     }
+    const files = await collectAttachmentFiles({
+      OR: [{ vehicleId: id }, { fuelLog: { vehicleId: id } }, { maintenanceRecord: { vehicleId: id } }],
+    });
     await prisma.vehicle.delete({ where: { id } });
+    await removeStoredFiles(files);
     return reply.code(204).send();
   });
 
@@ -508,7 +513,9 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!existing || existing.vehicleId !== id) {
       return reply.code(404).send({ error: "fuel log not found" });
     }
+    const files = await collectAttachmentFiles({ fuelLogId: logId });
     await prisma.fuelLog.delete({ where: { id: logId } });
+    await removeStoredFiles(files);
     return reply.code(204).send();
   });
 
@@ -701,10 +708,12 @@ export async function vehicleRoutes(app: FastifyInstance) {
     if (!existing || existing.vehicleId !== id) {
       return reply.code(404).send({ error: "maintenance record not found" });
     }
+    const files = await collectAttachmentFiles({ maintenanceRecordId: recordId });
     await prisma.$transaction(async (tx) => {
       await tx.maintenanceRecord.delete({ where: { id: recordId } });
       await syncConsumablePartFromLatestRecord(tx, id, existing.type);
     });
+    await removeStoredFiles(files);
     await syncReminders(id);
     return reply.code(204).send();
   });
