@@ -68,6 +68,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   async function login(token: string) {
     setToken(token);
+    // /me가 실패해도 이전 계정의 user가 남아 새 토큰과 UI가 어긋나지 않게 먼저 비운다.
+    setUser(null);
     setLoading(true);
     await fetchMe();
   }
@@ -75,6 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   function logout() {
     clearToken();
     setUser(null);
+    setLoadError(false);
     router.push("/login");
   }
 
