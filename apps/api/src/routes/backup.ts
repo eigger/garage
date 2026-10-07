@@ -5,6 +5,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
 import { createReadStream, createWriteStream, existsSync } from "fs";
+import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { mkdir, readFile, rm, readdir, copyFile, link, stat } from "fs/promises";
 
@@ -114,56 +115,60 @@ export async function backupRoutes(app: FastifyInstance) {
       await mkdir(filesDir, { recursive: true });
       // TelemetryRaw.id는 BigInt라 JSON.stringify가 기본적으로 직렬화하지 못한다 — 문자열로 변환.
       const jsonReplacer = (_key: string, value: unknown) => (typeof value === "bigint" ? value.toString() : value);
-      const dbJson = createWriteStream(path.join(tempDir, "db.json"), { encoding: "utf8" });
-      const write = (chunk: string) =>
-        new Promise<void>((resolve, reject) => {
-          dbJson.write(chunk, (err) => (err ? reject(err) : resolve()));
-        });
+      // 에러 전파·백프레셔·스트림 정리는 pipeline에 맡긴다(디스크가 가득 찬 경우 등에 잡이 실패로 끝난다).
+      const section = (key: string, rows: unknown[]) =>
+        `  ${JSON.stringify(key)}: ${JSON.stringify(rows, jsonReplacer)},\n`;
 
-      try {
-        const section = async (key: string, rows: unknown[]) =>
-          write(`  ${JSON.stringify(key)}: ${JSON.stringify(rows, jsonReplacer)},\n`);
+      // 읽기 시작 시점의 최대 id로 상한을 둔다. 수 분 걸리는 동안 새 차량·텔레메트리가 들어오면
+      // 이미 읽어 둔 vehicles에 없는 차량을 가리키는 행이 섞여 복원이 FK 위반으로 실패한다.
+      const telemetryMax = await prisma.telemetryRaw.aggregate({ _max: { id: true } });
+      const maxTelemetryId = telemetryMax._max.id;
+      const vehicleIds = vehicles.map((v) => v.id);
 
-        await write("{\n");
-        await section("users", users);
-        await section("vehicles", vehicles);
-        await section("access", access);
-        await section("trips", trips);
-        await section("fuelLogs", fuelLogs);
-        await section("maintenanceRecords", maintenanceRecords);
-        await section("consumableParts", consumableParts);
-        await section("reminders", reminders);
+      async function* dbJsonChunks(): AsyncGenerator<string> {
+        yield "{\n";
+        yield section("users", users);
+        yield section("vehicles", vehicles);
+        yield section("access", access);
+        yield section("trips", trips);
+        yield section("fuelLogs", fuelLogs);
+        yield section("maintenanceRecords", maintenanceRecords);
+        yield section("consumableParts", consumableParts);
+        yield section("reminders", reminders);
 
-        await write('  "telemetry": [');
-        let cursor: bigint | undefined;
-        let first = true;
-        for (;;) {
-          abortIfCancelled();
-          const batch = await prisma.telemetryRaw.findMany({
-            take: TELEMETRY_EXPORT_BATCH,
-            orderBy: { id: "asc" },
-            ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
-          });
-          if (batch.length === 0) break;
-          await write((first ? "\n" : ",\n") + batch.map((row) => JSON.stringify(row, jsonReplacer)).join(",\n"));
-          first = false;
-          cursor = batch[batch.length - 1].id;
-          if (batch.length < TELEMETRY_EXPORT_BATCH) break;
+        yield '  "telemetry": [';
+        if (maxTelemetryId !== null) {
+          let cursor: bigint | undefined;
+          let first = true;
+          for (;;) {
+            abortIfCancelled();
+            const batch = await prisma.telemetryRaw.findMany({
+              take: TELEMETRY_EXPORT_BATCH,
+              where: { id: { lte: maxTelemetryId }, vehicleId: { in: vehicleIds } },
+              orderBy: { id: "asc" },
+              ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
+            });
+            if (batch.length === 0) break;
+            yield (first ? "\n" : ",\n") + batch.map((row) => JSON.stringify(row, jsonReplacer)).join(",\n");
+            first = false;
+            cursor = batch[batch.length - 1].id;
+            if (batch.length < TELEMETRY_EXPORT_BATCH) break;
+          }
         }
-        await write("\n  ],\n");
+        yield "\n  ],\n";
 
-        await section("attachments", attachments);
-        await section("presets", presets);
-        await section("pushSubscriptions", pushSubscriptions);
+        yield section("attachments", attachments);
+        yield section("presets", presets);
+        yield section("pushSubscriptions", pushSubscriptions);
         // Vehicle.xp만 복원하면 숫자는 남는데 획득 내역·뱃지가 비어 레벨 화면과 어긋난다.
         // 블루링크 연동(HyundaiAccountLink/VehicleLink)은 액세스·리프레시 토큰을 담고 있어
         // Setting과 마찬가지로 유출 위험 때문에 일부러 백업에서 제외한다 — 복원 후 다시 연동해야 한다.
-        await section("xpEvents", xpEvents);
+        yield section("xpEvents", xpEvents);
         // 마지막 항목은 쉼표 없이 닫는다.
-        await write(`  "badges": ${JSON.stringify(badges, jsonReplacer)}\n}\n`);
-      } finally {
-        if (!dbJson.destroyed) await new Promise<void>((resolve) => dbJson.end(() => resolve()));
+        yield `  "badges": ${JSON.stringify(badges, jsonReplacer)}\n}\n`;
       }
+
+      await pipeline(Readable.from(dbJsonChunks()), createWriteStream(path.join(tempDir, "db.json"), { encoding: "utf8" }));
 
       abortIfCancelled();
       updateBackupJob(job.id, { phase: "files" });

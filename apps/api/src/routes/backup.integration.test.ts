@@ -252,7 +252,8 @@ describe("backup export/restore round trip", () => {
     try {
       const archivePath = path.join(dir, "archive.tar.gz");
       await writeFile(archivePath, exportRes.rawPayload);
-      await execFileAsync("tar", ["-xzf", archivePath, "-C", dir, "db.json"]);
+      // 아카이브 멤버 이름이 "./db.json"이라 멤버를 지정하지 않고 전체를 푼다(GNU tar는 "./" 접두를 정규화하지 않는다).
+      await execFileAsync("tar", ["-xzf", archivePath, "-C", dir]);
       const db = JSON.parse(await readFile(path.join(dir, "db.json"), "utf8"));
       expect(db.telemetry).toHaveLength(expected);
       const ids = db.telemetry.map((r: { id: string }) => r.id);
