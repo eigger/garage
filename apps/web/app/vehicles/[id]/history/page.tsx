@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch, API_URL, getToken, uploadAttachment } from "../../../../lib/api";
+import { apiFetch, uploadAttachment } from "../../../../lib/api";
+import { AttachmentLink } from "../../../../components/AttachmentLink";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { useToast } from "../../../../lib/toast-context";
 import { useConfirm } from "../../../../lib/confirm-context";
@@ -1059,16 +1060,12 @@ function AttachmentList({
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
       {attachments.map((att) => {
-        const token = getToken();
-        const fileUrl = `${API_URL}/api/attachments/file/${att.filePath}${token ? `?token=${token}` : ""}`;
-        const isImage = att.mimeType.startsWith("image/");
-
         return (
           <div key={att.id} style={{ position: "relative" }}>
-            <a
-              href={fileUrl}
-              target="_blank"
-              rel="noopener noreferrer"
+            <AttachmentLink
+              filePath={att.filePath}
+              mimeType={att.mimeType}
+              imageStyle={{ width: 60, height: 60, objectFit: "cover" }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -1080,19 +1077,10 @@ function AttachmentList({
                 backgroundColor: "var(--color-surface-secondary)",
               }}
             >
-              {isImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={fileUrl}
-                  alt="Attachment"
-                  style={{ width: 60, height: 60, objectFit: "cover" }}
-                />
-              ) : (
-                <span style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <FileTextIcon /> PDF
-                </span>
-              )}
-            </a>
+              <span style={{ fontSize: 11, color: "var(--color-text-muted)", padding: "8px 12px", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <FileTextIcon /> PDF
+              </span>
+            </AttachmentLink>
             {editable && (
               <button
                 type="button"

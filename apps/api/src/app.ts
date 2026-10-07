@@ -30,6 +30,7 @@ import { settingsRoutes } from "./routes/settings.js";
 import { mapProviderRoutes } from "./routes/mapProviders.js";
 import { pushRoutes } from "./routes/push.js";
 import { reportsRoutes } from "./routes/reports.js";
+import { redactTokenInUrl } from "./lib/logRedact.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
@@ -65,7 +66,23 @@ async function checkLatestVersion(): Promise<string> {
 export async function buildApp(): Promise<FastifyInstance> {
   // 배포에서는 항상 Caddy 뒤에 있고 API 포트는 외부에 열리지 않는다. trustProxy가 없으면
   // request.ip가 전부 Caddy 컨테이너 IP가 되어 로그인/가입 rate limit이 가족 전체에 공유된다.
-  const app = Fastify({ logger: true, trustProxy: true });
+  const app = Fastify({
+    logger: {
+      serializers: {
+        // 기본 req 직렬화와 같은 필드를 남기되 URL의 ?token= 값만 가린다.
+        req(req) {
+          return {
+            method: req.method,
+            url: redactTokenInUrl(req.url),
+            host: req.host,
+            remoteAddress: req.ip,
+            remotePort: req.socket?.remotePort,
+          };
+        },
+      },
+    },
+    trustProxy: true,
+  });
 
   if (!process.env.JWT_SECRET) {
     app.log.warn("JWT_SECRET이 설정되지 않았습니다. .env를 확인하세요.");
