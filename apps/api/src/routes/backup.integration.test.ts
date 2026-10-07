@@ -232,6 +232,38 @@ describe("backup export/restore round trip", () => {
     expect(attachments.map((a) => a.maintenanceRecordId).filter(Boolean)).toEqual([maintenanceRecordId]);
   });
 
+  it("streams telemetry in several batches without losing or duplicating rows", async () => {
+    // 내보내기는 id 커서로 5,000행씩 읽는다 — 배치 경계를 넘는 양으로 순서·중복·누락을 확인한다.
+    const extra = 5_003;
+    await prisma.telemetryRaw.createMany({
+      data: Array.from({ length: extra }, (_, i) => ({ vehicleId, source: "batch-test", odometer: 20_000 + i })),
+    });
+    const expected = await prisma.telemetryRaw.count();
+
+    const jobId = await buildReadyJob();
+    const exportRes = await app.inject({
+      method: "GET",
+      url: `/api/backup/export?jobId=${jobId}`,
+      headers: { authorization: `Bearer ${adminToken}` },
+    });
+    expect(exportRes.statusCode).toBe(200);
+
+    const dir = await mkdtemp(path.join(tmpdir(), "garage-backup-read-"));
+    try {
+      const archivePath = path.join(dir, "archive.tar.gz");
+      await writeFile(archivePath, exportRes.rawPayload);
+      await execFileAsync("tar", ["-xzf", archivePath, "-C", dir, "db.json"]);
+      const db = JSON.parse(await readFile(path.join(dir, "db.json"), "utf8"));
+      expect(db.telemetry).toHaveLength(expected);
+      const ids = db.telemetry.map((r: { id: string }) => r.id);
+      expect(new Set(ids).size).toBe(expected);
+      expect(Array.isArray(db.badges)).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+      await prisma.telemetryRaw.deleteMany({ where: { source: "batch-test" } });
+    }
+  });
+
   it("rejects a restore whose only conflict is email letter-casing, without touching existing data", async () => {
     const usersBefore = await prisma.user.count();
 

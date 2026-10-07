@@ -6,7 +6,7 @@ import { promisify } from "util";
 import path from "path";
 import { createReadStream, createWriteStream, existsSync } from "fs";
 import { pipeline } from "stream/promises";
-import { mkdir, writeFile, readFile, rm, readdir, copyFile, link, stat } from "fs/promises";
+import { mkdir, readFile, rm, readdir, copyFile, link, stat } from "fs/promises";
 
 import {
   activeBackupJob,
@@ -49,6 +49,7 @@ export async function linkOrCopy(source: string, dest: string): Promise<void> {
 // "Transaction already closed"로 롤백된다. 복원은 드물고 오래 걸려도 되는 작업이다.
 const RESTORE_TX_OPTIONS = { maxWait: 30_000, timeout: 30 * 60_000 };
 const TELEMETRY_RESTORE_CHUNK = 5_000;
+const TELEMETRY_EXPORT_BATCH = 5_000;
 
 export async function backupRoutes(app: FastifyInstance) {
   // Authenticate all routes in this file
@@ -76,6 +77,10 @@ export async function backupRoutes(app: FastifyInstance) {
 
     try {
       updateBackupJob(job.id, { phase: "database" });
+      // 텔레메트리는 초 단위로 쌓이면 1년치가 수백만 행이라 findMany로 통째로 읽고 JSON.stringify로
+      // 문자열 하나를 만들면 V8 문자열 한도나 OOM에 걸려 내보내기가 실패한다. 나머지 테이블은
+      // 작아서 메모리에 올리고, 텔레메트리만 id 커서로 나눠 읽어 파일에 바로 흘려 쓴다.
+      // 파일 형식은 그대로(최상위 키 → 배열)라 복원 쪽은 바뀌지 않는다.
       const [
         users,
         vehicles,
@@ -85,7 +90,6 @@ export async function backupRoutes(app: FastifyInstance) {
         maintenanceRecords,
         consumableParts,
         reminders,
-        telemetry,
         attachments,
         presets,
         pushSubscriptions,
@@ -100,7 +104,6 @@ export async function backupRoutes(app: FastifyInstance) {
         prisma.maintenanceRecord.findMany(),
         prisma.consumablePart.findMany(),
         prisma.reminder.findMany(),
-        prisma.telemetryRaw.findMany(),
         prisma.attachment.findMany(),
         prisma.maintenancePresetTemplate.findMany(),
         prisma.pushSubscription.findMany(),
@@ -108,30 +111,59 @@ export async function backupRoutes(app: FastifyInstance) {
         prisma.vehicleBadge.findMany(),
       ]);
 
-      const dbData = {
-        users,
-        vehicles,
-        access,
-        trips,
-        fuelLogs,
-        maintenanceRecords,
-        consumableParts,
-        reminders,
-        telemetry,
-        attachments,
-        presets,
-        pushSubscriptions,
-        // Vehicle.xp만 복원하면 숫자는 남는데 획득 내역·뱃지가 비어 레벨 화면과 어긋난다.
-        // 블루링크 연동(HyundaiAccountLink/VehicleLink)은 액세스·리프레시 토큰을 담고 있어
-        // Setting과 마찬가지로 유출 위험 때문에 일부러 백업에서 제외한다 — 복원 후 다시 연동해야 한다.
-        xpEvents,
-        badges,
-      };
-
       await mkdir(filesDir, { recursive: true });
       // TelemetryRaw.id는 BigInt라 JSON.stringify가 기본적으로 직렬화하지 못한다 — 문자열로 변환.
       const jsonReplacer = (_key: string, value: unknown) => (typeof value === "bigint" ? value.toString() : value);
-      await writeFile(path.join(tempDir, "db.json"), JSON.stringify(dbData, jsonReplacer, 2), "utf8");
+      const dbJson = createWriteStream(path.join(tempDir, "db.json"), { encoding: "utf8" });
+      const write = (chunk: string) =>
+        new Promise<void>((resolve, reject) => {
+          dbJson.write(chunk, (err) => (err ? reject(err) : resolve()));
+        });
+
+      try {
+        const section = async (key: string, rows: unknown[]) =>
+          write(`  ${JSON.stringify(key)}: ${JSON.stringify(rows, jsonReplacer)},\n`);
+
+        await write("{\n");
+        await section("users", users);
+        await section("vehicles", vehicles);
+        await section("access", access);
+        await section("trips", trips);
+        await section("fuelLogs", fuelLogs);
+        await section("maintenanceRecords", maintenanceRecords);
+        await section("consumableParts", consumableParts);
+        await section("reminders", reminders);
+
+        await write('  "telemetry": [');
+        let cursor: bigint | undefined;
+        let first = true;
+        for (;;) {
+          abortIfCancelled();
+          const batch = await prisma.telemetryRaw.findMany({
+            take: TELEMETRY_EXPORT_BATCH,
+            orderBy: { id: "asc" },
+            ...(cursor !== undefined ? { cursor: { id: cursor }, skip: 1 } : {}),
+          });
+          if (batch.length === 0) break;
+          await write((first ? "\n" : ",\n") + batch.map((row) => JSON.stringify(row, jsonReplacer)).join(",\n"));
+          first = false;
+          cursor = batch[batch.length - 1].id;
+          if (batch.length < TELEMETRY_EXPORT_BATCH) break;
+        }
+        await write("\n  ],\n");
+
+        await section("attachments", attachments);
+        await section("presets", presets);
+        await section("pushSubscriptions", pushSubscriptions);
+        // Vehicle.xp만 복원하면 숫자는 남는데 획득 내역·뱃지가 비어 레벨 화면과 어긋난다.
+        // 블루링크 연동(HyundaiAccountLink/VehicleLink)은 액세스·리프레시 토큰을 담고 있어
+        // Setting과 마찬가지로 유출 위험 때문에 일부러 백업에서 제외한다 — 복원 후 다시 연동해야 한다.
+        await section("xpEvents", xpEvents);
+        // 마지막 항목은 쉼표 없이 닫는다.
+        await write(`  "badges": ${JSON.stringify(badges, jsonReplacer)}\n}\n`);
+      } finally {
+        if (!dbJson.destroyed) await new Promise<void>((resolve) => dbJson.end(() => resolve()));
+      }
 
       abortIfCancelled();
       updateBackupJob(job.id, { phase: "files" });
