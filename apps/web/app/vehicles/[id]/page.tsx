@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetch, uploadAttachment, API_URL, getToken } from "../../../lib/api";
+import { apiFetch, uploadAttachment } from "../../../lib/api";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../components/PageLoader";
 import { useToast } from "../../../lib/toast-context";
@@ -14,6 +14,7 @@ import { FUEL_TYPES } from "@garage/shared";
 import { useMapProviders } from "../../../lib/maps/useMapProviders";
 import { pickDefaultProvider } from "../../../lib/maps/types";
 import { PaperclipIcon, MapPinIcon } from "../../../components/icons";
+import { AttachmentLink } from "../../../components/AttachmentLink";
 import { formatDuration } from "../../../lib/duration";
 import dynamic from "next/dynamic";
 
@@ -465,14 +466,13 @@ export default function VehicleOverviewPage() {
                   <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: 8, marginTop: 4 }}>
                     <strong>{t("registrationCertificate")}:</strong>{" "}
                     {regCertificate ? (
-                      <a
-                        href={`${API_URL}/api/attachments/file/${regCertificate.filePath}${getToken() ? `?token=${getToken()}` : ""}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
+                      <AttachmentLink
+                        filePath={regCertificate.filePath}
+                        mimeType={regCertificate.mimeType}
                         style={{ color: "var(--color-primary)", textDecoration: "underline", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: 4 }}
                       >
                         <PaperclipIcon /> {t("registrationCertificate")} ({regCertificate.mimeType.split("/")[1]?.toUpperCase() || "FILE"})
-                      </a>
+                      </AttachmentLink>
                     ) : (
                       <span style={{ color: "var(--color-text-muted-2)" }}>{t("notRegistered")}</span>
                     )}

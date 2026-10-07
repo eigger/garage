@@ -30,6 +30,7 @@ import { settingsRoutes } from "./routes/settings.js";
 import { mapProviderRoutes } from "./routes/mapProviders.js";
 import { pushRoutes } from "./routes/push.js";
 import { reportsRoutes } from "./routes/reports.js";
+import { redactTokenInUrl } from "./lib/logRedact.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const pkg = JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8"));
@@ -65,7 +66,23 @@ async function checkLatestVersion(): Promise<string> {
 export async function buildApp(): Promise<FastifyInstance> {
   // 배포에서는 항상 Caddy 뒤에 있고 API 포트는 외부에 열리지 않는다. trustProxy가 없으면
   // request.ip가 전부 Caddy 컨테이너 IP가 되어 로그인/가입 rate limit이 가족 전체에 공유된다.
-  const app = Fastify({ logger: true, trustProxy: true });
+  const app = Fastify({
+    logger: {
+      serializers: {
+        // 기본 req 직렬화와 같은 필드를 남기되 URL의 ?token= 값만 가린다.
+        req(req) {
+          return {
+            method: req.method,
+            url: redactTokenInUrl(req.url),
+            host: req.host,
+            remoteAddress: req.ip,
+            remotePort: req.socket?.remotePort,
+          };
+        },
+      },
+    },
+    trustProxy: true,
+  });
 
   if (!process.env.JWT_SECRET) {
     app.log.warn("JWT_SECRET이 설정되지 않았습니다. .env를 확인하세요.");
@@ -84,6 +101,16 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(websocket);
   // 기본은 전역 미적용 — 무차별 대입 방어가 필요한 로그인 라우트에서만 개별적으로 설정한다.
   await app.register(rateLimit, { global: false });
+
+  // 기본 404 핸들러는 원본 URL을 메시지 문자열로 로그에 남겨 ?token= 마스킹을 우회한다.
+  app.setNotFoundHandler((request, reply) => {
+    request.log.info(`Route ${request.method}:${redactTokenInUrl(request.url)} not found`);
+    reply.code(404).send({
+      message: `Route ${request.method}:${request.url.split("?")[0]} not found`,
+      error: "Not Found",
+      statusCode: 404,
+    });
+  });
 
   // JWT 서명 검증까지만 하고, 페이로드를 그대로 신뢰하지는 않는다. 토큰 수명이 90일이라
   // 역할 강등·계정 삭제·비밀번호 초기화가 토큰에 반영되지 않으면 최대 90일간 옛 권한이
