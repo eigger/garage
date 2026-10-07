@@ -15,7 +15,7 @@ import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import { resolveCatalogKey } from "@garage/shared";
 import { computeScheduleStatus, type ScheduleStatus } from "../../../../lib/scheduleStatus";
-import { localDateString } from "../../../../lib/i18n/format";
+import { hasFractionalAmount, localDateString } from "../../../../lib/i18n/format";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
@@ -344,6 +344,10 @@ function ScheduleRow({
 
   async function handleConfirmCompletion(e: React.FormEvent) {
     e.preventDefault();
+    if (hasFractionalAmount(completionCost)) {
+      showToast(t("costWholeNumberOnly"), "error");
+      return;
+    }
     await submitCompletion({
       completionCost: completionCost ? Number(completionCost) : undefined,
       completionShop: completionShop || undefined,

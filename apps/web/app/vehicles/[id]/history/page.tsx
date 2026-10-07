@@ -9,7 +9,7 @@ import { useConfirm } from "../../../../lib/confirm-context";
 import type { ConsumablePart, FuelLog, MaintenanceRecord, Trip, Vehicle } from "../../../../lib/types";
 import { formatItemLabel } from "../../../../lib/i18n/itemLabel";
 import { formatDuration } from "../../../../lib/duration";
-import { KM_TO_MI } from "../../../../lib/i18n/format";
+import { KM_TO_MI, hasFractionalAmount } from "../../../../lib/i18n/format";
 import type { DistanceUnit, VolumeUnit } from "../../../../lib/i18n/settings-context";
 import type { TranslationKey } from "../../../../lib/i18n/translations";
 import type { MapProvider } from "@garage/shared";
@@ -633,6 +633,10 @@ function FuelLogRow({
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+    if (hasFractionalAmount(cost)) {
+      showToast(t("costWholeNumberOnly"), "error");
+      return;
+    }
     setSubmitting(true);
     try {
       const res = await apiFetch(`/api/vehicles/${vehicleId}/fuel-logs/${log.id}`, {
@@ -1238,6 +1242,10 @@ function MaintenanceRow({
 
     if (!finalType.trim()) {
       showToast(t("requiredField"), "error");
+      return;
+    }
+    if (hasFractionalAmount(cost)) {
+      showToast(t("costWholeNumberOnly"), "error");
       return;
     }
 

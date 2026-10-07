@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   formatDistanceVal,
   formatCurrencyVal,
+  hasFractionalAmount,
   localDateString,
   toDisplayDistanceVal,
   toStoredDistanceVal,
@@ -61,5 +62,16 @@ describe("distance input conversion", () => {
       if (toStoredDistanceVal(toDisplayDistanceVal(km, "mi"), "mi") !== km) drifting.push(km);
     }
     expect(drifting.length).toBeGreaterThan(0);
+  });
+});
+
+describe("hasFractionalAmount", () => {
+  it("flags decimals but not whole numbers or empty input", () => {
+    expect(hasFractionalAmount("45.67")).toBe(true);
+    expect(hasFractionalAmount("0.5")).toBe(true);
+    expect(hasFractionalAmount("45")).toBe(false);
+    expect(hasFractionalAmount("45.0")).toBe(false);
+    expect(hasFractionalAmount("")).toBe(false);
+    expect(hasFractionalAmount("  ")).toBe(false);
   });
 });

@@ -16,7 +16,7 @@ import type { OpinetStationSummary } from "@garage/shared";
 import { useMapProviders } from "../../../../lib/maps/useMapProviders";
 import { geocodeAddress } from "../../../../lib/maps/geocode";
 import { PlaceSearchModal } from "../../../../components/PlaceSearchModal";
-import { localDateString } from "../../../../lib/i18n/format";
+import { hasFractionalAmount, localDateString } from "../../../../lib/i18n/format";
 
 type Translator = (key: TranslationKey, params?: Record<string, string | number>) => string;
 type Tab = "fuel" | "maintenance";
@@ -362,6 +362,10 @@ function QuickFuelForm({ vehicleId, t }: { vehicleId: string; t: Translator }) {
     setError("");
     if (!odometer || !liters || !cost) {
       setError(t("requiredField"));
+      return;
+    }
+    if (hasFractionalAmount(cost)) {
+      setError(t("costWholeNumberOnly"));
       return;
     }
     setSubmitting(true);
@@ -823,6 +827,10 @@ function QuickMaintenanceForm({
 
     if (!odometer || typesToSave.length === 0) {
       setError(t("requiredField"));
+      return;
+    }
+    if (hasFractionalAmount(cost)) {
+      setError(t("costWholeNumberOnly"));
       return;
     }
 
