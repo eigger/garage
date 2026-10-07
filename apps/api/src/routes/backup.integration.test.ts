@@ -126,6 +126,10 @@ describe("backup export/restore round trip", () => {
       data: { vehicleId, startTime: new Date("2026-01-03T00:00:00.000Z"), endTime: new Date("2026-01-03T01:00:00.000Z"), distanceKm: 42 },
     });
     await prisma.telemetryRaw.create({ data: { vehicleId, source: "test", lat: 37.5, lon: 127.0, odometer: 12_050 } });
+    // 시퀀스보다 훨씬 큰 id — 복원 뒤 새로 들어오는 포인트가 이 값을 넘는 id를 받아야 한다.
+    await prisma.telemetryRaw.create({
+      data: { id: BigInt(9_000_000_000), vehicleId, source: "test-high-id", odometer: 12_060 },
+    });
     await prisma.xpEvent.create({ data: { vehicleId, type: "FUEL_LOG", amount: 10, note: "backup test" } });
     await prisma.vehicleBadge.create({ data: { vehicleId, badgeKey: "backup-test-badge", tier: 2 } });
     await prisma.pushSubscription.create({
@@ -210,10 +214,15 @@ describe("backup export/restore round trip", () => {
     await expect(prisma.reminder.count()).resolves.toBe(1);
     await expect(prisma.consumablePart.count()).resolves.toBe(1);
     await expect(prisma.trip.count()).resolves.toBe(1);
-    await expect(prisma.telemetryRaw.count()).resolves.toBe(1);
+    await expect(prisma.telemetryRaw.count()).resolves.toBe(2);
     await expect(prisma.pushSubscription.count()).resolves.toBe(1);
     await expect(prisma.xpEvent.count()).resolves.toBe(1);
     await expect(prisma.vehicleBadge.findMany()).resolves.toMatchObject([{ badgeKey: "backup-test-badge", tier: 2 }]);
+
+    // 복원은 원래 id로 넣으므로 시퀀스를 따라잡게 하지 않으면 이후 수집이 기존 id와 충돌한다.
+    const afterRestore = await prisma.telemetryRaw.create({ data: { vehicleId, source: "after-restore" } });
+    expect(afterRestore.id > BigInt(9_000_000_000)).toBe(true);
+    await prisma.telemetryRaw.delete({ where: { id: afterRestore.id } });
 
     const restoredAdmin = await prisma.user.findUnique({ where: { id: adminId } });
     expect(restoredAdmin?.email).toBe(`backup-${suffix}@example.com`);
