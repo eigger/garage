@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { apiFetch, uploadFileWithProgress, API_URL, getToken } from "../../../lib/api";
+import { apiFetch, uploadAttachment, API_URL, getToken } from "../../../lib/api";
 import { useSettings } from "../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../components/PageLoader";
 import { useToast } from "../../../lib/toast-context";
@@ -176,11 +176,10 @@ export default function VehicleOverviewPage() {
 
       if (res.ok) {
         if (regFile) {
-          const formData = new FormData();
-          formData.append("file", regFile);
           setUploadProgress(0);
-          await uploadFileWithProgress(`/api/attachments?vehicleId=${vehicleId}`, formData, setUploadProgress);
+          const uploaded = await uploadAttachment(`/api/attachments?vehicleId=${vehicleId}`, regFile, setUploadProgress);
           setUploadProgress(null);
+          if (!uploaded) showToast(t("attachmentUploadFailed"), "error");
         }
         setEditing(false);
         setRegFile(null);

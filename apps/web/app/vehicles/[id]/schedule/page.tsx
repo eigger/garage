@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { apiFetch, uploadFileWithProgress } from "../../../../lib/api";
+import { apiFetch, uploadAttachment } from "../../../../lib/api";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import type { DistanceUnit } from "../../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../../components/PageLoader";
@@ -314,15 +314,14 @@ function ScheduleRow({
       if (res.ok) {
         const { maintenanceRecordId } = await res.json();
         if (completionFile && maintenanceRecordId) {
-          const formData = new FormData();
-          formData.append("file", completionFile);
           setCompletionUploadProgress(0);
-          await uploadFileWithProgress(
+          const uploaded = await uploadAttachment(
             `/api/attachments?maintenanceRecordId=${maintenanceRecordId}`,
-            formData,
+            completionFile,
             setCompletionUploadProgress,
           );
           setCompletionUploadProgress(null);
+          if (!uploaded) showToast(t("attachmentUploadFailed"), "error");
         }
         setCompleting(false);
         setCompletionCost("");
