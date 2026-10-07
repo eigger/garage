@@ -42,6 +42,12 @@ export default function LoginPage() {
     checkBootstrap();
   }, [checkBootstrap]);
 
+  function loginFailureMessage(status: number) {
+    if (status === 429) return t("loginTooManyAttempts");
+    if (status >= 500) return t("loginServerError");
+    return t("loginError");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -53,7 +59,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       if (!res.ok) {
-        setError(t("loginError"));
+        setError(loginFailureMessage(res.status));
         return;
       }
       const data = await res.json();
@@ -94,7 +100,7 @@ export default function LoginPage() {
           if (data?.error === "bootstrap required") setNeedsBootstrap(true);
           return;
         }
-        setError(t("saveError"));
+        setError(res.status === 429 || res.status >= 500 ? loginFailureMessage(res.status) : t("saveError"));
         return;
       }
       setSignUpDone(true);
@@ -139,7 +145,7 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
       if (!loginRes.ok) {
-        setError(t("loginError"));
+        setError(loginFailureMessage(loginRes.status));
         return;
       }
       const data = await loginRes.json();

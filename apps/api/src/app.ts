@@ -63,7 +63,9 @@ async function checkLatestVersion(): Promise<string> {
 // 서버 부팅(index.ts)과 테스트(vitest)가 동일한 라우트/플러그인 구성을 공유하도록
 // 앱 조립만 여기서 하고, 리스닝·백그라운드 잡·1회성 백필은 index.ts에 남겨둔다.
 export async function buildApp(): Promise<FastifyInstance> {
-  const app = Fastify({ logger: true });
+  // 배포에서는 항상 Caddy 뒤에 있고 API 포트는 외부에 열리지 않는다. trustProxy가 없으면
+  // request.ip가 전부 Caddy 컨테이너 IP가 되어 로그인/가입 rate limit이 가족 전체에 공유된다.
+  const app = Fastify({ logger: true, trustProxy: true });
 
   if (!process.env.JWT_SECRET) {
     app.log.warn("JWT_SECRET이 설정되지 않았습니다. .env를 확인하세요.");
