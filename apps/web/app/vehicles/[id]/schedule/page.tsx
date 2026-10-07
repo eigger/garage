@@ -273,12 +273,13 @@ function ScheduleRow({
             installedOdometer === initialInstalledOdometer
               ? part.installedOdometer
               : toStoredDistance(Number(installedOdometer)),
+          // 비우면 null로 보내 주기를 지운다(undefined는 서버에서 "변경 없음").
           expectedLifeKm: !expectedLifeKm
-            ? undefined
+            ? null
             : expectedLifeKm === initialLifeKm
               ? part.expectedLifeKm ?? undefined
               : toStoredDistance(Number(expectedLifeKm)),
-          expectedLifeMonths: expectedLifeMonths ? Number(expectedLifeMonths) : undefined,
+          expectedLifeMonths: expectedLifeMonths ? Number(expectedLifeMonths) : null,
         }),
       });
       if (res.ok) {
