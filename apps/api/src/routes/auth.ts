@@ -294,21 +294,30 @@ export async function authRoutes(app: FastifyInstance) {
       const userId = request.user.sub;
       const { name, email, currentPassword, newPassword } = parsed.data;
 
+      const current = await prisma.user.findUnique({ where: { id: userId } });
+      if (!current) return reply.code(404).send({ error: "user not found" });
+
       const updateData: Record<string, unknown> = {};
       if (name) updateData.name = name;
-      if (email) updateData.email = email;
 
-      if (newPassword) {
+      // 로그인 ID인 이메일을 바꾸는 것은 비밀번호 변경과 같은 급의 민감한 작업이라, 탈취된
+      // 세션으로 계정을 가로채지 못하도록 현재 비밀번호를 다시 확인한다. 값이 그대로면 건너뛴다.
+      const emailChanged = !!email && email !== current.email;
+      if (emailChanged) updateData.email = email;
+
+      if (newPassword || emailChanged) {
         if (!currentPassword) {
           return reply.code(400).send({ error: "currentPassword is required" });
         }
-        const user = await prisma.user.findUnique({ where: { id: userId } });
-        if (!user) return reply.code(404).send({ error: "user not found" });
-
-        const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+        const valid = await bcrypt.compare(currentPassword, current.passwordHash);
         if (!valid) return reply.code(400).send({ error: "incorrect currentPassword" });
+      }
 
+      if (newPassword) {
         updateData.passwordHash = await bcrypt.hash(newPassword, 10);
+        // 다른 기기에 남은 90일짜리 토큰을 무효화한다(관리자 초기화와 동일). 현재 기기는 아래에서
+        // 새 토큰을 받아 이어간다.
+        updateData.tokenVersion = { increment: 1 };
       }
 
       const user = await prisma.user.update({
@@ -316,6 +325,13 @@ export async function authRoutes(app: FastifyInstance) {
         data: updateData,
       });
 
+      if (newPassword) {
+        const token = app.jwt.sign(
+          { sub: user.id, role: user.role, tokenVersion: user.tokenVersion },
+          { expiresIn: "90d" },
+        );
+        return { ...publicUser(user), token };
+      }
       return publicUser(user);
     }
   );
