@@ -126,6 +126,8 @@ describe("backup export/restore round trip", () => {
       data: { vehicleId, startTime: new Date("2026-01-03T00:00:00.000Z"), endTime: new Date("2026-01-03T01:00:00.000Z"), distanceKm: 42 },
     });
     await prisma.telemetryRaw.create({ data: { vehicleId, source: "test", lat: 37.5, lon: 127.0, odometer: 12_050 } });
+    await prisma.xpEvent.create({ data: { vehicleId, type: "FUEL_LOG", amount: 10, note: "backup test" } });
+    await prisma.vehicleBadge.create({ data: { vehicleId, badgeKey: "backup-test-badge", tier: 2 } });
     await prisma.pushSubscription.create({
       data: { userId: adminId, endpoint: `https://push.example.com/${suffix}`, p256dh: "key", auth: "auth" },
     });
@@ -210,6 +212,8 @@ describe("backup export/restore round trip", () => {
     await expect(prisma.trip.count()).resolves.toBe(1);
     await expect(prisma.telemetryRaw.count()).resolves.toBe(1);
     await expect(prisma.pushSubscription.count()).resolves.toBe(1);
+    await expect(prisma.xpEvent.count()).resolves.toBe(1);
+    await expect(prisma.vehicleBadge.findMany()).resolves.toMatchObject([{ badgeKey: "backup-test-badge", tier: 2 }]);
 
     const restoredAdmin = await prisma.user.findUnique({ where: { id: adminId } });
     expect(restoredAdmin?.email).toBe(`backup-${suffix}@example.com`);
