@@ -2,6 +2,7 @@ import {
   BADGE_KEYS,
   XP_AMOUNTS,
   XP_EVENT_TYPES,
+  computeDueBaseline,
   levelForXp,
   tierForCount,
   type BadgeKey,
@@ -149,12 +150,7 @@ export async function awardCompletionXp(params: {
   await awardXp(vehicleId, XP_EVENT_TYPES.COMPLETION, itemName);
 
   const now = new Date();
-  let dueDate: Date | null = null;
-  if (existing.expectedLifeMonths) {
-    dueDate = new Date(existing.installedDate);
-    dueDate.setMonth(dueDate.getMonth() + existing.expectedLifeMonths);
-  }
-  const dueOdometer = existing.expectedLifeKm ? existing.installedOdometer + existing.expectedLifeKm : null;
+  const { dueDate, dueOdometer } = computeDueBaseline(existing);
   const hadThreshold = dueDate !== null || dueOdometer !== null;
   const overdue = (dueDate !== null && now > dueDate) || (dueOdometer !== null && completionOdometer >= dueOdometer);
   if (hadThreshold && !overdue) {
