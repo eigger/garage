@@ -422,7 +422,7 @@ export async function backupRoutes(app: FastifyInstance) {
           await tx.reminder.createMany({ data: dbData.reminders });
         }
         if (dbData.telemetry?.length) {
-          // 한 번에 넣으면 PostgreSQL 바인드 파라미터 한도(65535)에 걸리고 쿼리도 거대해진다.
+          // 수십만 행을 한 호출에 넘기면 메모리·쿼리 크기가 한꺼번에 커지므로 나눠서 넣는다.
           for (let i = 0; i < dbData.telemetry.length; i += TELEMETRY_RESTORE_CHUNK) {
             await tx.telemetryRaw.createMany({ data: dbData.telemetry.slice(i, i + TELEMETRY_RESTORE_CHUNK) });
           }
