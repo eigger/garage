@@ -42,7 +42,7 @@ function HyundaiCallbackInner() {
         const redirectUri = `${window.location.origin}/profile/hyundai/callback`;
         const res = await apiFetch("/api/hyundai/link", {
           method: "POST",
-          body: JSON.stringify({ code, redirectUri }),
+          body: JSON.stringify({ code, redirectUri, state }),
         });
         router.replace(res.ok ? "/profile?hyundai=linked" : "/profile?hyundai=error");
         return;
