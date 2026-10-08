@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch, getToken, setToken, clearToken } from "./api";
+import { unsubscribeFromPush } from "./push";
 import type { User } from "./types";
 
 interface AuthContextValue {
@@ -17,7 +18,7 @@ interface AuthContextValue {
   loadError: boolean;
   retry: () => void;
   login: (token: string) => Promise<void>;
-  logout: () => void;
+  logout: () => void | Promise<void>;
   requireAuth: () => void;
 }
 
@@ -74,7 +75,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await fetchMe();
   }
 
-  function logout() {
+  async function logout() {
+    // 푸시 구독이 남으면 공용 기기에서 로그아웃한 뒤에도 이전 사용자의 차량 알림이 계속 온다.
+    // 구독 해제 요청에는 토큰이 필요하므로 지우기 전에 보내되, 서비스 워커가 없는 환경에서
+    // 로그아웃이 멈추지 않게 짧은 시간만 기다린다.
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      await Promise.race([
+        unsubscribeFromPush().catch(() => {}),
+        new Promise<void>((resolve) => setTimeout(resolve, 2000)),
+      ]);
+    }
     clearToken();
     setUser(null);
     setLoadError(false);

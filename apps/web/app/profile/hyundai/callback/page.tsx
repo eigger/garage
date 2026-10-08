@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { apiFetch } from "../../../../lib/api";
+import { withBasePath } from "../../../../lib/base-path";
 import { useSettings } from "../../../../lib/i18n/settings-context";
 import { PageLoader } from "../../../../components/PageLoader";
 
@@ -39,7 +40,8 @@ function HyundaiCallbackInner() {
       }
 
       if (code) {
-        const redirectUri = `${window.location.origin}/profile/hyundai/callback`;
+        // 인가 요청(profile/page.tsx)이 보낸 redirect_uri와 같아야 토큰 교환이 된다 — 서브패스 배포 포함.
+        const redirectUri = `${window.location.origin}${withBasePath("/profile/hyundai/callback")}`;
         const res = await apiFetch("/api/hyundai/link", {
           method: "POST",
           body: JSON.stringify({ code, redirectUri, state }),
