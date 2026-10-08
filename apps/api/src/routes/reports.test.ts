@@ -95,4 +95,24 @@ describe("GET /api/vehicles/:id/reports/export", () => {
       await prisma.vehicle.delete({ where: { id: v2.id } }).catch(() => {});
     }
   });
+
+  it("neutralizes spreadsheet formulas in free-text columns and serves a UTF-8 filename", async () => {
+    await prisma.maintenanceRecord.create({
+      data: {
+        vehicleId,
+        date: new Date("2026-02-01T00:00:00Z"),
+        odometer: 1000,
+        type: "엔진오일",
+        shop: "=HYPERLINK(\"http://evil\",\"x\")",
+        notes: "-2+3",
+        cost: 1000,
+      },
+    });
+    const res = await get("category=maintenance&period=all");
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("\"'=HYPERLINK(");
+    expect(res.body).toContain("'-2+3");
+    expect(String(res.headers["content-disposition"])).toContain("filename*=UTF-8''");
+    expect(String(res.headers["content-disposition"])).not.toContain("%");  // ASCII fallback has no percent-encoding
+  });
 });

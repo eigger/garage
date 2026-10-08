@@ -36,8 +36,18 @@ async function getVehicleFromRequest(request: any): Promise<{ id: string; odomet
   return getVehicleByToken(token);
 }
 
+// OBD/브리지가 비정상 값을 한 번 보내면(예: 999999) 차량 주행거리가 영구히 올라가 km 기준 정비 항목이
+// 전부 기한 초과가 되고 푸시가 나간다. 내려가는 경로는 수동 수정뿐이라, 직전 값보다 이 이상 뛰는 값은
+// 반영하지 않는다(원시 텔레메트리에는 그대로 남는다). 아직 주행거리를 모르는(0) 차량은 첫 값을 받는다.
+export const MAX_ODOMETER_JUMP_KM = 5000;
+
+export function isPlausibleOdometerBump(currentOdometer: number, odometer: number): boolean {
+  if (odometer <= currentOdometer) return false;
+  return currentOdometer === 0 || odometer - currentOdometer <= MAX_ODOMETER_JUMP_KM;
+}
+
 async function bumpOdometerIfHigher(vehicleId: string, currentOdometer: number, odometer?: number | null) {
-  if (odometer !== undefined && odometer !== null && odometer > currentOdometer) {
+  if (odometer !== undefined && odometer !== null && isPlausibleOdometerBump(currentOdometer, odometer)) {
     await prisma.vehicle.update({ where: { id: vehicleId }, data: { odometer } });
   }
 }

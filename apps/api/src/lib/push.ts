@@ -85,8 +85,12 @@ export async function sendPushToUser(userId: string, payload: PushPayload): Prom
 
 export async function getUserIdsForVehicle(vehicleId: string): Promise<string[]> {
   const [admins, access] = await Promise.all([
-    prisma.user.findMany({ where: { role: "ADMIN" }, select: { id: true } }),
-    prisma.userVehicleAccess.findMany({ where: { vehicleId }, select: { userId: true } }),
+    // 승인 대기로 되돌려진 계정에는 차량 알림을 보내지 않는다.
+    prisma.user.findMany({ where: { role: "ADMIN", status: "ACTIVE" }, select: { id: true } }),
+    prisma.userVehicleAccess.findMany({
+      where: { vehicleId, user: { status: "ACTIVE" } },
+      select: { userId: true },
+    }),
   ]);
   return [...new Set([...admins.map((u) => u.id), ...access.map((a) => a.userId)])];
 }

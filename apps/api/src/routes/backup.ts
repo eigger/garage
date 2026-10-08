@@ -1,6 +1,7 @@
 import { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
 import { UPLOAD_DIR } from "../lib/uploads.js";
+import { closeTrips } from "../jobs/trips.js";
 import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
@@ -518,6 +519,10 @@ export async function backupRoutes(app: FastifyInstance) {
           await linkOrCopy(path.join(filesDir, filename), dest);
         }
       }
+
+      // 복원한 텔레메트리 중 백업 직전까지 닫히지 않은 구간은 정기 실행(최근 3일만 조회)으로는 따라잡지
+      // 못할 수 있다 — 한 번 전체를 훑어 트립으로 묶는다. 응답을 붙잡지 않도록 기다리지 않는다.
+      closeTrips({ full: true }).catch((err) => app.log.error(err, "Post-restore trip close failed"));
 
       return { success: true };
     } catch (err: any) {

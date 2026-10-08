@@ -33,7 +33,10 @@ function escapeCsv(val: any): string {
   if (val instanceof Date) {
     return formatCsvDate(val);
   }
-  const str = String(val);
+  let str = String(val);
+  // 스프레드시트가 수식으로 실행하지 않도록 =, +, -, @, 탭, CR로 시작하는 "문자열"에는 작은따옴표를 붙인다
+  // (가족 구성원 누구나 메모·상호명을 입력할 수 있다). 숫자 컬럼(음수 포함)은 건드리지 않는다.
+  if (typeof val === "string" && /^[=+\-@\t\r]/.test(str)) str = `'${str}`;
   if (str.includes(",") || str.includes("\"") || str.includes("\n") || str.includes("\r")) {
     return `"${str.replace(/"/g, '""')}"`;
   }
@@ -189,7 +192,12 @@ export async function reportsRoutes(app: FastifyInstance) {
 
     return reply
       .header("Content-Type", "text/csv; charset=utf-8")
-      .header("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`)
+      // ASCII 대체 이름(filename)과 UTF-8 이름(filename*)을 함께 준다. 퍼센트 인코딩 값을 따옴표 안의
+      // 일반 filename에 넣으면 디코딩하지 않는 브라우저에서 한글 번호판 파일명이 깨진다.
+      .header(
+        "Content-Disposition",
+        `attachment; filename="${filename.replace(/[^\x20-\x7e]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+      )
       .send(csvContent);
   });
 }

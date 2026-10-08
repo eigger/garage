@@ -65,11 +65,15 @@ export function startReminderJob(): void {
   }
 
   run().catch((err) => console.error("[reminders] initial sync failed", err));
+  // 새벽 3시(KST)에는 동기화만 한다 — 푸시를 같이 보내면 한밤중에 알림이 울린다.
   cron.schedule("0 3 * * *", () => {
-    run().catch((err) => console.error("[reminders] scheduled sync failed", err));
+    syncReminders().catch((err) => console.error("[reminders] scheduled sync failed", err));
   }, { timezone: APP_TIMEZONE });
-  // 오전 8시에도 푸시 재확인 (주행거리 변동으로 당일 기한 도래 가능)
-  cron.schedule("0 8 * * *", () => {
-    sendDueReminderPushes().catch((err) => console.error("[push] scheduled send failed", err));
-  }, { timezone: APP_TIMEZONE });
+  // 날짜 기준 기한(UTC 자정 = KST 09:00)이 지난 뒤인 낮 시간에 푸시한다. 오전 9시 30분에 그날 도래분,
+  // 저녁 6시에 주행거리 변동으로 새로 도래한 분을 확인한다.
+  for (const expr of ["30 9 * * *", "0 18 * * *"]) {
+    cron.schedule(expr, () => {
+      sendDueReminderPushes().catch((err) => console.error("[push] scheduled send failed", err));
+    }, { timezone: APP_TIMEZONE });
+  }
 }

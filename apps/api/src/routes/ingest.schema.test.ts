@@ -27,3 +27,19 @@ describe("telemetry odometer normalization", () => {
     expect(obdIngestQuerySchema.parse({}).odometer).toBeUndefined();
   });
 });
+
+import { isPlausibleOdometerBump, MAX_ODOMETER_JUMP_KM } from "./ingest.js";
+
+describe("isPlausibleOdometerBump", () => {
+  it("accepts normal increases and the first reading of a new vehicle", () => {
+    expect(isPlausibleOdometerBump(10_000, 10_050)).toBe(true);
+    expect(isPlausibleOdometerBump(0, 87_000)).toBe(true);
+    expect(isPlausibleOdometerBump(10_000, 10_000 + MAX_ODOMETER_JUMP_KM)).toBe(true);
+  });
+
+  it("rejects decreases, equal values and absurd jumps", () => {
+    expect(isPlausibleOdometerBump(10_000, 9_999)).toBe(false);
+    expect(isPlausibleOdometerBump(10_000, 10_000)).toBe(false);
+    expect(isPlausibleOdometerBump(10_000, 999_999)).toBe(false);
+  });
+});
