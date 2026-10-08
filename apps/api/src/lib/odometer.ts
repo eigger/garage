@@ -32,7 +32,8 @@ export function isPlausibleOdometerBump(
   return (
     previousRawOdometer !== undefined &&
     previousRawOdometer !== null &&
-    odometer >= previousRawOdometer &&
+    // 엄격 증가여야 한다 — 읽기 실패 때 반복되는 고정 센티넬 값(999999 등)이 두 번째에 통과하지 못한다.
+    odometer > previousRawOdometer &&
     odometer - previousRawOdometer <= MAX_ODOMETER_JUMP_KM
   );
 }

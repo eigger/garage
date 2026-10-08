@@ -19,6 +19,8 @@ describe("isPlausibleOdometerBump", () => {
   it("recovers when the vehicle odometer was entered far too low but readings are consistent", () => {
     // 등록 때 3,000으로 잘못 입력, 실제 87,000 — 직전 원시값이 87,000대면 받아들인다.
     expect(isPlausibleOdometerBump(3_000, 87_010, 87_000)).toBe(true);
+    // 같은 쓰레기 값이 연속으로 와도(고정 센티넬) 통과하지 못한다.
+    expect(isPlausibleOdometerBump(10_000, 999_999, 999_999)).toBe(false);
     // 직전 원시값이 없으면(첫 값) 기다린다.
     expect(isPlausibleOdometerBump(3_000, 87_000, null)).toBe(false);
     // 직전 원시값보다 작아지는 값은 받지 않는다.
