@@ -168,11 +168,21 @@ export default function ProfilePage() {
       return;
     }
 
+    // 서버가 400으로만 답하는 입력 오류는 원인이 보이도록 먼저 걸러서 알려준다.
+    const emailChanged = email.trim().toLowerCase() !== (user?.email ?? "").toLowerCase();
+    if (newPassword && newPassword.length < 8) {
+      setError(t("passwordTooShort"));
+      return;
+    }
+    if ((newPassword || emailChanged) && !currentPassword) {
+      setError(t("currentPasswordRequired"));
+      return;
+    }
+
     setSubmitting(true);
     try {
       const body: any = { name };
       // 이메일은 바뀐 경우에만 보낸다 — 바꾸려면 서버가 현재 비밀번호를 요구한다.
-      const emailChanged = email.trim().toLowerCase() !== (user?.email ?? "").toLowerCase();
       if (emailChanged) body.email = email;
       if (newPassword) body.newPassword = newPassword;
       // 비어 있으면 보내지 않는다 — 서버가 "currentPassword is required"로 정확히 안내한다.
@@ -200,8 +210,10 @@ export default function ProfilePage() {
           setError(t("emailAlreadyUsed"));
         } else if (errData.error === "incorrect currentPassword" || errData.error === "currentPassword is required") {
           setError(t("incorrectPassword"));
-        } else {
+        } else if (newPassword) {
           setError(t("passwordMismatch"));
+        } else {
+          setError(t("saveError"));
         }
         showToast(t("toastError"), "error");
       }
