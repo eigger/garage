@@ -61,4 +61,16 @@ describe("POST /api/attachments — parent validation", () => {
     expect((await post(memberToken, `vehicleId=${vehicleB}`)).statusCode).toBe(403);
     expect((await post(adminToken, `vehicleId=${randomUUID()}`)).statusCode).toBe(404);
   });
+
+  it("lets only managers delete vehicle-level attachments", async () => {
+    const att = await prisma.attachment.create({
+      data: { filePath: `${randomUUID()}.jpg`, mimeType: "image/jpeg", vehicleId: vehicleA },
+    });
+    const del = (token: string) =>
+      app.inject({ method: "DELETE", url: `/api/attachments/${att.id}`, headers: { authorization: `Bearer ${token}` } });
+
+    expect((await del(memberToken)).statusCode).toBe(403);
+    expect(await prisma.attachment.count({ where: { id: att.id } })).toBe(1);
+    expect((await del(adminToken)).statusCode).toBe(204);
+  });
 });

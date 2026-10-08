@@ -43,6 +43,8 @@ function escapeCsv(val: any): string {
   return str;
 }
 
+const PERIODS = new Set(["week", "month", "year", "all", "6m", "1y", "1w", "1m"]);
+
 export async function reportsRoutes(app: FastifyInstance) {
   app.addHook("preHandler", app.authenticate);
 
@@ -187,8 +189,10 @@ export async function reportsRoutes(app: FastifyInstance) {
       }
     }
 
+    // 쿼리 값이 그대로 헤더에 들어가지 않도록 허용 목록만 쓴다.
+    const safePeriod = period && PERIODS.has(period) ? period : "all";
     const safePlate = (vehicle.plate || vehicle.name || "vehicle").replace(/[^a-zA-Z0-9가-힣]/g, "_");
-    const filename = `${safePlate}_${category}_${period || "all"}_${formatCsvDate(new Date()).slice(0, 10)}.csv`;
+    const filename = `${safePlate}_${category}_${safePeriod}_${formatCsvDate(new Date()).slice(0, 10)}.csv`;
 
     return reply
       .header("Content-Type", "text/csv; charset=utf-8")
@@ -196,7 +200,7 @@ export async function reportsRoutes(app: FastifyInstance) {
       // 일반 filename에 넣으면 디코딩하지 않는 브라우저에서 한글 번호판 파일명이 깨진다.
       .header(
         "Content-Disposition",
-        `attachment; filename="${filename.replace(/[^\x20-\x7e]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        `attachment; filename="${filename.replace(/[^\x20-\x7e]|["\\]/g, "_")}"; filename*=UTF-8''${encodeURIComponent(filename)}`,
       )
       .send(csvContent);
   });

@@ -108,11 +108,16 @@ describe("GET /api/vehicles/:id/reports/export", () => {
         cost: 1000,
       },
     });
+    await prisma.vehicle.update({ where: { id: vehicleId }, data: { plate: "12가3456" } });
     const res = await get("category=maintenance&period=all");
     expect(res.statusCode).toBe(200);
     expect(res.body).toContain("\"'=HYPERLINK(");
     expect(res.body).toContain("'-2+3");
-    expect(String(res.headers["content-disposition"])).toContain("filename*=UTF-8''");
-    expect(String(res.headers["content-disposition"])).not.toContain("%");  // ASCII fallback has no percent-encoding
+    const disposition = String(res.headers["content-disposition"]);
+    // 한글 번호판: 대체 이름(filename)은 ASCII 그대로, UTF-8 이름(filename*)만 퍼센트 인코딩.
+    const fallback = /filename="([^"]*)"/.exec(disposition)?.[1] ?? "";
+    expect(fallback).not.toContain("%");
+    expect(fallback).toMatch(/^[\x20-\x7e]+$/);
+    expect(disposition).toContain("filename*=UTF-8''12%EA%B0%803456");
   });
 });

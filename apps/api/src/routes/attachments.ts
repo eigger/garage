@@ -168,6 +168,11 @@ export async function attachmentRoutes(app: FastifyInstance) {
       return reply.code(403).send({ error: "forbidden" });
     }
 
+    // 차량 첨부(등록증)는 업로드와 같은 권한(관리자·등록자)이 있어야 지울 수 있다.
+    if (attachment.vehicleId && !(await getVehicleAccess(sub, role, attachment.vehicleId)).canManage) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
     await prisma.attachment.delete({ where: { id } });
 
     const filePath = path.join(UPLOAD_DIR, path.basename(attachment.filePath));

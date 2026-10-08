@@ -59,12 +59,8 @@ export async function syncReminders(vehicleId?: string): Promise<void> {
 }
 
 export function startReminderJob(): void {
-  async function run() {
-    await syncReminders();
-    await sendDueReminderPushes();
-  }
-
-  run().catch((err) => console.error("[reminders] initial sync failed", err));
+  // 기동 시에는 동기화만 한다 — 새벽에 컨테이너가 재시작돼도 알림이 울리지 않게, 푸시는 아래 낮 시간 크론이 보낸다.
+  syncReminders().catch((err) => console.error("[reminders] initial sync failed", err));
   // 새벽 3시(KST)에는 동기화만 한다 — 푸시를 같이 보내면 한밤중에 알림이 울린다.
   cron.schedule("0 3 * * *", () => {
     syncReminders().catch((err) => console.error("[reminders] scheduled sync failed", err));

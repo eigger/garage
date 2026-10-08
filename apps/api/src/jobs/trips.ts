@@ -33,10 +33,15 @@ type Point = {
 const SCHEDULED_LOOKBACK_MS = 3 * 24 * 60 * 60 * 1000;
 
 let closing = false;
+let pendingFull = false;
 
 export async function closeTrips({ full = false }: { full?: boolean } = {}): Promise<void> {
   // 한 번의 실행이 5분을 넘기면 다음 실행이 같은 구간을 동시에 처리해 Trip이 중복 생성될 수 있다.
-  if (closing) return;
+  if (closing) {
+    // 전체 훑기 요청(기동·복원 직후)이 정기 실행에 가려 사라지지 않도록, 끝난 뒤 한 번 더 돌린다.
+    if (full) pendingFull = true;
+    return;
+  }
   closing = true;
   try {
     const since = full ? undefined : new Date(Date.now() - SCHEDULED_LOOKBACK_MS);
@@ -46,6 +51,10 @@ export async function closeTrips({ full = false }: { full?: boolean } = {}): Pro
     }
   } finally {
     closing = false;
+    if (pendingFull) {
+      pendingFull = false;
+      void closeTrips({ full: true }).catch((err) => console.error("[trips] deferred full close failed", err));
+    }
   }
 }
 
