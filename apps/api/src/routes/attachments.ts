@@ -4,7 +4,7 @@ import { mkdir, writeFile, unlink } from "node:fs/promises";
 import path from "node:path";
 import type { FastifyInstance } from "fastify";
 import { prisma } from "../lib/prisma.js";
-import { canAccessVehicle } from "../lib/access.js";
+import { canAccessVehicle, getVehicleAccess } from "../lib/access.js";
 import { processImageForStorage } from "../lib/imageProcessing.js";
 import { UPLOAD_DIR } from "../lib/uploads.js";
 
@@ -49,6 +49,12 @@ export async function attachmentRoutes(app: FastifyInstance) {
       return reply.code(400).send({ error: "fuelLogId, maintenanceRecordId 또는 vehicleId가 필요합니다" });
     }
 
+    // 부모는 정확히 하나여야 한다. 여러 개를 주면 권한은 하나만 검사하면서 나머지 id가 그대로 저장돼
+    // 권한 없는 차량의 "등록증" 자리에 끼워 넣을 수 있었다.
+    if ([fuelLogId, maintenanceRecordId, qVehicleId].filter(Boolean).length !== 1) {
+      return reply.code(400).send({ error: "fuelLogId, maintenanceRecordId, vehicleId 중 하나만 지정해야 합니다" });
+    }
+
     const { sub, role } = request.user;
 
     let vehicleId: string | null = null;
@@ -63,6 +69,12 @@ export async function attachmentRoutes(app: FastifyInstance) {
       if (!record) return reply.code(404).send({ error: "maintenance record not found" });
       vehicleId = record.vehicleId;
     } else if (qVehicleId) {
+      // 차량 첨부(등록증)는 차량 정보 수정과 같은 권한이 필요하다.
+      const vehicle = await prisma.vehicle.findUnique({ where: { id: qVehicleId }, select: { id: true } });
+      if (!vehicle) return reply.code(404).send({ error: "vehicle not found" });
+      if (!(await getVehicleAccess(sub, role, qVehicleId)).canManage) {
+        return reply.code(403).send({ error: "forbidden" });
+      }
       vehicleId = qVehicleId;
     }
 
@@ -95,15 +107,22 @@ export async function attachmentRoutes(app: FastifyInstance) {
     const filePath = path.join(UPLOAD_DIR, storedName);
     await writeFile(filePath, fileBuffer);
 
-    const attachment = await prisma.attachment.create({
-      data: {
-        filePath: storedName,
-        mimeType,
-        fuelLogId: fuelLogId ?? null,
-        maintenanceRecordId: maintenanceRecordId ?? null,
-        vehicleId: qVehicleId ?? null,
-      },
-    });
+    let attachment;
+    try {
+      attachment = await prisma.attachment.create({
+        data: {
+          filePath: storedName,
+          mimeType,
+          fuelLogId: fuelLogId ?? null,
+          maintenanceRecordId: maintenanceRecordId ?? null,
+          vehicleId: qVehicleId ?? null,
+        },
+      });
+    } catch (err) {
+      // DB 저장이 실패하면 방금 쓴 파일이 아무 행도 가리키지 않는 고아가 된다.
+      await unlink(filePath).catch(() => {});
+      throw err;
+    }
 
     return reply.code(201).send(attachment);
   });
@@ -146,6 +165,11 @@ export async function attachmentRoutes(app: FastifyInstance) {
     const { sub, role } = request.user;
     const vehicleId = await resolveAttachmentVehicleId(attachment);
     if (!vehicleId || !(await canAccessVehicle(sub, role, vehicleId))) {
+      return reply.code(403).send({ error: "forbidden" });
+    }
+
+    // 차량 첨부(등록증)는 업로드와 같은 권한(관리자·등록자)이 있어야 지울 수 있다.
+    if (attachment.vehicleId && !(await getVehicleAccess(sub, role, attachment.vehicleId)).canManage) {
       return reply.code(403).send({ error: "forbidden" });
     }
 

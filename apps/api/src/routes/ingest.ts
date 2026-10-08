@@ -13,6 +13,7 @@ import { telemetryEmitter } from "../lib/telemetryEmitter.js";
 import { syncReminders } from "../jobs/reminders.js";
 import { syncConsumablePartFromLatestRecord } from "../lib/consumablePartBaseline.js";
 import { awardFuelLogXp, awardMaintenanceLogXp, awardEfficiencyXpIfGood } from "../lib/gamification.js";
+import { isPlausibleOdometerBump } from "../lib/odometer.js";
 
 // apiToken은 차량마다 유일(@unique)하므로 토큰 하나만으로 차량을 특정할 수 있다.
 // URL에 vehicleId를 별도로 받을 필요가 없다 — 토큰이 곧 신원이자 인증 수단이다.
@@ -37,9 +38,20 @@ async function getVehicleFromRequest(request: any): Promise<{ id: string; odomet
 }
 
 async function bumpOdometerIfHigher(vehicleId: string, currentOdometer: number, odometer?: number | null) {
-  if (odometer !== undefined && odometer !== null && odometer > currentOdometer) {
-    await prisma.vehicle.update({ where: { id: vehicleId }, data: { odometer } });
+  if (odometer === undefined || odometer === null || odometer <= currentOdometer) return;
+
+  // 이 호출은 현재 포인트를 저장하기 전에 일어나므로, 조회되는 것은 직전 포인트다.
+  const previous = await prisma.telemetryRaw.findFirst({
+    where: { vehicleId, odometer: { not: null } },
+    orderBy: { time: "desc" },
+    select: { odometer: true },
+  });
+
+  if (!isPlausibleOdometerBump(currentOdometer, odometer, previous?.odometer)) {
+    console.warn(`[ingest] ignored implausible odometer ${odometer} for vehicle ${vehicleId} (current ${currentOdometer})`);
+    return;
   }
+  await prisma.vehicle.update({ where: { id: vehicleId }, data: { odometer } });
 }
 
 export async function ingestRoutes(app: FastifyInstance) {

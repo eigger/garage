@@ -95,4 +95,29 @@ describe("GET /api/vehicles/:id/reports/export", () => {
       await prisma.vehicle.delete({ where: { id: v2.id } }).catch(() => {});
     }
   });
+
+  it("neutralizes spreadsheet formulas in free-text columns and serves a UTF-8 filename", async () => {
+    await prisma.maintenanceRecord.create({
+      data: {
+        vehicleId,
+        date: new Date("2026-02-01T00:00:00Z"),
+        odometer: 1000,
+        type: "엔진오일",
+        shop: "=HYPERLINK(\"http://evil\",\"x\")",
+        notes: "-2+3",
+        cost: 1000,
+      },
+    });
+    await prisma.vehicle.update({ where: { id: vehicleId }, data: { plate: "12가3456" } });
+    const res = await get("category=maintenance&period=all");
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toContain("\"'=HYPERLINK(");
+    expect(res.body).toContain("'-2+3");
+    const disposition = String(res.headers["content-disposition"]);
+    // 한글 번호판: 대체 이름(filename)은 ASCII 그대로, UTF-8 이름(filename*)만 퍼센트 인코딩.
+    const fallback = /filename="([^"]*)"/.exec(disposition)?.[1] ?? "";
+    expect(fallback).not.toContain("%");
+    expect(fallback).toMatch(/^[\x20-\x7e]+$/);
+    expect(disposition).toContain("filename*=UTF-8''12%EA%B0%803456");
+  });
 });
