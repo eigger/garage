@@ -8,9 +8,12 @@ import { isActivePoint, type TripDetectionPoint } from "../lib/tripDetection.js"
 // 마지막 포인트로부터 이만큼 지나야 더 이상 데이터가 이어질 걱정 없이 트립을 닫는다.
 const TRIP_GAP_MINUTES = 10;
 const IDLE_SPEED_THRESHOLD_KMH = 3;
-// 이동거리도 없고 소요시간도 없는 세그먼트는 트립이 아니다 — 판정이 어긋나 단일 포인트가
-// 활성으로 잡히더라도 "0km 0분" 트립이 만들어지지 않도록 하는 안전망.
-const MIN_TRIP_DISTANCE_KM = 0.05;
+// 이 거리 미만으로 움직인 세그먼트는 트립이 아니다. 시동만 켜 둔 채 정차(공회전)하면 RPM 때문에
+// 활성으로 판정돼 시간만 흐르는 "0km" 트립이 생기므로, 소요시간과 무관하게 걸러낸다.
+const MIN_TRIP_DISTANCE_KM = 0.1;
+// 속도 기록이 있는 트립이라면 최고 속도가 이 값 이상이어야 한다. 정차 중 GPS 튐이나 오도미터
+// 오차로 거리만 0.1km를 넘긴 가짜 트립을 거른다. 속도 데이터가 아예 없으면 거리 기준만 쓴다.
+const MIN_TRIP_MAX_SPEED_KMH = 10;
 // 시동을 켜도 기기가 와이파이/데이터에 실제로 붙기까지 시간이 걸려서, 트립의 첫
 // 텔레메트리 포인트가 이미 주행 중인 지점부터 잡히는 경우가 흔하다. 지도 경로만
 // 직전에 기록된 위치(보통 마지막 주차 지점)에서 이어지도록 보정하되, 그 지점이
@@ -223,10 +226,18 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
 
   const startTime = segment[0].time;
   const endTime = segment[segment.length - 1].time;
-  const durationSec = (endTime.getTime() - startTime.getTime()) / 1000;
 
-  // 움직인 것도 아니고 시간이 흐른 것도 아니면 트립으로 남기지 않는다.
-  if (finalDistance < MIN_TRIP_DISTANCE_KM && durationSec <= 0) return;
+  // 사실상 움직이지 않았다면(시동만 켜고 정차) 트립으로 남기지 않는다. 포인트는 제외 처리해
+  // 이후 실행에서 같은 구간을 다시 판정하지 않게 한다.
+  const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : null;
+  const neverMoved = maxSpeed !== null && maxSpeed < MIN_TRIP_MAX_SPEED_KMH;
+  if (finalDistance < MIN_TRIP_DISTANCE_KM || neverMoved) {
+    await prisma.telemetryRaw.updateMany({
+      where: { vehicleId, tripId: null, excludedFromTrips: false, time: { gte: startTime, lte: endTime } },
+      data: { excludedFromTrips: true },
+    });
+    return;
+  }
 
   await prisma.$transaction(async (tx) => {
     const t = await tx.trip.create({
