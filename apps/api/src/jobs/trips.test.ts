@@ -148,13 +148,34 @@ describe("closeTripsForVehicle — no phantom 0km trips after a real trip", () =
       lon: 127.1,
       speed: 5,
       rpm: 800,
-      odometer: 74970,
+      odometer: 74970 + Math.floor(i / 10),
     }));
     await prisma.telemetryRaw.createMany({ data: rows });
 
     await closeTripsForVehicle(vehicleId);
 
     expect(await prisma.trip.count({ where: { vehicleId } })).toBe(0);
+  });
+
+  it("keeps a short real drive even when the whole-km odometer did not tick", async () => {
+    const start = new Date("2026-08-03T07:00:00.000Z");
+    const rows = Array.from({ length: 10 }, (_, i) => ({
+      vehicleId,
+      time: new Date(start.getTime() + i * 30_000),
+      source: "rest_api_post",
+      lat: 36.99 + i * 0.0008,
+      lon: 127.1,
+      speed: 40,
+      rpm: 1500,
+      odometer: 74970,
+    }));
+    await prisma.telemetryRaw.createMany({ data: rows });
+
+    await closeTripsForVehicle(vehicleId);
+
+    const trips = await prisma.trip.findMany({ where: { vehicleId } });
+    expect(trips).toHaveLength(1);
+    expect(trips[0].distanceKm).toBeGreaterThan(0.1);
   });
 
   it("records the odometer reading at the end of the trip", async () => {

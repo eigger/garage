@@ -231,13 +231,18 @@ async function finalizeSegment(vehicleId: string, segment: Point[]): Promise<voi
   // 이후 실행에서 같은 구간을 다시 판정하지 않게 한다.
   const maxSpeed = speeds.length > 0 ? Math.max(...speeds) : null;
   const neverMoved = maxSpeed !== null && maxSpeed < MIN_TRIP_MAX_SPEED_KMH;
-  if (finalDistance < MIN_TRIP_DISTANCE_KM || neverMoved) {
+  // 계기판은 정수 km 단위라 짧은 실주행(1km 미만)은 차이가 0으로 나올 수 있다. 이동 여부는 GPS 거리와
+  // 계기판 차이 중 큰 쪽으로 판단하고, 계기판이 0이면 GPS 거리를 저장해 0km로 남지 않게 한다.
+  const movedKm = Math.max(distanceKm, finalDistance);
+  if (movedKm < MIN_TRIP_DISTANCE_KM || neverMoved) {
     await prisma.telemetryRaw.updateMany({
       where: { vehicleId, tripId: null, excludedFromTrips: false, time: { gte: startTime, lte: endTime } },
       data: { excludedFromTrips: true },
     });
     return;
   }
+
+  if (finalDistance < MIN_TRIP_DISTANCE_KM) finalDistance = movedKm;
 
   await prisma.$transaction(async (tx) => {
     const t = await tx.trip.create({
