@@ -1,6 +1,6 @@
 {
   "name": "@garage/web",
-  "version": "1.5.4",
+  "version": "1.5.6",
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
